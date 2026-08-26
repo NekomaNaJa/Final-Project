@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import AuthLayout from "../components/Login/AuthLayout";
-import InputField from "../components/Login/InputField";
-import SocialAuthButtons from "../components/Login/SocialAuthButtons";
+import AuthLayout from "../components/Auth/AuthLayout";
+import InputField from "../components/Auth/InputField";
+import SocialAuthButtons from "../components/Auth/SocialAuthButtons";
 
 const Login = () => {
   const navigate = useNavigate();
