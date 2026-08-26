@@ -1,6 +1,4 @@
-// กฎการตรวจสอบรหัสผ่าน (logic เดียวกับฝั่ง frontend)
-
-const passwordRules = [
+export const passwordRules = [
   {
     id: "length",
     label: "อย่างน้อย 8 ตัวอักษร",
@@ -28,12 +26,10 @@ const passwordRules = [
   },
 ];
 
-// คืนค่า true ถ้าผ่านทุกเงื่อนไข
 export const isPasswordValid = (password) =>
   typeof password === "string" &&
   passwordRules.every((rule) => rule.test(password));
 
-// คืนข้อความ error แรกที่ไม่ผ่าน
 export const getPasswordError = (password) => {
   if (typeof password !== "string" || password.length === 0) {
     return "กรุณากรอกรหัสผ่าน";
@@ -41,5 +37,3 @@ export const getPasswordError = (password) => {
   const failed = passwordRules.find((rule) => !rule.test(password));
   return failed ? `รหัสผ่านต้อง${failed.label}` : "";
 };
-
-module.exports = { passwordRules, isPasswordValid, getPasswordError };
