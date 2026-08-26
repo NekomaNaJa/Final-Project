@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import authRoutes from "./routes/auth.js";
 
 dotenv.config();
 connectDB();
@@ -17,11 +18,12 @@ const io = new Server(httpServer, {
 app.use(cors({ origin: process.env.CLIENT_URL }));
 app.use(express.json());
 
-// Socket.io — แนบ io ไว้ใน request เพื่อใช้ใน controller
 app.use((req, _, next) => {
   req.io = io;
   next();
 });
+
+app.use("/api/auth", authRoutes);
 
 io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
