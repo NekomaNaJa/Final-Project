@@ -28,7 +28,7 @@ const socialLinks = ["Facebook", "Instagram", "Line", "X", "Donix@gmail.com"];
 
 const Footer = () => {
   return (
-    <footer className="bg-[#13101c] border-t border-[#374151]">
+    <footer className="bg-[#13101c] border-t border-border">
       <div className="max-w-6xl mx-auto px-6 md:px-10 py-14 grid sm:grid-cols-3 gap-10">
         {columns.map((col) => (
           <div key={col.title}>
@@ -60,7 +60,7 @@ const Footer = () => {
         </div>
       </div>
 
-      <div className="border-t border-[#374151] py-6 flex justify-center">
+      <div className="border-t border-border py-6 flex justify-center">
         <img src={DonixLogo} alt="Donix" className="h-6 w-auto opacity-80" />
       </div>
     </footer>
