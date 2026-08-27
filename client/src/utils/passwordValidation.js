@@ -30,10 +30,14 @@ export const passwordRules = [
 
 // คืนค่า true ถ้าผ่านทุกเงื่อนไข
 export const isPasswordValid = (password) =>
+  typeof password === "string" &&
   passwordRules.every((rule) => rule.test(password));
 
 // คืนข้อความ error แรกที่ไม่ผ่าน (ใช้แสดง error message สั้นๆ)
 export const getPasswordError = (password) => {
+  if (typeof password !== "string" || password.length === 0) {
+    return "กรุณากรอกรหัสผ่าน";
+  }
   const failed = passwordRules.find((rule) => !rule.test(password));
   return failed ? `รหัสผ่านต้อง${failed.label}` : "";
 };

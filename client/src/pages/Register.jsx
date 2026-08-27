@@ -5,6 +5,7 @@ import InputField from "../components/Auth/InputField";
 import SocialAuthButtons from "../components/Auth/SocialAuthButtons";
 import PasswordChecklist from "../components/Auth/PasswordChecklist";
 import { isPasswordValid, getPasswordError } from "../utils/passwordValidation";
+import { API } from "../utils/api";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const Register = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5000/api/auth/register", {
+      const res = await fetch(API.register, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
