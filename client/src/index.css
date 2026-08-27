@@ -1,3 +1,41 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    background-color: #0a0b12;
+    font-family: "Nanum Myeongjo", "Kanit", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #f3f4f6;
+  }
+
+  * {
+    font-family: inherit;
+  }
+}
+
+@layer utilities {
+  .donix-gradient-text {
+    background: linear-gradient(90deg, #7c3aed 0%, #00d2ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 24px rgba(124, 58, 237, 0.6);
+  }
+
+  .glow-shadow {
+    box-shadow: 0 0 32px rgba(124, 58, 237, 0.25);
+  }
+
+  .card-blur {
+    background: rgba(17, 19, 32, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+  }
+}

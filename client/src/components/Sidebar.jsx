@@ -1,111 +1,101 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
-  Home,
-  User,
+  LayoutDashboard,
+  UserCircle2,
   Wallet,
-  Flag,
-  Clock,
+  Image,
+  Sparkles,
+  History,
   Settings,
   LogOut,
 } from "lucide-react";
+import DonixLogo from "../assets/PrimaryLogo.png";
 
-const menuGroups = [
-  {
-    label: "ทั่วไป",
-    items: [
-      {
-        label: "ข้อมูลเบื้องต้น",
-        to: "/dashboard",
-        icon: Home,
-        end: true,
-      },
-      {
-        label: "บัญชีผู้ใช้",
-        to: "/dashboard/account",
-        icon: User,
-      },
-    ],
-  },
-  {
-    label: "การเงิน",
-    items: [
-      {
-        label: "บัญชีรับเงิน",
-        to: "/dashboard/payment",
-        icon: Wallet,
-      },
-      {
-        label: "พันธกิจโดเนท",
-        to: "/dashboard/missions",
-        icon: Flag,
-      },
-      {
-        label: "วิธีรับโดเนท",
-        to: "/dashboard/how-to-receive",
-        icon: User,
-      },
-      {
-        label: "ประวัติการรับเงิน",
-        to: "/dashboard/history",
-        icon: Clock,
-      },
-    ],
-  },
+const menuTop = [
+  { label: "ข้อมูลเบื้องต้น", icon: LayoutDashboard, to: "/dashboard" },
+  { label: "บัญชีผู้ใช้", icon: UserCircle2, to: "/account" },
 ];
 
-const DashboardSidebar = ({ onLogout }) => {
-  const menuClass = ({ isActive }) =>
-    `flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-all duration-200 ${
-      isActive
-        ? "bg-gradient-to-r from-[#4f248c] to-[#312064] text-white shadow-[0_0_18px_rgba(113,72,202,0.18)]"
-        : "text-[#b1abbf] hover:bg-white/[0.04] hover:text-white"
-    }`;
+const menuFinance = [
+  { label: "บัญชีรับเงิน", icon: Wallet, to: "/payment" },
+  { label: "หน้ารับเงิน", icon: Image, to: "/donate-page" },
+  { label: "วิดเจ็ตรับเงิน", icon: Sparkles, to: "/widget" },
+  { label: "ประวัติการรับเงิน", icon: History, to: "/history" },
+];
+
+const SidebarItem = ({ icon: Icon, label, to, end }) => {
+  const base =
+    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all";
+  const active =
+    "border border-purple-500/40 bg-purple-600/15 text-white shadow-[inset_0_0_16px_rgba(124,58,237,0.2)]";
+  const inactive = "text-gray-400 hover:bg-white/5 hover:text-white";
+
+  if (to) {
+    return (
+      <NavLink
+        to={to}
+        end={end}
+        className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
+      >
+        {({ isActive }) => (
+          <>
+            <Icon size={16} className={isActive ? "text-purple-400" : ""} />
+            <span>{label}</span>
+          </>
+        )}
+      </NavLink>
+    );
+  }
+  return (
+    <button className={`${base} ${inactive}`}>
+      <Icon size={16} />
+      <span>{label}</span>
+    </button>
+  );
+};
+
+const Sidebar = () => {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r border-[#2b2543] bg-[#151127] pt-20 lg:flex">
-      <div className="flex-1 px-4 py-5">
-        {menuGroups.map((group) => (
-          <div key={group.label} className="mb-7">
-            <p className="mb-2 px-2 text-[10px] font-medium text-[#6f6883]">
-              {group.label}
-            </p>
-
-            <div className="space-y-1">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.label}
-                    to={item.to}
-                    end={item.end}
-                    className={menuClass}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+    <aside className="sticky top-0 h-screen w-56 shrink-0 flex flex-col border-r border-border bg-abyss/60 px-4 py-6 backdrop-blur-xl">
+      <div className="px-2 mb-8">
+        <img src={DonixLogo} alt="DONIX" className="h-7 w-auto" />
       </div>
 
-      <div className="space-y-1 border-t border-[#2b2543] p-4">
-        <NavLink
-          to="/dashboard/settings"
-          className={menuClass}
-        >
-          <Settings className="h-4 w-4" />
-          <span>ตั้งค่า</span>
-        </NavLink>
+      <div className="mb-6">
+        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-500">
+          ทั่วไป
+        </p>
+        <div className="space-y-1">
+          {menuTop.map((m) => (
+            <SidebarItem key={m.to} {...m} end={m.to === "/dashboard"} />
+          ))}
+        </div>
+      </div>
 
+      <div>
+        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-500">
+          การชำระเงิน
+        </p>
+        <div className="space-y-1">
+          {menuFinance.map((m) => (
+            <SidebarItem key={m.to} {...m} />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-auto space-y-1">
+        <SidebarItem icon={Settings} label="ตั้งค่า" to="/settings" />
         <button
-          type="button"
-          onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm text-[#b1abbf] transition-all duration-200 hover:bg-white/[0.04] hover:text-white"
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut size={16} />
           <span>ออกจากระบบ</span>
         </button>
       </div>
@@ -113,4 +103,4 @@ const DashboardSidebar = ({ onLogout }) => {
   );
 };
 
-export default DashboardSidebar;
+export default Sidebar;
