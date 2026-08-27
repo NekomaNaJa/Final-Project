@@ -16,7 +16,7 @@ const SettingsCard = ({ title, subtitle, onSave, children, className = "" }) => 
 
   return (
     <section
-      className={`rounded-2xl border border-[#2b2542] bg-[#16122a] p-6 shadow-xl relative transition-all ${className}`}
+      className={`rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)] relative transition-all ${className}`}
     >
       {/* Header */}
       <div className="mb-6">

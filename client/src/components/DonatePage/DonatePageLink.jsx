@@ -27,7 +27,7 @@ const DonatePageLink = ({ username = "Test" }) => {
 
       {/* URL Box & Action Icons */}
       <div className="w-full max-w-xl">
-        <div className="flex items-center gap-2 rounded-2xl border border-[#2d2747] bg-[#141026] p-2 pl-4 shadow-lg focus-within:border-purple-500/60 transition-all">
+        <div className="flex items-center gap-2 rounded-2xl border border-[#2d2747] bg-[#141026]/80 backdrop-blur-md p-2 pl-4 shadow-lg focus-within:border-purple-500/60 transition-all">
           <input
             type="text"
             readOnly
@@ -96,7 +96,7 @@ const DonatePageLink = ({ username = "Test" }) => {
             e.preventDefault();
             alert(`เปิดดูตัวอย่างหน้ารับเงินสำหรับ: ${donateUrl}`);
           }}
-          className="group flex items-center justify-between rounded-full border border-purple-500/30 bg-[#16122d]/90 px-4 py-2.5 shadow-[0_0_20px_rgba(124,58,237,0.15)] hover:border-purple-500/60 hover:bg-[#1e173e] hover:shadow-[0_0_24px_rgba(124,58,237,0.25)] transition-all"
+          className="group flex items-center justify-between rounded-full border border-purple-500/30 bg-[#16122d]/70 backdrop-blur-md px-4 py-2.5 shadow-[0_0_20px_rgba(124,58,237,0.15)] hover:border-purple-500/60 hover:bg-[#1e173e]/80 hover:shadow-[0_0_24px_rgba(124,58,237,0.25)] transition-all"
         >
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-600/30 text-purple-300">
