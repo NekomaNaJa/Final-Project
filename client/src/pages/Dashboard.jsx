@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import StatsCard from "../components/Dashboard/StatsCard";
-import DonationChart from "../components/Dashboard/DonationChart.jsx";
+import DonationChart from "../components/Dashboard/DonationChart";
 import TopDonors from "../components/Dashboard/TopDonors";
 import RealtimeFeed from "../components/Dashboard/RealtimeFeed";
 import PaymentChannels from "../components/Dashboard/PaymentChannels";
