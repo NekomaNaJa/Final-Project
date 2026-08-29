@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
+import PaymentPage from "./pages/PaymentPage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 
 
@@ -19,6 +20,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
             </ProtectedRoute>
           }
         />
