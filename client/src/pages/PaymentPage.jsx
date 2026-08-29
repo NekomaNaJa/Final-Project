@@ -43,7 +43,7 @@ const PaymentPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex">
       {/* Ambient Gradient Background */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         {/* Top-center primary purple glow */}
@@ -73,17 +73,12 @@ const PaymentPage = () => {
       </div>
 
       {/* Sidebar */}
-      <div className="relative z-20 shrink-0">
-        <DashboardSidebar onLogout={handleLogout} />
-      </div>
+      <DashboardSidebar onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col pb-16">
         {/* Topbar with breadcrumb */}
-        <DashboardTopbar
-          username={user?.username}
-          breadcrumb="บัญชีรับเงิน"
-        />
+        <DashboardTopbar username={user?.username} breadcrumb="บัญชีรับเงิน" />
 
         {/* Page Content */}
         <main className="mx-auto w-full max-w-[1240px] px-6 sm:px-10 lg:px-14 py-10 space-y-8">
