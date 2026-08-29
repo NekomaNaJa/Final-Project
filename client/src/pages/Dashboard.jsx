@@ -1,92 +1,110 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardSidebar from "../components/Sidebar";
-import DashboardTopbar from "../components/Topbar";
-import StatCard from "../components/Dashboard/StatCard";
-import DonationChart from "../components/Dashboard/DonationChart";
-import SupportPanel from "../components/Dashboard/SupportPanel";
-import RecentDonations from "../components/Dashboard/RecentDonations";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
+import StatsCard from "../components/Dashboard/StatsCard";
+import DonationChart from "../components/Dashboard/DonationChart.jsx";
+import TopDonors from "../components/Dashboard/TopDonors";
+import RealtimeFeed from "../components/Dashboard/RealtimeFeed";
 import PaymentChannels from "../components/Dashboard/PaymentChannels";
-import { Banknote, Heart, Eye } from "lucide-react";
-
-const getUserFromToken = () => {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
-
-  try {
-    const payload = token.split(".")[1];
-
-    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-  } catch {
-    localStorage.removeItem("token");
-    return null;
-  }
-};
+import { Sword, Coins, Gem, Eye } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const user = getUserFromToken();
+  const [user, setUser] = useState(null);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
-  };
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setTimeout(() => setUser(payload), 0);
+    } catch {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-[#090812] font-sans text-white lg:flex">
-      <DashboardSidebar onLogout={handleLogout} />
-
-      <div className="flex-1 min-w-0">
-        <DashboardTopbar username={user?.username} />
-
-        <main>
-          <div className="mx-auto w-full max-w-[1120px] px-5 py-8 lg:px-8">
-            {/* เนื้อหาข้างในเหมือนเดิมทั้งหมด ไม่ต้องแก้ */}
-            <div className="mb-7">
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#8066d6]">
-                Welcome back
-              </p>
-              <h1 className="text-2xl font-bold text-[#e8e4ee]">
-                สวัสดี{" "}
-                <span className="font-serif tracking-wide text-[#aa8df1]">
-                  {user?.username || "Streamer"}
-                </span>{" "}
-                !!!
-              </h1>
-              <p className="mt-1 text-xs text-[#716b7a]">ภาพรวมบัญชีของคุณ</p>
+    <div className="min-h-screen bg-[#0A0B12] bg-[radial-gradient(ellipse_at_top_left,rgba(124,58,237,0.15),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(220,38,38,0.08),transparent_60%)]">
+      <div className="flex">
+        <Sidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <Topbar username={user?.username} />
+          <main className="flex-1 px-8 py-8">
+            {/* Welcome */}
+            <div className="flex items-end justify-between gap-4 mb-8">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-purple-400/80 mb-2">
+                  Welcome back
+                </p>
+                <h1 className="text-4xl font-bold text-white">
+                  สวัสดี{" "}
+                  <span className="text-purple-400 text-glow uppercase">
+                    {user?.username || "..."}
+                  </span>{" "}
+                  !!!
+                </h1>
+                <p className="mt-1.5 text-sm text-gray-500">
+                  ภาพรวมการรับโดเนทของคุณวันนี้
+                </p>
+              </div>
+              <button className="hidden md:inline-flex items-center gap-2 rounded-lg border border-purple-500/40 bg-purple-600/10 px-4 py-2.5 text-xs uppercase tracking-[0.2em] text-purple-400 hover:bg-purple-600 hover:text-white transition-all">
+                <Sword size={14} />
+                แชร์ลิงก์โดเนท
+              </button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <StatCard
-                title="ยอดการรับเงิน"
-                value="0"
-                suffix="บาท"
-                Icon={Banknote}
-                tone="purple"
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <StatsCard
+                icon={Coins}
+                label="ยอดการรับเงิน"
+                value={0}
+                unit="บาท"
+                percent={0}
+                percentLabel="เทียบกับสัปดาห์ที่แล้ว"
+                accent="purple"
               />
-              <StatCard
-                title="จำนวนโดเนท"
-                value="0"
-                suffix="ครั้ง"
-                Icon={Heart}
-                tone="green"
+              <StatsCard
+                icon={Gem}
+                label="จำนวนโดเนท"
+                value={0}
+                unit="ครั้ง"
+                percent={0}
+                percentLabel="เทียบกับสัปดาห์ที่แล้ว"
+                accent="gold"
               />
-              <StatCard
-                title="จำนวนผู้ชม"
-                value="0"
-                suffix="คน"
-                Icon={Eye}
-                tone="red"
+              <StatsCard
+                icon={Eye}
+                label="จำนวนผู้ชม"
+                value={0}
+                unit="คน"
+                percent={0}
+                percentLabel="เทียบกับสัปดาห์ที่แล้ว"
+                accent="crimson"
               />
             </div>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-              <DonationChart />
-              <SupportPanel />
-              <RecentDonations />
+            {/* Chart + Top Donors */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+              <div className="lg:col-span-2">
+                <DonationChart />
+              </div>
+              <TopDonors />
+            </div>
+
+            {/* Feed + Payment */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2">
+                <RealtimeFeed />
+              </div>
               <PaymentChannels />
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );
