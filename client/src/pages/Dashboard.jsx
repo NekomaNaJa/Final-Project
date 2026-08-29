@@ -6,7 +6,6 @@ import DonationChart from "../components/Dashboard/DonationChart";
 import SupportPanel from "../components/Dashboard/SupportPanel";
 import RecentDonations from "../components/Dashboard/RecentDonations";
 import PaymentChannels from "../components/Dashboard/PaymentChannels";
-import Footer from "../components/MainPage/Footer";
 import { Banknote, Heart, Eye } from "lucide-react";
 
 const getUserFromToken = () => {
