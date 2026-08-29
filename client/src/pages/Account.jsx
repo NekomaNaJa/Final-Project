@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardSidebar from "../components/Sidebar";
 import DashboardTopbar from "../components/Topbar";
-import Footer from "../components/MainPage/Footer";
 import AccountProfileCard from "../components/Account/AccountProfileCard";
 import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
@@ -30,7 +29,7 @@ const Account = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex">
       {/* Ambient Gradient Background */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
@@ -57,13 +56,12 @@ const Account = () => {
       </div>
 
       {/* Sidebar */}
-      <div className="relative z-20 shrink-0">
-        <DashboardSidebar onLogout={handleLogout} />
-      </div>
+      <DashboardSidebar onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
+          {/* Topbar with breadcrumb */}
           <DashboardTopbar username={user?.username} breadcrumb="บัญชีผู้ใช้" />
 
           <main className="mx-auto w-full max-w-[1120px] px-5 py-8 lg:px-8 space-y-6">
@@ -94,8 +92,6 @@ const Account = () => {
             <AccountTabs user={user} />
           </main>
         </div>
-
-        <Footer />
       </div>
     </div>
   );
