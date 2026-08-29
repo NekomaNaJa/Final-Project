@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const DashboardNavbar = ({ username, breadcrumb }) => {
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-[#0A0B12]/70 px-8 py-4 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-[#0A0B12]/85 px-8 py-4 backdrop-blur-xl">
       <nav className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-gray-500">
         <Link to="/" className="hover:text-purple-400 transition-colors">
           หน้าหลัก
