@@ -5,6 +5,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
 import HistoryPage from "./pages/HistoryPage";
+import HowToUse from "./pages/HowToUse";
 
 
 const App = () => {
@@ -18,6 +19,7 @@ const App = () => {
         <Route path="/donate-page" element={<DonatePage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/Histor" element={<HistoryPage />} />
+        <Route path="/how-it-works" element={<HowToUse />} />
       </Routes>
     </BrowserRouter>
   );
