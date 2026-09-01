@@ -59,7 +59,7 @@ const DecorateSection = () => {
             min="0"
             step="1"
             value={minAmount}
-            onChange={(e) => setMinAmount(e.target.value)}
+            onChange={(e) => setMinAmount(Number(e.target.value))}
             className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2 text-xs font-medium text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all"
             placeholder="เช่น 1 หรือ 10"
           />

@@ -13,7 +13,9 @@ const Navbar = () => {
   let user = null;
   if (token) {
     try {
-      user = JSON.parse(atob(token.split(".")[1]));
+      user = JSON.parse(
+        atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+      );
     } catch {
       localStorage.removeItem("token");
     }
