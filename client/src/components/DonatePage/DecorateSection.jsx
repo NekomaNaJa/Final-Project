@@ -4,21 +4,32 @@ import RichTextField from "./RichTextField";
 import ImageUploadBox from "./ImageUploadBox";
 
 const DecorateSection = () => {
-  const [welcomeMessage, setWelcomeMessage] = useState("");
-  const [thankYouMessage, setThankYouMessage] = useState("");
-  const [minAmount, setMinAmount] = useState(1);
-  const [coverImage, setCoverImage] = useState(null);
-  const [backgroundImage, setBackgroundImage] = useState(null);
+  const getSaved = () => {
+    try {
+      return JSON.parse(localStorage.getItem("donix_donate_config")) || {};
+    } catch {
+      return {};
+    }
+  };
+  const saved = getSaved();
+
+  const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || "");
+  const [thankYouMessage, setThankYouMessage] = useState(saved.thankYouMessage || "");
+  const [minAmount, setMinAmount] = useState(saved.minAmount !== undefined ? saved.minAmount : 10);
+  const [coverImage, setCoverImage] = useState(saved.coverImage || null);
+  const [backgroundImage, setBackgroundImage] = useState(saved.backgroundImage || null);
 
   const handleSave = () => {
-    // Mock save data
-    console.log("Saving donate page settings:", {
+    const config = {
+      ...saved,
       welcomeMessage,
       thankYouMessage,
       minAmount,
       coverImage,
       backgroundImage,
-    });
+    };
+    localStorage.setItem("donix_donate_config", JSON.stringify(config));
+    console.log("Saved donate page settings:", config);
   };
 
   return (

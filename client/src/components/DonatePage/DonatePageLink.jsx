@@ -91,11 +91,9 @@ const DonatePageLink = ({ username = "Test" }) => {
       {/* Preview Button Bar */}
       <div className="w-full max-w-xl">
         <a
-          href={`#preview-${username}`}
-          onClick={(e) => {
-            e.preventDefault();
-            alert(`เปิดดูตัวอย่างหน้ารับเงินสำหรับ: ${donateUrl}`);
-          }}
+          href={`/${username}`}
+          target="_blank"
+          rel="noreferrer"
           className="group flex items-center justify-between rounded-full border border-purple-500/30 bg-[#16122d]/70 backdrop-blur-md px-4 py-2.5 shadow-[0_0_20px_rgba(124,58,237,0.15)] hover:border-purple-500/60 hover:bg-[#1e173e]/80 hover:shadow-[0_0_24px_rgba(124,58,237,0.25)] transition-all"
         >
           <div className="flex items-center gap-2.5">

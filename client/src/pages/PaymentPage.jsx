@@ -30,16 +30,34 @@ const PaymentPage = () => {
     navigate("/login");
   };
 
+  const getSavedPayment = () => {
+    try {
+      return JSON.parse(localStorage.getItem("donix_payment_config")) || {};
+    } catch {
+      return {};
+    }
+  };
+  const savedPayment = getSavedPayment();
+
   const handleSavePromptPay = (data) => {
-    console.log("Saving PromptPay settings:", data);
+    const current = getSavedPayment();
+    const updated = { ...current, promptpay: data };
+    localStorage.setItem("donix_payment_config", JSON.stringify(updated));
+    console.log("Saved PromptPay settings:", updated);
   };
 
   const handleSaveTrueMoney = (data) => {
-    console.log("Saving TrueMoney settings:", data);
+    const current = getSavedPayment();
+    const updated = { ...current, truemoney: data };
+    localStorage.setItem("donix_payment_config", JSON.stringify(updated));
+    console.log("Saved TrueMoney settings:", updated);
   };
 
   const handleSaveBank = (data) => {
-    console.log("Saving Bank settings:", data);
+    const current = getSavedPayment();
+    const updated = { ...current, bank: data };
+    localStorage.setItem("donix_payment_config", JSON.stringify(updated));
+    console.log("Saved Bank settings:", updated);
   };
 
   return (
@@ -86,9 +104,18 @@ const PaymentPage = () => {
 
           {/* 2x2 Grid of Payment Channels */}
           <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
-            <PromptPayCard onSave={handleSavePromptPay} />
-            <TrueMoneyCard onSave={handleSaveTrueMoney} />
-            <BankCard onSave={handleSaveBank} />
+            <PromptPayCard
+              initialData={savedPayment.promptpay}
+              onSave={handleSavePromptPay}
+            />
+            <TrueMoneyCard
+              initialData={savedPayment.truemoney}
+              onSave={handleSaveTrueMoney}
+            />
+            <BankCard
+              initialData={savedPayment.bank}
+              onSave={handleSaveBank}
+            />
             <ComingSoonCard />
           </div>
         </main>

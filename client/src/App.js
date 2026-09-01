@@ -7,6 +7,7 @@ import DonatePage from "./pages/DonatePage";
 import PaymentPage from "./pages/PaymentPage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 import Account from "./pages/Account";
+import DonorPage from "./pages/DonorPage";
 import NotFound from "./pages/NotFound";
 import HistoryPage from "./pages/HistoryPage";
 import HowToUse from "./pages/HowToUse";
@@ -59,6 +60,8 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/donor/:username" element={<DonorPage />} />
+        <Route path="/:username" element={<DonorPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
