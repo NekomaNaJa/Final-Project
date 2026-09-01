@@ -8,6 +8,7 @@ import PaymentPage from "./pages/PaymentPage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
+import HistoryPage from "./pages/HistoryPage";
 
 const App = () => {
   return (
@@ -45,6 +46,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Account />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <HistoryPage />
             </ProtectedRoute>
           }
         />
