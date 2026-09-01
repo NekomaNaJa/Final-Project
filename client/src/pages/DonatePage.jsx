@@ -1,7 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardSidebar from "../components/Sidebar";
-import DashboardTopbar from "../components/Topbar";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
+import Footer from "../components/MainPage/Footer";
 import DonatePageLink from "../components/DonatePage/DonatePageLink";
 import DecorateSection from "../components/DonatePage/DecorateSection";
 import MessageFilterSection from "../components/DonatePage/MessageFilterSection";
@@ -60,13 +61,19 @@ const DonatePage = () => {
       </div>
 
       {/* Sidebar */}
+<<<<<<< HEAD
       <DashboardSidebar onLogout={handleLogout} />
+=======
+      <div className="relative z-20 shrink-0">
+        <Sidebar onLogout={handleLogout} />
+      </div>
+>>>>>>> 433575c99ef5d458d538360dfafea32f7ee4e4c1
 
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
           {/* Topbar with breadcrumb */}
-          <DashboardTopbar username={user?.username} breadcrumb="หน้ารับเงิน" />
+          <Topbar username={user?.username} breadcrumb="หน้ารับเงิน" />
 
           {/* Page Content */}
           <main className="mx-auto w-full max-w-[960px] px-4 py-8 sm:px-6 lg:px-8 space-y-6">
