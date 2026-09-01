@@ -61,13 +61,9 @@ const DonatePage = () => {
       </div>
 
       {/* Sidebar */}
-<<<<<<< HEAD
-      <DashboardSidebar onLogout={handleLogout} />
-=======
       <div className="relative z-20 shrink-0">
         <Sidebar onLogout={handleLogout} />
       </div>
->>>>>>> 433575c99ef5d458d538360dfafea32f7ee4e4c1
 
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
