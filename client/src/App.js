@@ -9,12 +9,14 @@ import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 import HistoryPage from "./pages/HistoryPage";
+import HowToUse from "./pages/HowToUse";
 
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainPage />} />
+        <Route path="/how-it-works" element={<HowToUse />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route
