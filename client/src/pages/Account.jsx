@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardSidebar from "../components/Sidebar";
-import DashboardTopbar from "../components/Topbar";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 import AccountProfileCard from "../components/Account/AccountProfileCard";
 import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
@@ -56,13 +56,13 @@ const Account = () => {
       </div>
 
       {/* Sidebar */}
-      <DashboardSidebar onLogout={handleLogout} />
+      <Sidebar onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
           {/* Topbar with breadcrumb */}
-          <DashboardTopbar username={user?.username} breadcrumb="บัญชีผู้ใช้" />
+          <Topbar username={user?.username} breadcrumb="บัญชีผู้ใช้" />
 
           <main className="mx-auto w-full max-w-[1120px] px-5 py-8 lg:px-8 space-y-6">
             {/* Header */}
