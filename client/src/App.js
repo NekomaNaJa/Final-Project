@@ -5,7 +5,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
 import HistoryPage from "./pages/HistoryPage";
-
+import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 
 const App = () => {
   return (
@@ -14,10 +14,30 @@ const App = () => {
         <Route path="/" element={<MainPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/donate-page" element={<DonatePage />} />
-        <Route path="/history" element={<HistoryPage />} />
-        <Route path="/Histor" element={<HistoryPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/donate-page"
+          element={
+            <ProtectedRoute>
+              <DonatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
