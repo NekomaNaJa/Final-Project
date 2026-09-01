@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardSidebar from "../components/Sidebar";
-import DashboardTopbar from "../components/Topbar";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
 import PaymentHeader from "../components/Payment/PaymentHeader";
 import PromptPayCard from "../components/Payment/PromptPayCard";
 import TrueMoneyCard from "../components/Payment/TrueMoneyCard";
@@ -73,12 +73,12 @@ const PaymentPage = () => {
       </div>
 
       {/* Sidebar */}
-      <DashboardSidebar onLogout={handleLogout} />
+      <Sidebar onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col pb-16">
         {/* Topbar with breadcrumb */}
-        <DashboardTopbar username={user?.username} breadcrumb="บัญชีรับเงิน" />
+        <Topbar username={user?.username} breadcrumb="บัญชีรับเงิน" />
 
         {/* Page Content */}
         <main className="mx-auto w-full max-w-[1240px] px-6 sm:px-10 lg:px-14 py-10 space-y-8">
