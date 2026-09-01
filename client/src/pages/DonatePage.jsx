@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import Footer from "../components/MainPage/Footer";
 import DonatePageLink from "../components/DonatePage/DonatePageLink";
 import DecorateSection from "../components/DonatePage/DecorateSection";
 import MessageFilterSection from "../components/DonatePage/MessageFilterSection";
