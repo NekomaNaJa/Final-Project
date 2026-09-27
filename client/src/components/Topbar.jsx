@@ -9,12 +9,10 @@ const DashboardNavbar = ({ username, breadcrumb }) => {
           หน้าหลัก
         </Link>
         <span>/</span>
-        {breadcrumb ? (
+        {breadcrumb && (
           <>
             <span className="text-white">{breadcrumb}</span>
           </>
-        ) : (
-          <span className="text-white">ข้อมูลเบื้องต้น</span>
         )}
       </nav>
 

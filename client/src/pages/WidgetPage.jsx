@@ -1,0 +1,196 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
+import WidgetHeader from "../components/Widget/WidgetHeader";
+import WidgetTypeTabs from "../components/Widget/WidgetTypeTabs";
+import DonateAlertPanel from "../components/Widget/DonateAlertPanel";
+import DonateGoalPanel from "../components/Widget/DonateGoalPanel";
+import LeaderboardPanel from "../components/Widget/LeaderboardPanel";
+import MissionDonatePanel from "../components/Widget/MissionDonatePanel";
+import WidgetPreview from "../components/Widget/WidgetPreview";
+import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
+import { getWidgetConfig, saveWidgetConfig } from "../components/Widget/widgetStorage";
+
+const getUserFromToken = () => {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const payload = token.split(".")[1];
+    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    localStorage.removeItem("token");
+    return null;
+  }
+};
+
+const WidgetPage = () => {
+  const navigate = useNavigate();
+  const user = getUserFromToken();
+  const [activeTab, setActiveTab] = useState("alert");
+  const [config, setConfig] = useState(getWidgetConfig);
+  const [savedConfig, setSavedConfig] = useState(getWidgetConfig);
+  const [playing, setPlaying] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
+  const updateSection = (key, value) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    saveWidgetConfig(config);
+    setSavedConfig(config);
+  };
+
+  const playSimulationSound = (preset) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (preset === "dragon-roar") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(160, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 1.2);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
+        osc.start();
+        osc.stop(ctx.currentTime + 1.2);
+      } else if (preset === "ancient-bell") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
+        osc.start();
+        osc.stop(ctx.currentTime + 2.0);
+      } else if (preset !== "none") {
+        // Mythic Horn
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(392.0, ctx.currentTime);
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime + 0.15);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.35, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
+        osc.start();
+        osc.stop(ctx.currentTime + 1.5);
+      }
+    } catch {
+      // Ignore audio synthesis errors on autoplay policy
+    }
+  };
+
+  const handleTest = () => {
+    setPlaying(true);
+    if (activeTab === "alert") {
+      playSimulationSound(config.alert?.soundPreset);
+    }
+    const duration = (config.alert?.durationDisplay || 5) * 1000;
+    window.setTimeout(() => setPlaying(false), Math.min(6000, duration));
+  };
+
+  const isLive =
+    JSON.stringify(config[activeTab]) === JSON.stringify(savedConfig[activeTab]);
+
+  return (
+    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex">
+      {/* Ambient Glows */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div
+          className="absolute -top-40 left-1/2 h-[650px] w-[950px] -translate-x-1/2 rounded-full blur-[110px] opacity-75"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, rgba(124, 58, 237, 0.28) 0%, rgba(88, 28, 135, 0.15) 45%, rgba(9, 8, 18, 0) 75%)",
+          }}
+        />
+        <div
+          className="absolute top-1/4 -left-24 h-[500px] w-[500px] rounded-full blur-[120px] opacity-40"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(109, 40, 217, 0.2) 0%, rgba(9, 8, 18, 0) 70%)",
+          }}
+        />
+        <div
+          className="absolute top-2/3 -right-24 h-[550px] w-[550px] rounded-full blur-[130px] opacity-35"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(147, 51, 234, 0.18) 0%, rgba(9, 8, 18, 0) 70%)",
+          }}
+        />
+      </div>
+
+      {/* Sticky Sidebar */}
+      <Sidebar onLogout={handleLogout} />
+
+      {/* Main Content Area */}
+      <div className="relative z-10 flex-1 min-w-0 flex flex-col">
+        <Topbar username={user?.username} breadcrumb="วิดเจ็ตรับเงิน" />
+
+        <main className="mx-auto w-full max-w-[1200px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+          <WidgetHeader />
+          <WidgetTypeTabs activeId={activeTab} onChange={setActiveTab} />
+
+          {/* 2-Column Grid Layout */}
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+            {/* Left Column: Form Settings */}
+            <div>
+              {activeTab === "alert" && (
+                <DonateAlertPanel
+                  value={config.alert}
+                  onChange={(value) => updateSection("alert", value)}
+                  onSave={handleSave}
+                />
+              )}
+              {activeTab === "goal" && (
+                <DonateGoalPanel
+                  value={config.goal}
+                  onChange={(value) => updateSection("goal", value)}
+                  onSave={handleSave}
+                />
+              )}
+              {activeTab === "leaderboard" && (
+                <LeaderboardPanel
+                  value={config.leaderboard}
+                  onChange={(value) => updateSection("leaderboard", value)}
+                  onSave={handleSave}
+                />
+              )}
+              {activeTab === "mission" && (
+                <MissionDonatePanel
+                  value={config.mission}
+                  onChange={(value) => updateSection("mission", value)}
+                  onSave={handleSave}
+                />
+              )}
+            </div>
+
+            {/* Right Column: Real-time Preview & Browser Source Card */}
+            <div className="space-y-4 lg:sticky lg:top-24 self-start">
+              <WidgetPreview
+                type={activeTab}
+                config={config[activeTab]}
+                playing={playing}
+              />
+              <BrowserSourceCard
+                type={activeTab}
+                username={user?.username}
+                isLive={isLive}
+                onTest={handleTest}
+              />
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default WidgetPage;

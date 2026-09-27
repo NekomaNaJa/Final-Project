@@ -11,6 +11,7 @@ import DonorPage from "./pages/DonorPage";
 import NotFound from "./pages/NotFound";
 import HistoryPage from "./pages/HistoryPage";
 import HowToUse from "./pages/HowToUse";
+import WidgetPage from "./pages/WidgetPage";
 
 const App = () => {
   return (
@@ -57,6 +58,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/widget"
+          element={
+            <ProtectedRoute>
+              <WidgetPage />
             </ProtectedRoute>
           }
         />
