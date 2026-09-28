@@ -14,7 +14,8 @@ Donix/
 │   └── workflows/
 │       └── ci.yml   → GitHub Actions CI (ดูหัวข้อ 9)
 ├── client/     → Frontend React SPA (Create React App + Tailwind CSS)
-└── server/     → Backend REST API & Realtime Server (Express 5 + Socket.IO + MongoDB)
+├── server/     → Backend REST API & Realtime Server (Express 5 + Socket.IO + MongoDB)
+└── sonar-project.properties → ตั้งค่า SonarCloud (ดูหัวข้อ 9)
 ```
 
 ---
@@ -243,7 +244,7 @@ client/src/
 | Models ที่จะเพิ่ม                                                   | `Donation`, `Mission`, `Blacklist`, `Widget` (ตาม ER Diagram)                  |
 | Socket.IO                                                           | มี event `join-stream`, `disconnect`, `donation-alert` ยังไม่ผูกกับข้อมูลจริง  |
 | CI (GitHub Actions) + branch protection                             | ใช้งานได้ (Phase 1 เสร็จ) `client` และ `server` ต้องผ่านก่อน merge เข้า `main` |
-| SonarCloud                                                          | ยังไม่ได้ทำ (ตามแผน Phase 2)                                                   |
+| SonarCloud                                                          | ใช้งานได้ (Phase 2 เสร็จ) สแกนอัตโนมัติผ่าน CI                                 |
 | OCR ตรวจสลิป                                                        | ยังไม่ได้ทำ (ตามแผน Phase 8)                                                   |
 
 **แนวทางย้ายจาก localStorage → MongoDB**
@@ -257,15 +258,17 @@ client/src/
 
 ไฟล์: `.github/workflows/ci.yml` รันตอน push เข้า `main` และตอนเปิด PR เข้า `main` ใช้ Node 22 และ npm 11
 
-| Job      | ขั้นตอน                                                           |
-| -------- | ----------------------------------------------------------------- |
-| `client` | `npm ci` แล้ว `npm test -- --watchAll=false` แล้ว `npm run build` |
-| `server` | `npm ci` แล้ว `npm test --if-present` (ยังไม่มี test ฝั่ง server) |
+| Job      | ขั้นตอน                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------ |
+| `client` | `npm ci` แล้ว `npm test -- --watchAll=false` แล้ว `npm run build`                                |
+| `server` | `npm ci` แล้ว `npm test --if-present` (ยังไม่มี test ฝั่ง server)                                |
+| `sonar`  | checkout แบบ `fetch-depth: 0` แล้วสแกนด้วย `sonarqube-scan-action` (ต้องมี secret `SONAR_TOKEN`) |
 
 **Branch protection บน `main`**
 
 - ต้องเปิด PR เท่านั้น ห้าม push ตรง
 - ต้องผ่านทั้ง `client` และ `server` ก่อน merge
+- ต้องผ่าน `SonarCloud Code Analysis` (Quality Gate) ก่อน merge
 - ต้องอัปเดต branch ให้ทันกับ `main` ก่อน merge
 - ไม่บังคับ approval (ทีมเล็ก) แต่ควรให้เพื่อนรีวิวก่อน merge
 
@@ -289,6 +292,14 @@ npm test -- --watchAll=false
 | `Treating warnings as errors because process.env.CI` | มี ESLint warning (เช่น import ที่ไม่ได้ใช้) แก้ตามที่ log ระบุ                                                               |
 | `Cannot find module ...` เฉพาะบน CI                  | ตัวพิมพ์ใหญ่เล็กของ path ใน `import` ไม่ตรงกับชื่อไฟล์จริง (Windows ไม่จับ Linux จับ)                                         |
 | `Unable to find an element with the text ...`        | UI เปลี่ยนแต่ `App.test.js` ยังหา text เก่า แก้ test ให้ตรงกับหน้าจริง                                                        |
+
+**SonarCloud**
+
+- ไฟล์ตั้งค่า: `sonar-project.properties` ที่ root (กำหนด organization, project key, โฟลเดอร์ที่สแกน `client/src` และ `server`, ข้ามไฟล์ test)
+- Secret: `SONAR_TOKEN` (GitHub repo แล้ว Settings แล้ว Secrets and variables แล้ว Actions) ห้ามใส่ token ในโค้ด
+- Quality Gate ตรวจเฉพาะโค้ดใหม่ ส่วนปัญหาเก่าเป็น baseline ค่อยๆ แก้ทีละ branch
+- ดูผลสแกนที่ sonarcloud.io (โปรเจค `Final-Project`) และในคอมเมนต์ของบอทบน PR
+- ห้ามเปิด Automatic Analysis บน SonarCloud (ชนกับการสแกนผ่าน CI)
 
 ---
 
