@@ -198,7 +198,7 @@ server/
 client/src/
 ├── assets/                  → โลโก้ รูปภาพประกอบ (PrimaryLogo, HeroLogo, hero, bg-login)
 ├── components/
-│   ├── Account/             → ProfileCard, AccountTabs, SecurityTab, SocialMediaTab, UserInfoTab
+│   ├── Account/             → AccountProfileCard, AccountTabs, SecurityTab, SocialMediaTab, UserInfoTab
 │   ├── Auth/                → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
 │   ├── Dashboard/           → StatCard, DonationChart, RecentDonations, PaymentChannels, SupportPanel
 │   ├── DonatePage/          → DonatePageLink, DecorateSection, MessageFilterSection, SocialMediaSection, SettingsCard, RichTextField, ImageUploadBox
