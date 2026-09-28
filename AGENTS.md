@@ -10,6 +10,9 @@
 
 ```
 Donix/
+├── .github/
+│   └── workflows/
+│       └── ci.yml   → GitHub Actions CI (ดูหัวข้อ 9)
 ├── client/     → Frontend React SPA (Create React App + Tailwind CSS)
 └── server/     → Backend REST API & Realtime Server (Express 5 + Socket.IO + MongoDB)
 ```
@@ -17,6 +20,12 @@ Donix/
 ---
 
 ## 2. การติดตั้งและการรันระบบ (Running the Project)
+
+### เวอร์ชันที่ต้องใช้
+
+- **Node.js 22** และ **npm 11** (ตรงกับ CI) ตรวจด้วย `node -v` และ `npm -v`
+- npm คนละเวอร์ชันสร้าง `package-lock.json` ไม่เหมือนกัน ทำให้ `npm ci` บน CI พังได้
+- ไม่มี `package.json` ที่ root ห้ามรัน `npm install` ที่ root ต้องรันใน `client/` หรือ `server/` เท่านั้น
 
 ### ฝั่ง Server (Backend)
 
@@ -32,8 +41,8 @@ npm start        # รันในโหมด Production
 ```bash
 cd client
 npm install
-npm start        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test         # รัน Jest Test Suite
+npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (ไม่ค้างโหมด watch)
 ```
 
 ---
@@ -203,6 +212,8 @@ client/src/
 ├── utils/
 │   └── passwordValidation.js→ ตรวจสอบความถูกต้องของรหัสผ่าน
 ├── App.js                   → การกำหนดเส้นทาง Routing ทั้งหมด
+├── App.test.js              → Test พื้นฐาน (render หน้า Landing Page) ที่ CI ใช้
+├── setupTests.js            → ตั้งค่า Jest (jest-dom และ polyfill TextEncoder/TextDecoder)
 ├── index.css                → สไตล์ CSS หลักและนำเข้า Font Kanit / Tailwind
 └── index.js                 → React Root Mounting
 ```
@@ -218,32 +229,79 @@ client/src/
    - ห้ามใส่ `overflow-x: hidden` บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
 4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกัน
 5. **การจัดการ State**: หน้า Donor และ Widget รองรับการซิงค์ข้อมูลผ่าน `localStorage` เป็นหลัก และพร้อมสำหรับการต่อยอดเชื่อมต่อ REST API / Cloud Database ในอนาคต
+6. **ห้าม import ที่ไม่ได้ใช้ (ESLint warning)**: บน CI ตัวแปร `CI=true` ทำให้ warning กลายเป็น error และ build จะแดง
+
+---
 
 ## 8. สถานะงานปัจจุบัน (Project Status)
 
-| ส่วนงาน                                                             | สถานะ                                                                         |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Auth (register / login, JWT)                                        | ใช้งานได้จริง (Client → Server → MongoDB)                                     |
-| Dashboard, Payment, DonatePage, Account, History, Widget, DonorPage | UI เสร็จแล้ว ข้อมูลเก็บที่ `localStorage` ชั่วคราว                            |
-| Models ฝั่ง Server                                                  | มีแค่ `User` (รวม `payment` และ `donationPage`)                               |
-| Models ที่จะเพิ่ม                                                   | `Donation`, `Mission`, `Blacklist`, `Widget` (ตาม ER Diagram)                 |
-| Socket.IO                                                           | มี event `join-stream`, `disconnect`, `donation-alert` ยังไม่ผูกกับข้อมูลจริง |
-| OCR ตรวจสลิป                                                        | ยังไม่ระบุสถานะ (เติมให้ตรงกับความจริง)                                       |
+| ส่วนงาน                                                             | สถานะ                                                                          |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Auth (register / login, JWT)                                        | ใช้งานได้จริง (Client → Server → MongoDB)                                      |
+| Dashboard, Payment, DonatePage, Account, History, Widget, DonorPage | UI เสร็จแล้ว ข้อมูลเก็บที่ `localStorage` ชั่วคราว                             |
+| Models ฝั่ง Server                                                  | มีแค่ `User` (รวม `payment` และ `donationPage`)                                |
+| Models ที่จะเพิ่ม                                                   | `Donation`, `Mission`, `Blacklist`, `Widget` (ตาม ER Diagram)                  |
+| Socket.IO                                                           | มี event `join-stream`, `disconnect`, `donation-alert` ยังไม่ผูกกับข้อมูลจริง  |
+| CI (GitHub Actions) + branch protection                             | ใช้งานได้ (Phase 1 เสร็จ) `client` และ `server` ต้องผ่านก่อน merge เข้า `main` |
+| SonarCloud                                                          | ยังไม่ได้ทำ (ตามแผน Phase 2)                                                   |
+| OCR ตรวจสลิป                                                        | ยังไม่ได้ทำ (ตามแผน Phase 8)                                                   |
 
 **แนวทางย้ายจาก localStorage → MongoDB**
 
 - ทุกหน้าเรียกข้อมูลผ่านไฟล์กลาง (เช่น `widgetStorage.js`) ห้ามเรียก `localStorage` ตรงๆ ในคอมโพเนนต์
 - เมื่อมี API ให้แก้เฉพาะไฟล์กลาง เปลี่ยนจากอ่าน/เขียน localStorage เป็น `fetch` ไปยัง server
 
-## 9. Git Workflow
+---
 
-1. `main` ต้องรันได้เสมอ ห้ามแก้หรือ push ตรงบน `main`
+## 9. CI (GitHub Actions)
+
+ไฟล์: `.github/workflows/ci.yml` รันตอน push เข้า `main` และตอนเปิด PR เข้า `main` ใช้ Node 22 และ npm 11
+
+| Job      | ขั้นตอน                                                           |
+| -------- | ----------------------------------------------------------------- |
+| `client` | `npm ci` แล้ว `npm test -- --watchAll=false` แล้ว `npm run build` |
+| `server` | `npm ci` แล้ว `npm test --if-present` (ยังไม่มี test ฝั่ง server) |
+
+**Branch protection บน `main`**
+
+- ต้องเปิด PR เท่านั้น ห้าม push ตรง
+- ต้องผ่านทั้ง `client` และ `server` ก่อน merge
+- ต้องอัปเดต branch ให้ทันกับ `main` ก่อน merge
+- ไม่บังคับ approval (ทีมเล็ก) แต่ควรให้เพื่อนรีวิวก่อน merge
+
+**ตรวจในเครื่องก่อนเปิด PR** (ใน `client/`, Windows cmd):
+
+```cmd
+set CI=true&& npm run build
+npm test -- --watchAll=false
+```
+
+**ค่าที่จำเป็นต่อ Jest (อย่าลบ)**
+
+- `moduleNameMapper` ใน `client/package.json` ชี้ `react-router/dom` ไปที่ `dom-export.js` เพราะ Jest ของ CRA ไม่อ่านฟิลด์ `exports`
+- polyfill `TextEncoder` / `TextDecoder` ใน `client/src/setupTests.js` เพราะ React Router v7 ต้องใช้แต่ jsdom ไม่มี
+
+**แก้ปัญหา CI แดงที่เจอบ่อย**
+
+| อาการ                                                | สาเหตุและวิธีแก้                                                                                                              |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `npm ci` แจ้ง `Missing ... from lock file`           | lock file สร้างด้วย npm คนละเวอร์ชัน ใช้ npm 11 รัน `npm install` ใน `client/` หรือ `server/` แล้ว commit `package-lock.json` |
+| `Treating warnings as errors because process.env.CI` | มี ESLint warning (เช่น import ที่ไม่ได้ใช้) แก้ตามที่ log ระบุ                                                               |
+| `Cannot find module ...` เฉพาะบน CI                  | ตัวพิมพ์ใหญ่เล็กของ path ใน `import` ไม่ตรงกับชื่อไฟล์จริง (Windows ไม่จับ Linux จับ)                                         |
+| `Unable to find an element with the text ...`        | UI เปลี่ยนแต่ `App.test.js` ยังหา text เก่า แก้ test ให้ตรงกับหน้าจริง                                                        |
+
+---
+
+## 10. Git Workflow
+
+1. `main` ต้องรันได้เสมอ ห้ามแก้หรือ push ตรงบน `main` (GitHub ล็อกไว้แล้ว ต้องผ่าน PR และ CI เขียว)
 2. 1 feature = 1 branch แตกจาก `main` ล่าสุด ตั้งชื่อตัวพิมพ์เล็กทั้งหมด (เช่น `donor-page`)
    Windows แยกตัวพิมพ์ใหญ่เล็กไม่ได้ ชื่อ `History` กับ `history` จึงกลายเป็น branch ซ้ำบน GitHub
-3. ไฟล์ร่วม (`Sidebar.jsx`, `Topbar.jsx`, `App.js`, `index.css`, `package.json`, `utils/`) แก้ใน branch สั้นๆ แยกต่างหาก แล้ว merge เข้า `main` ทันที จากนั้นแจ้งทีมให้ `git pull origin main`
+3. ไฟล์ร่วม (`Sidebar.jsx`, `Topbar.jsx`, `App.js`, `index.css`, `package.json`, `package-lock.json`, `utils/`, `.github/workflows/`) แก้ใน branch สั้นๆ แยกต่างหาก แล้ว merge เข้า `main` ทันที จากนั้นแจ้งทีมให้ `git pull origin main`
 4. ก่อน commit: `git status` แล้ว `git add` เฉพาะไฟล์ที่ตั้งใจ ห้ามให้ `.env` และ `node_modules` หลุดเข้า repo
-5. หลัง merge ที่แตะ `package.json` ให้รัน `npm install` ทั้ง `client/` และ `server/`
+5. หลัง merge ที่แตะ `package.json` ให้รัน `npm install` ทั้ง `client/` และ `server/` (ใช้ npm 11) และ commit `package-lock.json` ที่เปลี่ยนด้วย
 6. แก้ conflict ให้ไม่เหลือเครื่องหมาย `<<<<<<<` / `=======` / `>>>>>>>` ใน `App.js` ให้รวม route ของทั้งสองฝั่ง และ route `*` (NotFound) ต้องอยู่ล่างสุดเสมอ
-7. ก่อนเปิด PR: `npm start` ต้องไม่มี error และ `git status` สะอาด
+7. ก่อนเปิด PR: รันใน `client/` ให้ผ่านทั้ง `set CI=true&& npm run build` และ `npm test -- --watchAll=false` และ `git status` ต้องสะอาด
 8. ห้าม push เข้า branch ของเพื่อนโดยไม่แจ้งก่อน
 9. ชื่อโฟลเดอร์และ `import` ต้องสะกดตัวพิมพ์ใหญ่เล็กตรงกัน (เช่น `Models/`) เพราะ deploy บน Linux (Render)
+10. CI แดง ห้าม merge: กด Details ดู log แก้แล้ว push ซ้ำใน branch เดิม PR จะรัน CI ใหม่เอง
