@@ -16,6 +16,14 @@ router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
+    if (
+      typeof username !== "string" ||
+      typeof email !== "string" ||
+      typeof password !== "string"
+    ) {
+      return res.status(400).json({ message: "ข้อมูลไม่ถูกต้อง" });
+    }
+
     if (!isPasswordValid(password)) {
       return res.status(400).json({ message: getPasswordError(password) });
     }
@@ -48,7 +56,8 @@ router.post("/register", async (req, res) => {
       user: { id: user._id, username: user.username, email: user.email },
     });
   } catch (err) {
-    res.status(500).json({ message: "Server Error", error: err.message });
+    console.error("Register error:", err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
   }
 });
 
@@ -59,8 +68,13 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({ message: "ข้อมูลไม่ถูกต้อง" });
+    }
+
     const user = await User.findOne({ email });
-    if (!user) {
+    // user.password ว่างได้ ถ้าสมัครผ่าน Google (มีแค่ googleId)
+    if (!user || !user.password) {
       return res.status(400).json({ message: "Email หรือรหัสผ่านไม่ถูกต้อง" });
     }
 
@@ -82,7 +96,7 @@ router.post("/login", async (req, res) => {
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server Error", error: err.message });
+    res.status(500).json({ message: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
   }
 });
 
