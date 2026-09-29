@@ -103,6 +103,31 @@ server/
 - **การตั้งค่าหน้ารับเงิน (`donationPage`)**:
   - `welcomeMessage`, `thankYouMessage`, `minAmount`, `charLimit`, `filteredWords`, `coverImage`, `backgroundImage`
 
+### 4.4 การป้องกัน NoSQL Injection (บังคับทุก route ใหม่)
+
+ทุก route ที่รับค่าจาก `req.body`, `req.query` หรือ `req.params` แล้วนำไปใช้ใน query ของ Mongoose (`findOne`, `find`, `updateOne` ฯลฯ) **ต้องทำตามลำดับนี้เสมอ** อ้างอิงจาก `server/routes/auth.js`:
+
+1. **ตรวจชนิดก่อน** ด้วย `typeof` ว่าเป็น `string` (หรือชนิดที่คาดไว้) ปฏิเสธด้วย `400` ถ้าไม่ตรง
+2. **ตัดสาย taint** ด้วยการสร้างตัวแปรใหม่ผ่าน `String(value)` ก่อนใช้ ห้ามส่งตัวแปรจาก `req.body` เข้า query ตรงๆ แม้จะเช็ก `typeof` มาก่อนแล้วก็ตาม
+3. **ครอบเงื่อนไขด้วย `$eq`** ในทุก query object เช่น `User.findOne({ email: { $eq: safeEmail } })` แทน `User.findOne({ email })`
+
+ตัวอย่างรูปแบบที่ถูกต้อง:
+
+```js
+const { email } = req.body;
+
+if (typeof email !== "string") {
+  return res.status(400).json({ message: "ข้อมูลไม่ถูกต้อง" });
+}
+
+const safeEmail = String(email);
+const user = await User.findOne({ email: { $eq: safeEmail } });
+```
+
+เหตุผล: SonarCloud (กฎ `jssecurity:S5147`) ตามรอยค่าจาก `req.body` ว่าไหลเข้า query โดยตรง (taint tracking) การเช็ก `typeof` เพียงอย่างเดียวหรือครอบ `$eq` โดยไม่ตัดสายตัวแปรก่อน ไม่เพียงพอที่จะปิด Quality Gate
+
+ไม่ส่ง error ภายใน (`err.message`) กลับไปให้ client ในทุก route ใช้ `console.error` เก็บ log ฝั่ง server แล้วตอบข้อความไทยทั่วไปแทน (ดูตัวอย่างใน `catch` ของ `auth.js`)
+
 ---
 
 ## 5. โครงสร้างและรายละเอียดระบบฝั่ง Client (`client/`)
@@ -231,6 +256,7 @@ client/src/
 4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกัน
 5. **การจัดการ State**: หน้า Donor และ Widget รองรับการซิงค์ข้อมูลผ่าน `localStorage` เป็นหลัก และพร้อมสำหรับการต่อยอดเชื่อมต่อ REST API / Cloud Database ในอนาคต
 6. **ห้าม import ที่ไม่ได้ใช้ (ESLint warning)**: บน CI ตัวแปร `CI=true` ทำให้ warning กลายเป็น error และ build จะแดง
+7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่ query MongoDB ด้วยค่าจาก request ต้องทำตามรูปแบบในหัวข้อ 4.4 (ตรวจ `typeof` → ตัดสายด้วย `String()` → ครอบ `$eq`)
 
 ---
 
@@ -238,13 +264,13 @@ client/src/
 
 | ส่วนงาน                                                             | สถานะ                                                                          |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Auth (register / login, JWT)                                        | ใช้งานได้จริง (Client → Server → MongoDB)                                      |
+| Auth (register / login, JWT)                                        | ใช้งานได้จริง (Client → Server → MongoDB) ปิดช่องโหว่ NoSQL Injection แล้ว     |
 | Dashboard, Payment, DonatePage, Account, History, Widget, DonorPage | UI เสร็จแล้ว ข้อมูลเก็บที่ `localStorage` ชั่วคราว                             |
 | Models ฝั่ง Server                                                  | มีแค่ `User` (รวม `payment` และ `donationPage`)                                |
-| Models ที่จะเพิ่ม                                                   | `Donation`, `Mission`, `Blacklist`, `Widget` (ตาม ER Diagram)                  |
+| Models ที่จะเพิ่ม                                                   | `Donation` (Phase 6), `Widget`, `Mission`, `Blacklist` (Phase 7) — ดูหัวข้อ 11 |
 | Socket.IO                                                           | มี event `join-stream`, `disconnect`, `donation-alert` ยังไม่ผูกกับข้อมูลจริง  |
 | CI (GitHub Actions) + branch protection                             | ใช้งานได้ (Phase 1 เสร็จ) `client` และ `server` ต้องผ่านก่อน merge เข้า `main` |
-| SonarCloud                                                          | ใช้งานได้ (Phase 2 เสร็จ) สแกนอัตโนมัติผ่าน CI                                 |
+| SonarCloud                                                          | ใช้งานได้ (Phase 2 เสร็จ) Security: 0 open issues บน `main`                    |
 | OCR ตรวจสลิป                                                        | ยังไม่ได้ทำ (ตามแผน Phase 8)                                                   |
 
 **แนวทางย้ายจาก localStorage → MongoDB**
@@ -297,9 +323,11 @@ npm test -- --watchAll=false
 
 - ไฟล์ตั้งค่า: `sonar-project.properties` ที่ root (กำหนด organization, project key, โฟลเดอร์ที่สแกน `client/src` และ `server`, ข้ามไฟล์ test)
 - Secret: `SONAR_TOKEN` (GitHub repo แล้ว Settings แล้ว Secrets and variables แล้ว Actions) ห้ามใส่ token ในโค้ด
-- Quality Gate ตรวจเฉพาะโค้ดใหม่ ส่วนปัญหาเก่าเป็น baseline ค่อยๆ แก้ทีละ branch
-- ดูผลสแกนที่ sonarcloud.io (โปรเจค `Final-Project`) และในคอมเมนต์ของบอทบน PR
+- Main Branch บน SonarCloud ต้องชื่อ `main` ให้ตรงกับ GitHub เป๊ะ (ถ้าตั้งผิดเป็น `master` ผลสแกนจาก CI จะไม่อัปเดตหน้า Overview เพราะแผนฟรีวิเคราะห์เฉพาะ Main Branch)
+- Quality Gate ตรวจเฉพาะโค้ดใหม่ (New Code) ส่วนปัญหาเก่าเป็น baseline ค่อยๆ แก้ทีละ branch
+- ดูผลสแกนที่ sonarcloud.io (โปรเจค `nekomanaja_Final-Project`) และในคอมเมนต์ของบอทบน PR
 - ห้ามเปิด Automatic Analysis บน SonarCloud (ชนกับการสแกนผ่าน CI)
+- แก้ Security/Bug ที่ Sonar แจ้ง: ดูรูปแบบการแก้ NoSQL Injection ในหัวข้อ 4.4 ก่อนเขียนวิธีแก้ใหม่
 
 ---
 
@@ -316,3 +344,18 @@ npm test -- --watchAll=false
 8. ห้าม push เข้า branch ของเพื่อนโดยไม่แจ้งก่อน
 9. ชื่อโฟลเดอร์และ `import` ต้องสะกดตัวพิมพ์ใหญ่เล็กตรงกัน (เช่น `Models/`) เพราะ deploy บน Linux (Render)
 10. CI แดง ห้าม merge: กด Details ดู log แก้แล้ว push ซ้ำใน branch เดิม PR จะรัน CI ใหม่เอง
+
+---
+
+## 11. แผน Models ที่จะเพิ่ม (ตาม Phase)
+
+ตอนนี้มีแค่ `User` เท่านั้น Model ใหม่จะทยอยเพิ่มตามลำดับ Phase ด้านล่าง **Phase 3 (รากฐาน backend) ไม่มีการสร้างหรือแก้ Model** เป็นแค่ middleware, error handler, validation และ test
+
+| Model       | Phase | รายละเอียดคร่าวๆ                                                                                                                                   |
+| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Donation`  | 6     | `streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`, timestamps; index บน `streamerId + createdAt` |
+| `Widget`    | 7     | เก็บ token สำหรับ URL Browser Source ของ OBS และการตั้งค่า Alert/Goal/Leaderboard/Mission ต่อผู้ใช้                                                |
+| `Mission`   | 7     | ภารกิจโดเนทของแต่ละสตรีมเมอร์ (ชื่อ + ราคา) อ้างอิงจาก `missionId` ใน `Donation`                                                                   |
+| `Blacklist` | 7     | รายชื่อ/คำที่ถูกบล็อกไม่ให้โดเนทหรือใช้ข้อความ                                                                                                     |
+
+เมื่อถึง Phase ที่เกี่ยวข้อง ให้ออกแบบ schema แล้วอัปเดตหัวข้อ 4.2 (โครงสร้างไฟล์) และหัวข้อ 8 (สถานะงาน) ในเอกสารนี้ทันที
