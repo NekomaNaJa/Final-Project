@@ -28,12 +28,17 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: getPasswordError(password) });
     }
 
-    const existingEmail = await User.findOne({ email });
+    const safeEmail = String(email);
+    const safeUsername = String(username);
+
+    const existingEmail = await User.findOne({ email: { $eq: safeEmail } });
     if (existingEmail) {
       return res.status(400).json({ message: "Email นี้ถูกใช้งานแล้ว" });
     }
 
-    const existingUsername = await User.findOne({ username });
+    const existingUsername = await User.findOne({
+      username: { $eq: safeUsername },
+    });
     if (existingUsername) {
       return res.status(400).json({ message: "Username นี้ถูกใช้งานแล้ว" });
     }
@@ -72,7 +77,8 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "ข้อมูลไม่ถูกต้อง" });
     }
 
-    const user = await User.findOne({ email });
+    const safeEmail = String(email);
+    const user = await User.findOne({ email: { $eq: safeEmail } });
     // user.password ว่างได้ ถ้าสมัครผ่าน Google (มีแค่ googleId)
     if (!user || !user.password) {
       return res.status(400).json({ message: "Email หรือรหัสผ่านไม่ถูกต้อง" });
