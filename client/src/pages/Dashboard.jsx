@@ -13,6 +13,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
+<<<<<<< HEAD
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -26,6 +27,12 @@ const Dashboard = () => {
       navigate("/login");
     }
   }, [navigate]);
+=======
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+>>>>>>> 02e2ccdf74ea7be521409b8a1bb51acb47835cbd
 
   return (
     <div className="min-h-screen bg-[#0A0B12] bg-[radial-gradient(ellipse_at_top_left,rgba(124,58,237,0.15),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(220,38,38,0.08),transparent_60%)]">

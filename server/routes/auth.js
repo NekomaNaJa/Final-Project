@@ -81,6 +81,7 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ email: { $eq: safeEmail } });
     // user.password ว่างได้ ถ้าสมัครผ่าน Google (มีแค่ googleId)
     if (!user || !user.password) {
+
       return res.status(400).json({ message: "Email หรือรหัสผ่านไม่ถูกต้อง" });
     }
 
