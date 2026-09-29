@@ -12,11 +12,11 @@
 Donix/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml   → GitHub Actions CI (Automated Test & Build & SonarCloud)
-├── client/          → Frontend React SPA (React 18.3.1 + Tailwind CSS + Lucide React + Recharts)
-├── server/          → Backend REST API & Realtime Server (Express 5 + Socket.IO + MongoDB)
-├── AGENTS.md        → คู่มือและข้อตกลงในการพัฒนาฉบับสมบูรณ์
-└── Agent.md         → Backup Documentation
+│       └── ci.yml             → GitHub Actions CI (Automated Test & Build & SonarCloud)
+├── client/                    → Frontend React SPA (React 18.3.1 + Tailwind CSS + Lucide React + Recharts)
+├── server/                    → Backend REST API & Realtime Server (Express 5 + Socket.IO + MongoDB)
+├── sonar-project.properties   → การตั้งค่า SonarCloud Quality Gate & Coverage Exclusions
+└── AGENTS.md                  → คู่มือและข้อตกลงในการพัฒนาฉบับสมบูรณ์
 ```
 
 ---
@@ -175,7 +175,7 @@ const user = await User.findOne({ username: { $eq: safeUsername } });
 #### 3) หน้า Dashboard (`/dashboard`)
 - **StatCards**: ยอดการรับเงินรวม (บาท), จำนวนโดเนททั้งหมด (ครั้ง), ผู้ชมเฉลี่ย (คน)
 - **DonationChart**: กราฟแท่งและเส้นแสดงสถิติยอดโดเนทย้อนหลัง (สัปดาห์/เดือน) ด้วย Recharts
-- **RecentDonations**: รายการโดเนทล่าสุด 5 รายการ พร้อมชื่อ, ข้อความ, เวลา, และจำนวนเงิน
+- **RecentDonations & TopDonors & RealtimeFeed**: รายการโดเนทล่าสุด, อันดับผู้สนับสนุนสูงสุด
 - **PaymentChannels**: สรุปสถานะการเปิดใช้งานของช่องทาง PromptPay, TrueMoney, และ Bank
 - โครงสร้างใช้ **Sticky Sidebar** ทางซ้าย และ **Sticky Topbar** ด้านบน
 
@@ -229,22 +229,24 @@ client/src/
 ├── assets/                  → โลโก้ รูปภาพประกอบ (PrimaryLogo, HeroLogo, hero, bg-login)
 ├── components/
 │   ├── Account/             → AccountProfileCard, AccountTabs, SecurityTab, SocialMediaTab, UserInfoTab
-│   ├── Auth/                → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
-│   ├── Dashboard/           → StatCard, DonationChart, RecentDonations, PaymentChannels, SupportPanel, ProtectedRoute.jsx, ProtectedRoute.test.js
+│   ├── Auth/                → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons, AuthComponents.test.js
+│   ├── Dashboard/           → CardWrapper, DonationChart, PaymentChannels, StatsCard, TopDonors, RealtimeFeed, ProtectedRoute.jsx, ProtectedRoute.test.js, DashboardComponents.test.js
 │   ├── DonatePage/          → DonatePageLink, DecorateSection, MessageFilterSection, SocialMediaSection, SettingsCard, RichTextField, ImageUploadBox
 │   ├── Donor/               → DonorHeader, DonorPaymentTabs, DonorPromptPayForm, DonorBankForm, DonorTrueMoneyForm, DonorSlipUpload, DonorOfflineCard, DonorDisabledCard
 │   ├── History/             → DonationHistoryTable
-│   ├── MainPage/            → Navbar, Hero, Features, StreamerList, CTASection, Footer
+│   ├── MainPage/            → Navbar, Hero, Features, StreamerList, CTASection, Footer, Navbar.test.js
 │   ├── Payment/             → PaymentHeader, PromptPayCard, TrueMoneyCard, BankCard, ComingSoonCard
 │   ├── Widget/              → WidgetHeader, WidgetTypeTabs, DonateAlertPanel, DonateGoalPanel, LeaderboardPanel, MissionDonatePanel, WidgetPreview, BrowserSourceCard, AccordionSection, AudioUploadField, widgetStorage.js
+│   ├── Navigation.test.js   → Unit Test สำหรับ Sidebar และ Topbar
 │   ├── Sidebar.jsx          → เมนูหลักซ้ายแบบ Sticky (หมวดทั่วไป และ หมวดการชำระเงิน)
 │   └── Topbar.jsx           → แถบเมนูด้านบนแบบ Sticky (Breadcrumb, กระดิ่งแจ้งเตือน, รูปโปรไฟล์)
 ├── pages/                   → หน้าระบบทั้ง 12 หน้า (MainPage, HowToUse, Login, Register, Dashboard, PaymentPage, DonatePage, Account, HistoryPage, WidgetPage, DonorPage, NotFound)
 ├── utils/
-│   └── passwordValidation.js→ ตรวจสอบความถูกต้องของรหัสผ่าน
+│   ├── passwordValidation.js→ ตรวจสอบความถูกต้องของรหัสผ่าน
+│   └── passwordValidation.test.js → Unit Test กฎรหัสผ่าน 5 ข้อ (100% Coverage)
 ├── App.js                   → การกำหนดเส้นทาง Routing ทั้งหมด
 ├── App.test.js              → Test พื้นฐาน (render หน้า Landing Page)
-├── setupTests.js            → ตั้งค่า Jest (jest-dom และ polyfill TextEncoder/TextDecoder)
+├── setupTests.js            → ตั้งค่า Jest (jest-dom, polyfill TextEncoder/Decoder, ResizeObserver Polyfill)
 ├── index.css                → สไตล์ CSS หลักและนำเข้า Font Kanit / Tailwind
 └── index.js                 → React Root Mounting
 ```
@@ -318,18 +320,52 @@ flowchart LR
     JobClient --> JobSonar
 ```
 
-### 9.1 บทบาทของการทดสอบ (Unit Testing & ProtectedRoute)
-- **`client/src/App.test.js`**: ทดสอบการ Render หน้าแรก (Landing Page) ว่าโหลด DOM ได้อย่างถูกต้อง
-- **`client/src/components/Dashboard/ProtectedRoute.test.js`**: ทดสอบความปลอดภัยของเส้นทาง Protected Route:
-  1. เมื่อไม่มี `token` ใน `localStorage` ต้อง Redirect ไปยังหน้า `/login`
-  2. เมื่อมี `token` ต้องแสดงผลเนื้อหาภายใน (Children) ได้อย่างถูกต้อง
-- *เหตุผลที่ต้องเขียน Test ให้ ProtectedRoute*: ProtectedRoute เป็นเกตเวย์ความปลอดภัยหลักของ Frontend ในการป้องกันผู้ใช้งานที่ไม่ได้รับอนุญาตเข้าถึงหน้า Dashboard, Payment, และ Settings การมี Unit Test คอยตรวจสอบจะช่วยการันตีความปลอดภัยทุกครั้งที่มีการ Merge โค้ดใหม่
+### 9.1 การตั้งค่า SonarCloud Properties (`sonar-project.properties`)
+```properties
+sonar.organization=nekomanaja
+sonar.projectKey=nekomanaja_Final-Project
+
+# สแกนคุณภาพโค้ดและความปลอดภัยครอบคลุมทั้ง Client และ Server
+sonar.sources=client/src,server
+sonar.exclusions=**/node_modules/**,**/build/**,**/coverage/**,**/*.test.js,**/setupTests.js,client/public/**
+
+# แยก Scope การวัด Coverage เฉพาะ Client ที่มีรายงาน lcov (ป้องกัน Server และ Bootstrap ฉุด % Coverage ตก)
+sonar.coverage.exclusions=server/**,client/src/index.js,client/src/reportWebVitals.js,**/*.test.js,**/setupTests.js
+sonar.sourceEncoding=UTF-8
+sonar.javascript.lcov.reportPaths=client/coverage/lcov.info
+```
+> [!NOTE]
+> `sonar.coverage.exclusions=server/**` เป็นการยกเว้นเฉพาะข้อกำหนดเปอร์เซ็นต์ Unit Test Coverage ของ Server ชั่วคราว แต่ SonarCloud **ยังคงสแกนช่องโหว่ความปลอดภัย (Security Hotspots, Vulnerabilities, NoSQL Injection, Bugs) ของฝั่ง Server 100% เต็มรูปแบบตามปกติ**
 
 ---
 
-### 9.2 คู่มือการแก้ปัญหา CI แดง (Troubleshooting & Known Issues)
+### 9.2 รายละเอียดชุดการทดสอบ Unit Tests (7 Test Suites, 36 Tests ผ่าน 100%)
+- **`passwordValidation.test.js`**: ทดสอบกฎความปลอดภัยรหัสผ่าน 5 เงื่อนไขและการคืนข้อความ Error
+- **`DashboardComponents.test.js`**: ทดสอบ CardWrapper, StatsCard, DonationChart, PaymentChannels, TopDonors, RealtimeFeed และหน้า Dashboard
+- **`ProtectedRoute.test.js`**: ทดสอบระบบความปลอดภัยเส้นทาง ป้องกัน Unauthorized เข้าถึงหน้าควบคุม
+- **`Navigation.test.js`**: ทดสอบเมนู Sidebar ทั้งหมด, ฟังก์ชัน Logout และ Topbar Breadcrumb
+- **`AuthComponents.test.js`**: ทดสอบฟอร์ม InputField, PasswordChecklist, SocialAuthButtons, AuthLayout
+- **`Navbar.test.js`**: ทดสอบการแสดงผล Header แถบนำทางทั้งโหมดผู้เยี่ยมชมและโหมดสมาชิก
+- **`App.test.js`**: ทดสอบการ Render หน้าแรกของระบบ
 
-#### ปัญหาที่ 1: `Attempted import error: 'act' is not exported from 'react'`
+---
+
+### 9.3 คู่มือการแก้ปัญหา CI แดง (Troubleshooting & Known Issues)
+
+#### ปัญหาที่ 1: `ReferenceError: ResizeObserver is not defined`
+- **สาเหตุ**: Recharts (`ResponsiveContainer`) เรียกใช้ Web API `ResizeObserver` ซึ่งไม่มีอยู่ใน Node/JSDOM Environment
+- **วิธีแก้ไข**: เพิ่ม Polyfill Class ใน `client/src/setupTests.js`:
+  ```javascript
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserver;
+  global.ResizeObserver = ResizeObserver;
+  ```
+
+#### ปัญหาที่ 2: `Attempted import error: 'act' is not exported from 'react'`
 - **สาเหตุ**: การใช้ React 19 กับ `react-scripts 5.0.1` (Webpack 5) ซึ่ง `react-scripts` รุ่นเดิมยังไม่รองรับ Module Resolution รูปแบบใหม่ของ React 19
 - **วิธีแก้ไข**: ตรึงเวอร์ชัน React เป็น `18.3.1` ใน `client/package.json`:
   ```json
@@ -343,11 +379,11 @@ flowchart LR
   }
   ```
 
-#### ปัญหาที่ 2: `CI=true npm run build` ล้มเหลวจาก Unused Variables / Imports
+#### ปัญหาที่ 3: `CI=true npm run build` ล้มเหลวจาก Unused Variables / Imports
 - **สาเหตุ**: Create React App ตั้งค่าให้ ESLint Warnings กลายเป็น Fatal Errors เมื่อเปิด `CI=true`
 - **วิธีแก้ไข**: ตรวจสอบและลบ import หรือตัวแปรที่ไม่ได้ใช้ออกจากไฟล์คอมโพเนนต์ทั้งหมด
 
-#### ปัญหาที่ 3: `npm test` ค้างไม่ยอมจบกระบวนการ
+#### ปัญหาที่ 4: `npm test` ค้างไม่ยอมจบกระบวนการ
 - **สาเหตุ**: Jest รันในโหมด Interactive Watcher โดยเริ่มต้น
 - **วิธีแก้ไข**: ส่ง Flag `--watchAll=false` เสมอในคำสั่งทดสอบ
 
