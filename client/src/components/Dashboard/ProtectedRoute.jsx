@@ -1,40 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
-import ProtectedRoute from "./ProtectedRoute";
+import { Navigate } from "react-router-dom";
 
-const renderWithRoute = (initialPath = "/dashboard") => {
-  render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <Routes>
-        <Route path="/login" element={<div>Login Page</div>} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <div>Protected Content</div>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
-  );
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
 
-describe("ProtectedRoute", () => {
-  afterEach(() => {
-    localStorage.clear();
-  });
-
-  test("redirect ไป /login เมื่อไม่มี token", () => {
-    renderWithRoute();
-    expect(screen.getByText("Login Page")).toBeInTheDocument();
-    expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
-  });
-
-  test("แสดง children เมื่อมี token", () => {
-    localStorage.setItem("token", "fake-token");
-    renderWithRoute();
-    expect(screen.getByText("Protected Content")).toBeInTheDocument();
-    expect(screen.queryByText("Login Page")).not.toBeInTheDocument();
-  });
-});
+export default ProtectedRoute;
