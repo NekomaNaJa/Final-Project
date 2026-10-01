@@ -1,26 +1,10 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import useJwtUser from "../hooks/useJwtUser";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import DonationHistoryTable from "../components/Histor/DonationHistoryTable";
 
 const HistoryPage = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setTimeout(() => setUser(payload), 0);
-    } catch {
-      navigate("/login");
-    }
-  }, [navigate]);
+  const user = useJwtUser();
 
   // TODO: replace with real data from GET /api/donations/history
   const history = [];
