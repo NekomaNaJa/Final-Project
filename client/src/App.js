@@ -4,8 +4,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
+import Account from "./pages/Account";
+import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
-
 
 const App = () => {
   return (
@@ -30,7 +31,16 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <Account />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );

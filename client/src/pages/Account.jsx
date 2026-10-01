@@ -7,6 +7,7 @@ import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
 import { clearToken, getToken, getTokenPayload } from "../utils/auth";
 import { API, parseResponse } from "../utils/api";
+import AmbientBackground from "../components/shared/AmbientBackground";
 
 const Account = () => {
   const navigate = useNavigate();
@@ -48,30 +49,7 @@ const Account = () => {
 
   return (
     <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex">
-      {/* Ambient Gradient Background */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div
-          className="absolute -top-40 left-1/2 h-[650px] w-[950px] -translate-x-1/2 rounded-full blur-[110px] opacity-75"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, rgba(124, 58, 237, 0.28) 0%, rgba(88, 28, 135, 0.15) 45%, rgba(9, 8, 18, 0) 75%)",
-          }}
-        />
-        <div
-          className="absolute top-1/4 -left-24 h-[500px] w-[500px] rounded-full blur-[120px] opacity-40"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(109, 40, 217, 0.2) 0%, rgba(9, 8, 18, 0) 70%)",
-          }}
-        />
-        <div
-          className="absolute top-2/3 -right-24 h-[550px] w-[550px] rounded-full blur-[130px] opacity-35"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(147, 51, 234, 0.18) 0%, rgba(9, 8, 18, 0) 70%)",
-          }}
-        />
-      </div>
+      <AmbientBackground />
 
       {/* Sidebar */}
       <Sidebar onLogout={handleLogout} />

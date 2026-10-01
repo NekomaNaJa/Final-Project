@@ -20,7 +20,7 @@ const PasswordInput = ({ label, name, value, onChange }) => {
         />
         <button
           type="button"
-          onClick={() => setShow(!show)}
+          onClick={() => setShow((prev) => !prev)}
           className="ml-2 shrink-0 text-[#6e6682] hover:text-white transition-colors"
           aria-label={show ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
         >
@@ -44,8 +44,9 @@ const SecurityTab = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ห้าม log ค่ารหัสผ่านออกไปที่ console เพื่อไม่ให้รหัสผ่านรั่วไปกับ log
   const handleSave = () => {
-    console.log("Saving security settings:", { ...form, twoFactorEnabled });
+    console.log("Saving security settings:", { twoFactorEnabled });
   };
 
   return (
@@ -90,7 +91,7 @@ const SecurityTab = () => {
             type="button"
             role="switch"
             aria-checked={twoFactorEnabled}
-            onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
+            onClick={() => setTwoFactorEnabled((prev) => !prev)}
             className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-colors ${
               twoFactorEnabled
                 ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"

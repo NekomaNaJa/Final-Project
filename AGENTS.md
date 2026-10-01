@@ -13,6 +13,7 @@ Donix/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml             → GitHub Actions CI (Automated Test & Build & SonarCloud)
+├── .gitattributes             → บังคับใช้ line ending แบบ LF ทั้ง Repo (กัน CRLF ทำให้ Diff เป็นบรรทัดใหม่ทั้งไฟล์)
 ├── client/                    → Frontend React SPA (React 18.3.1 + Tailwind CSS + Lucide React + Recharts)
 ├── server/                    → Backend REST API & Realtime Server (Express 5 + Socket.IO + MongoDB)
 ├── sonar-project.properties   → การตั้งค่า SonarCloud Quality Gate & Coverage Exclusions
@@ -322,16 +323,47 @@ sonar.javascript.lcov.reportPaths=client/coverage/lcov.info
 > [!NOTE]
 > `sonar.coverage.exclusions=server/**` เป็นการยกเว้นเฉพาะข้อกำหนดเปอร์เซ็นต์ Unit Test Coverage ของ Server ชั่วคราว แต่ SonarCloud **ยังคงสแกนช่องโหว่ความปลอดภัย (Security Hotspots, Vulnerabilities, NoSQL Injection, Bugs) ของฝั่ง Server 100% เต็มรูปแบบตามปกติ**
 
+
+> [!IMPORTANT]
+> **`sonar.javascript.lcov.reportPaths` ห้ามหายเด็ดขาด** ถ้าบรรทัดนี้หายไป SonarCloud จะไม่รู้จักไฟล์ `client/coverage/lcov.info`
+> ที่ Job `client` อัปโหลดมา ทำให้ **Coverage on New Code = 0.0%** และ Quality Gate แดงทันที
+> ตรวจสอบด้วย `git diff main...HEAD -- sonar-project.properties` ทุกครั้งที่แก้ไฟล์นี้
+
+### 9.1.1 กฎ Quality Gate ที่ต้องผ่าน (New Code)
+| Metric | ค่าที่ต้องผ่าน |
+|---|---|
+| Coverage on New Code | ≥ 80% |
+| Duplication on New Code | ≤ 3% |
+| Reliability Rating on New Code | ≥ A (ต้องไม่มี bug บนโค้ดใหม่) |
+
+**แนวทางป้องกันไม่ให้พัง**
+1. **Line ending ต้องเป็น LF** ตั้งแต่มี `.gitattributes` แล้ว ห้าม commit ไฟล์ที่ถูกแปลงเป็น CRLF ทั้งก้อน
+   (ถ้าเกิด ทั้งไฟล์จะถูกนับเป็น "โค้ดใหม่" ทั้งหมด ทำให้ Coverage/Duplication พังทันที)
+   แก้ด้วย `git add --renormalize .`
+2. **โค้ดใหม่ทุกส่วนต้องมีเทสต์** ไฟล์ใหม่ใน `client/src` ที่ไม่มี `*.test.js` จะทำให้ Coverage ตก
+3. **ห้ามคัดลอกโค้ด** ถ้าเห็น JSX ซ้ำกัน 2 ที่ให้ย้ายไป `client/src/components/shared/` (เช่น `AmbientBackground.jsx`, `SocialMediaForm.jsx`, `socialPlatforms.js`)
+4. **หลีกเลี่ยงรูปแบบที่ SonarJS ทำเป็น Bug** เช่น `setState(!value)` ให้ใช้ `setState((prev) => !prev)` เสมอ
+5. **กฎรหัสผ่านต้องมีที่เดียว** `client/src/utils/passwordRules.js` เป็น Single Source of Truth
+   ทั้ง Client และ Server (`server/utils/passwordValidation.js` re-export จากไฟล์นี้)
+   ห้าม copy ไปไว้สองที่ จะกลายเป็น Duplication
+
 ---
 
-### 9.2 รายละเอียดชุดการทดสอบ Unit Tests (7 Test Suites, 36 Tests ผ่าน 100%)
+### 9.2 รายละเอียดชุดการทดสอบ Unit Tests (16 Test Suites, 100 Tests ผ่าน 100%)
 - **`passwordValidation.test.js`**: ทดสอบกฎความปลอดภัยรหัสผ่าน 5 เงื่อนไขและการคืนข้อความ Error
 - **`DashboardComponents.test.js`**: ทดสอบ CardWrapper, StatsCard, DonationChart, PaymentChannels, TopDonors, RealtimeFeed และหน้า Dashboard
 - **`ProtectedRoute.test.js`**: ทดสอบระบบความปลอดภัยเส้นทาง ป้องกัน Unauthorized เข้าถึงหน้าควบคุม
 - **`Navigation.test.js`**: ทดสอบเมนู Sidebar ทั้งหมด, ฟังก์ชัน Logout และ Topbar Breadcrumb
 - **`AuthComponents.test.js`**: ทดสอบฟอร์ม InputField, PasswordChecklist, SocialAuthButtons, AuthLayout
 - **`Navbar.test.js`**: ทดสอบการแสดงผล Header แถบนำทางทั้งโหมดผู้เยี่ยมชมและโหมดสมาชิก
-- **`App.test.js`**: ทดสอบการ Render หน้าแรกของระบบ
+- **`App.test.js`**: ทดสอบการ Render หน้าแรก และเส้นทาง `/account` + หน้า 404
+- **`AccountComponents.test.js`**: ทดสอบ AccountProfileCard, ManageAccountCard, AccountTabs และแท็บ UserInfoTab / SecurityTab / SocialMediaTab
+- **`Account.test.js`**: ทดสอบหน้าบัญชีผู้ใช้ ทั้งกรณีเรียก `/api/auth/me` สำเร็จ, token หมดอายุ, และ Logout
+- **`Login.test.js`** / **`Register.test.js`**: ทดสอบการเรียก API ผ่าน `utils/api.js` ทั้งกรณีสำเร็จและ error
+- **`DonatePage.test.js`**: ทดสอบหน้ารับเงิน ได้ชื่อผู้ใช้จาก token และล็อกเอาต์ได้
+- **`NotFound.test.js`**: ทดสอบหน้า 404 และลิงก์กลับหน้าหลัก
+- **`api.test.js`** / **`auth.test.js`**: ทดสอบ utility ฝั่ง client (parseResponse, getTokenPayload รวมถึง base64url และ token หมดอายุ)
+- **`SharedComponents.test.js`**: ทดสอบคอมโพเนนต์กลาง (AmbientBackground, SocialMediaForm, socialPlatforms)
 
 ---
 

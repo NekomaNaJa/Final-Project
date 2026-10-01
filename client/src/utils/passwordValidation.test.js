@@ -57,5 +57,23 @@ describe('passwordValidation utility', () => {
     it('should return empty string when password is valid', () => {
       expect(getPasswordError('Pass@word123')).toBe('');
     });
+
+    it('should return a prompt message when password is empty', () => {
+      expect(getPasswordError('')).toBe('กรุณากรอกรหัสผ่าน');
+    });
+
+    it('should return a prompt message when password is not a string', () => {
+      expect(getPasswordError(undefined)).toBe('กรุณากรอกรหัสผ่าน');
+      expect(getPasswordError(12345678)).toBe('กรุณากรอกรหัสผ่าน');
+      expect(getPasswordError(null)).toBe('กรุณากรอกรหัสผ่าน');
+    });
+  });
+
+  describe('isPasswordValid with non-string input', () => {
+    it('should return false when password is not a string', () => {
+      expect(isPasswordValid(undefined)).toBe(false);
+      expect(isPasswordValid(null)).toBe(false);
+      expect(isPasswordValid(12345678)).toBe(false);
+    });
   });
 });
