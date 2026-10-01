@@ -77,7 +77,8 @@ const DonorPromptPayForm = ({
                 key={qrUrl}
                 className="w-full h-full object-contain"
                 onError={(e) => {
-                  e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PromptPay:${promptpayNumber}:Amount:${amount}`;
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PromptPay:${promptpayNumber}:Amount:${amount}`;
                 }}
               />
             ) : (

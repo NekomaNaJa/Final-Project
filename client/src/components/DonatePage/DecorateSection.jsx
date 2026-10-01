@@ -2,33 +2,38 @@ import React, { useState } from "react";
 import SettingsCard from "./SettingsCard";
 import RichTextField from "./RichTextField";
 import ImageUploadBox from "./ImageUploadBox";
+import { safeGetItem, safeSetItem, sanitizeValue } from "../../utils/sanitizeStorage";
 
 const DecorateSection = () => {
-  const getSaved = () => {
-    try {
-      return JSON.parse(localStorage.getItem("donix_donate_config")) || {};
-    } catch {
-      return {};
-    }
-  };
-  const saved = getSaved();
+  const saved = safeGetItem("donix_donate_config", {});
 
-  const [welcomeMessage, setWelcomeMessage] = useState(saved.welcomeMessage || "");
-  const [thankYouMessage, setThankYouMessage] = useState(saved.thankYouMessage || "");
-  const [minAmount, setMinAmount] = useState(saved.minAmount !== undefined ? saved.minAmount : 10);
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    saved.welcomeMessage || "",
+  );
+  const [thankYouMessage, setThankYouMessage] = useState(
+    saved.thankYouMessage || "",
+  );
+  const [minAmount, setMinAmount] = useState(
+    saved.minAmount !== undefined ? saved.minAmount : 10,
+  );
   const [coverImage, setCoverImage] = useState(saved.coverImage || null);
-  const [backgroundImage, setBackgroundImage] = useState(saved.backgroundImage || null);
+  const [backgroundImage, setBackgroundImage] = useState(
+    saved.backgroundImage || null,
+  );
 
   const handleSave = () => {
+    const cleanWelcome = sanitizeValue(welcomeMessage);
+    const cleanThankYou = sanitizeValue(thankYouMessage);
+    const cleanMin = Math.max(1, Number(minAmount) || 10);
     const config = {
       ...saved,
-      welcomeMessage,
-      thankYouMessage,
-      minAmount,
-      coverImage,
-      backgroundImage,
+      welcomeMessage: cleanWelcome,
+      thankYouMessage: cleanThankYou,
+      minAmount: cleanMin,
+      coverImage: typeof coverImage === "string" ? coverImage : null,
+      backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
     };
-    localStorage.setItem("donix_donate_config", JSON.stringify(config));
+    safeSetItem("donix_donate_config", config);
     console.log("Saved donate page settings:", config);
   };
 

@@ -8,7 +8,7 @@ const DonorSlipUpload = ({ onSlipSelected }) => {
 
   const handleFile = (file) => {
     if (!file) return;
-    if (!file.type.match("image/(jpeg|png|gif|webp)")) {
+    if (!/^image\/(jpeg|png|gif|webp)$/i.test(file.type)) {
       alert("รองรับเฉพาะไฟล์รูปภาพประเภท jpg, png, gif, webp เท่านั้น");
       return;
     }
@@ -49,7 +49,14 @@ const DonorSlipUpload = ({ onSlipSelected }) => {
       />
 
       <div
+        role="button"
+        tabIndex={0}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            fileInputRef.current?.click();
+          }
+        }}
         onDrop={handleDrop}
         onDragOver={(e) => {
           e.preventDefault();
