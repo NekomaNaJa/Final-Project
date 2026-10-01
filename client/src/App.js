@@ -5,8 +5,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
-import Account from "./pages/Account";
-import NotFound from "./pages/NotFound";
+
 
 const App = () => {
   return (
@@ -31,15 +30,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/account"
-          element={
-            <ProtectedRoute>
-              <Account />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<NotFound />} />
+
       </Routes>
     </BrowserRouter>
   );
