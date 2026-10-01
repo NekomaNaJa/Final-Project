@@ -6,6 +6,14 @@ const AccountProfileCard = ({ user }) => {
   const username = user?.username || "Test";
   const donixUrl = `donix.app/${username}`;
 
+  const joinedAt = user?.joinedAt
+    ? new Date(user.joinedAt).toLocaleDateString("th-TH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "—";
+
   const handleCopy = () => {
     navigator.clipboard?.writeText(`https://${donixUrl}`);
     setCopied(true);
@@ -52,9 +60,7 @@ const AccountProfileCard = ({ user }) => {
           <p className="text-[10px] uppercase tracking-[0.12em] text-[#7e778d]">
             เข้าร่วมเมื่อ
           </p>
-          <p className="mt-1 text-xs font-semibold text-white">
-            {user?.joinedAt || "—"}
-          </p>
+          <p className="mt-1 text-xs font-semibold text-white">{joinedAt}</p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.12em] text-[#7e778d]">

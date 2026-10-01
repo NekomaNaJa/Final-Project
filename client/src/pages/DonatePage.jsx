@@ -6,26 +6,14 @@ import DonatePageLink from "../components/DonatePage/DonatePageLink";
 import DecorateSection from "../components/DonatePage/DecorateSection";
 import MessageFilterSection from "../components/DonatePage/MessageFilterSection";
 import SocialMediaSection from "../components/DonatePage/SocialMediaSection";
-
-const getUserFromToken = () => {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
-
-  try {
-    const payload = token.split(".")[1];
-    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-  } catch {
-    localStorage.removeItem("token");
-    return null;
-  }
-};
+import { clearToken, getTokenPayload } from "../utils/auth";
 
 const DonatePage = () => {
   const navigate = useNavigate();
-  const user = getUserFromToken();
+  const user = getTokenPayload();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearToken();
     navigate("/login");
   };
 

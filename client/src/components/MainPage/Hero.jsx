@@ -29,11 +29,11 @@ const Hero = () => {
             เริ่มใช้งานฟรี
           </Link>
           <Link
-            to="/how-it-works"
+            to="/login"
             className="px-6 py-3 rounded-xl text-sm font-semibold text-white
                        border border-[#374151] hover:border-[#7c3aed]/50 transition-colors"
           >
-            ดูวิธีใช้งาน
+            เข้าสู่ระบบ
           </Link>
         </div>
       </div>

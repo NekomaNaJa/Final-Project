@@ -18,33 +18,31 @@ const rows = [
     key: "email",
     label: "อีเมล",
     icon: null,
-    value: "user@example.com",
-    connected: true,
+    field: "email",
+    fallback: "ยังไม่ได้ใส่อีเมล",
   },
   {
     key: "phone",
     label: "เบอร์โทรศัพท์",
     icon: null,
-    value: "000-000-0000",
-    connected: true,
+    field: "phone",
+    fallback: "ยังไม่ได้ใส่เบอร์โทรศัพท์",
   },
   {
     key: "discord",
     label: "DISCORD",
     icon: DiscordIcon,
-    value: "ยังไม่ได้เชื่อมต่อ",
-    connected: false,
+    fallback: "ยังไม่ได้เชื่อมต่อ",
   },
   {
     key: "streamlabs",
     label: "STREAMLABS",
     icon: StreamlabsIcon,
-    value: "ยังไม่ได้เชื่อมต่อ",
-    connected: false,
+    fallback: "ยังไม่ได้เชื่อมต่อ",
   },
 ];
 
-const ManageAccountCard = () => {
+const ManageAccountCard = ({ user }) => {
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
       <div className="mb-5 flex items-center justify-between">
@@ -66,39 +64,44 @@ const ManageAccountCard = () => {
       </div>
 
       <div className="space-y-3">
-        {rows.map((row) => (
-          <div
-            key={row.key}
-            className="flex items-center justify-between gap-3 rounded-xl border border-[#2e2648]/60 bg-[#110d22]/50 px-4 py-3"
-          >
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#9891ab]">
-                {row.icon}
-                {row.label}
-              </p>
-              <p
-                className={`mt-0.5 truncate text-sm font-medium ${
-                  row.connected ? "text-white" : "text-[#5c556f]"
-                }`}
-              >
-                {row.value}
-              </p>
-            </div>
+        {rows.map((row) => {
+          const value = row.field ? user?.[row.field] : "";
+          const connected = Boolean(value);
 
-            {row.connected ? (
-              <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-400">
-                ยืนยันแล้ว
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="shrink-0 text-[11px] font-medium text-purple-300 hover:text-purple-200 transition-colors"
-              >
-                คลิกเพื่อเชื่อมต่อ
-              </button>
-            )}
-          </div>
-        ))}
+          return (
+            <div
+              key={row.key}
+              className="flex items-center justify-between gap-3 rounded-xl border border-[#2e2648]/60 bg-[#110d22]/50 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#9891ab]">
+                  {row.icon}
+                  {row.label}
+                </p>
+                <p
+                  className={`mt-0.5 truncate text-sm font-medium ${
+                    connected ? "text-white" : "text-[#5c556f]"
+                  }`}
+                >
+                  {value || row.fallback}
+                </p>
+              </div>
+
+              {connected ? (
+                <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-400">
+                  {row.field === "phone" ? "บันทึกแล้ว" : "ยืนยันแล้ว"}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="shrink-0 text-[11px] font-medium text-purple-300 hover:text-purple-200 transition-colors"
+                >
+                  คลิกเพื่อเชื่อมต่อ
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

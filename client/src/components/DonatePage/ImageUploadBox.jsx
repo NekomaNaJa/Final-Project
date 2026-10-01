@@ -93,7 +93,7 @@ const ImageUploadBox = ({ label, onImageSelect, previewUrl: initialPreview = nul
         ) : (
           <>
             {/* Center Purple Icon */}
-            <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-tr from-[#9333ea] to-[#7c3aed] text-white shadow-[0_0_16px_rgba(147,51,234,0.45)] group-hover:scale-105 transition-transform">
+            <div className="mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-[#9333ea] to-[#7c3aed] text-white shadow-[0_0_16px_rgba(147,51,234,0.45)] group-hover:scale-105 transition-transform">
               <ImageIcon size={20} />
             </div>
 

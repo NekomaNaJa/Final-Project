@@ -1,25 +1,11 @@
 import { Link } from "react-router-dom";
+import { getTokenPayload } from "../../utils/auth";
 import DonixLogo from "../../assets/PrimaryLogo.png";
 
-const navLinks = [
-  { label: "หน้าหลัก", to: "/" },
-  { label: "ค้นพบ", to: "/discover" },
-  { label: "วิธีใช้งาน", to: "/how-it-works" },
-];
+const navLinks = [{ label: "หน้าหลัก", to: "/" }];
 
 const Navbar = () => {
-  // เช็ค token
-  const token = localStorage.getItem("token");
-  let user = null;
-  if (token) {
-    try {
-      user = JSON.parse(
-        atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
-      );
-    } catch {
-      localStorage.removeItem("token");
-    }
-  }
+  const user = getTokenPayload();
 
   return (
     <nav className="w-full bg-[#050505]/80 backdrop-blur border-b border-[#1f2937] sticky top-0 z-50">
@@ -48,7 +34,7 @@ const Navbar = () => {
                 to="/dashboard"
                 className="flex items-center gap-2 rounded-full border border-purple-500/40 bg-purple-600/10 px-3 py-1.5 hover:bg-purple-600/20 transition-colors"
               >
-                <div className="w-6 h-6 grid place-items-center rounded-full bg-linear-to-br from-purple-500 to-purple-700 text-xs font-bold text-white">
+                <div className="w-6 h-6 grid place-items-center rounded-full bg-gradient-to-br from-purple-500 to-purple-700 text-xs font-bold text-white">
                   {user.username?.[0]?.toUpperCase()}
                 </div>
                 <span className="text-sm font-medium text-white">

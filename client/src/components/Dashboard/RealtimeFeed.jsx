@@ -19,7 +19,7 @@ const RealtimeFeed = () => (
     <ul className="divide-y divide-white/5">
       {placeholders.map((p, i) => (
         <li key={i} className="flex items-center gap-4 px-5 py-4">
-          <div className="w-10 h-10 grid place-items-center rounded-full bg-linear-to-br from-purple-600/30 to-red-600/20 text-sm font-bold text-gray-300">
+          <div className="w-10 h-10 grid place-items-center rounded-full bg-gradient-to-br from-purple-600/30 to-red-600/20 text-sm font-bold text-gray-300">
             {p.initial}
           </div>
           <div className="flex-1 min-w-0">

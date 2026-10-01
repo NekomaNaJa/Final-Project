@@ -22,7 +22,7 @@ const TopDonors = () => (
           <div
             className={`w-8 h-8 grid place-items-center rounded-full text-xs font-bold ${
               u.rank === 1
-                ? "bg-linear-to-br from-yellow-400 to-orange-500 text-white"
+                ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
                 : "bg-white/5 text-gray-500"
             }`}
           >

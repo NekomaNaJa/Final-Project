@@ -10,14 +10,20 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-    password: { type: String, default: null },
+    // select: false ป้องกันไม่ให้ hash ถูก query ออกมาโดยไม่ตั้งใจ
+    // (route ที่ต้องเทียบรหัสผ่านต้องใช้ .select("+password"))
+    // ส่วน toJSON transform ด้านล่างกันไม่ให้ hash หลุดตอนส่ง user ทั้ง object
+    password: { type: String, default: null, select: false },
 
     googleId: { type: String, default: null },
 
+    nickname: { type: String, default: "" },
     firstName: { type: String, default: "" },
     lastName: { type: String, default: "" },
     birthDate: { type: Date, default: null },
     phone: { type: String, default: "" },
+    gender: { type: String, default: "" },
+    bio: { type: String, default: "" },
     isPhoneVerified: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
 
@@ -27,6 +33,7 @@ const userSchema = new mongoose.Schema(
       instagram: { type: String, default: "" },
       tiktok: { type: String, default: "" },
       twitch: { type: String, default: "" },
+      x: { type: String, default: "" },
     },
 
     payment: {
@@ -76,11 +83,26 @@ const userSchema = new mongoose.Schema(
     donationPage: {
       welcomeMessage: { type: String, default: "" },
       thankYouMessage: { type: String, default: "" },
-      minAmount: { type: Number, default: 0 },
+      minAmount: { type: Number, default: 1 },
+      // จำนวนอักขระสูงสุดของข้อความโดเนท (0 = ไม่จำกัด)
+      charLimit: { type: Number, default: 100 },
+      disableFilter: { type: Boolean, default: false },
       filteredWords: { type: [String], default: [] },
+      coverImage: { type: String, default: "" },
+      backgroundImage: { type: String, default: "" },
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret) => {
+        delete ret.password;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  },
 );
 
 export default mongoose.model("User", userSchema);

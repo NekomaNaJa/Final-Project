@@ -5,7 +5,7 @@ import InputField from "../components/Auth/InputField";
 import SocialAuthButtons from "../components/Auth/SocialAuthButtons";
 import PasswordChecklist from "../components/Auth/PasswordChecklist";
 import { isPasswordValid, getPasswordError } from "../utils/passwordValidation";
-import { API } from "../utils/api";
+import { API, parseResponse } from "../utils/api";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -45,14 +45,12 @@ const Register = () => {
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.message);
+      const data = await parseResponse(res);
 
       localStorage.setItem("token", data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setLoading(false);
     }

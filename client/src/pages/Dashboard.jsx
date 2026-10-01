@@ -7,6 +7,7 @@ import DonationChart from "../components/Dashboard/DonationChart";
 import TopDonors from "../components/Dashboard/TopDonors";
 import RealtimeFeed from "../components/Dashboard/RealtimeFeed";
 import PaymentChannels from "../components/Dashboard/PaymentChannels";
+import { getTokenPayload } from "../utils/auth";
 import { Sword, Coins, Gem, Eye } from "lucide-react";
 
 const Dashboard = () => {
@@ -14,17 +15,12 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const payload = getTokenPayload();
+    if (!payload) {
       navigate("/login");
       return;
     }
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setTimeout(() => setUser(payload), 0);
-    } catch {
-      navigate("/login");
-    }
+    setUser(payload);
   }, [navigate]);
 
   return (

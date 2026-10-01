@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/Auth/AuthLayout";
 import InputField from "../components/Auth/InputField";
 import SocialAuthButtons from "../components/Auth/SocialAuthButtons";
-import { API } from "../utils/api";
+import { API, parseResponse } from "../utils/api";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -24,12 +24,11 @@ const Login = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      const data = await parseResponse(res);
       localStorage.setItem("token", data.token);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่");
     } finally {
       setLoading(false);
     }

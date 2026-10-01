@@ -1,30 +1,48 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import AccountProfileCard from "../components/Account/AccountProfileCard";
 import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
-
-const getUserFromToken = () => {
-  const token = localStorage.getItem("token");
-  if (!token) return null;
-
-  try {
-    const payload = token.split(".")[1];
-    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-  } catch {
-    localStorage.removeItem("token");
-    return null;
-  }
-};
+import { clearToken, getToken, getTokenPayload } from "../utils/auth";
+import { API, parseResponse } from "../utils/api";
 
 const Account = () => {
   const navigate = useNavigate();
-  const user = getUserFromToken();
+  const tokenPayload = getTokenPayload();
+  const [profile, setProfile] = useState(tokenPayload);
+
+  // ดึงข้อมูลผู้ใช้จริงจาก server (createdAt, email, phone ฯลฯ ที่ไม่ได้อยู่ใน JWT)
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+
+    let cancelled = false;
+
+    fetch(API.me, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(parseResponse)
+      .then((data) => {
+        if (!cancelled && data?.user) setProfile(data.user);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // 401 = token ใช้ไม่ได้แล้ว ให้ล้าง token และกลับไปหน้าเข้าสู่ระบบ
+        if (/หมดอายุ|เข้าสู่ระบบ/.test(err.message)) {
+          clearToken();
+          navigate("/login");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    clearToken();
     navigate("/login");
   };
 
@@ -62,7 +80,7 @@ const Account = () => {
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
           {/* Topbar with breadcrumb */}
-          <Topbar username={user?.username} breadcrumb="บัญชีผู้ใช้" />
+          <Topbar username={profile?.username} breadcrumb="บัญชีผู้ใช้" />
 
           <main className="mx-auto w-full max-w-[1120px] px-5 py-8 lg:px-8 space-y-6">
             {/* Header */}
@@ -73,7 +91,7 @@ const Account = () => {
               <h1 className="text-2xl font-bold text-[#e8e4ee]">
                 สวัสดี{" "}
                 <span className="font-serif tracking-wide text-[#aa8df1]">
-                  {user?.username || "Streamer"}
+                  {profile?.username || "Streamer"}
                 </span>{" "}
                 วันนี้อยากทำอะไร
               </h1>
@@ -84,12 +102,12 @@ const Account = () => {
 
             {/* Profile Overview */}
             <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-              <AccountProfileCard user={user} />
-              <ManageAccountCard />
+              <AccountProfileCard user={profile} />
+              <ManageAccountCard user={profile} />
             </div>
 
             {/* Tabs */}
-            <AccountTabs user={user} />
+            <AccountTabs user={profile} />
           </main>
         </div>
       </div>

@@ -23,7 +23,7 @@ const DashboardNavbar = ({ username, breadcrumb }) => {
           <Bell size={16} />
         </button>
         <div className="flex items-center gap-2 rounded-full border border-border bg-white/5 px-3 py-1.5">
-          <div className="w-7 h-7 grid place-items-center rounded-full bg-linear-to-br from-purple-500 to-purple-700 text-xs font-bold text-white">
+          <div className="w-7 h-7 grid place-items-center rounded-full bg-gradient-to-br from-purple-500 to-purple-700 text-xs font-bold text-white">
             {username?.[0]?.toUpperCase() || "T"}
           </div>
           <span className="text-sm font-medium text-white">

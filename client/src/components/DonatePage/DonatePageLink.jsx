@@ -43,7 +43,7 @@ const DonatePageLink = ({ username = "Test" }) => {
               target="_blank"
               rel="noreferrer"
               title="แชร์ไปยัง Instagram"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white hover:opacity-90 transition-opacity"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white hover:opacity-90 transition-opacity"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />

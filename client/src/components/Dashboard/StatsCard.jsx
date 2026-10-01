@@ -29,7 +29,7 @@ const StatsCard = ({
   return (
     <section className="relative overflow-hidden rounded-xl border border-white/8 bg-abyss/60 p-5 backdrop-blur-xl hover:border-purple-500/40 transition-all">
       <div
-        className={`absolute -right-8 -top-8 w-32 h-32 rounded-full bg-linear-to-br opacity-60 blur-2xl ${a.blob}`}
+        className={`absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-to-br opacity-60 blur-2xl ${a.blob}`}
       />
       <div className="relative flex items-start justify-between">
         <div>

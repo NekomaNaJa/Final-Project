@@ -6,8 +6,6 @@ const columns = [
     title: "หน้าทั้งหมด",
     links: [
       { label: "หน้าหลัก", to: "/" },
-      { label: "ค้นพบ", to: "/discover" },
-      { label: "วิธีใช้งาน", to: "/how-it-works" },
       { label: "เข้าสู่ระบบ", to: "/login" },
       { label: "สมัครสมาชิก", to: "/register" },
     ],
@@ -16,10 +14,8 @@ const columns = [
     title: "บัญชีผู้ใช้",
     links: [
       { label: "บัญชีฉัน", to: "/account" },
-      { label: "ยืนยันตัวตน", to: "/verify" },
-      { label: "บัญชีธนาคาร", to: "/bank-account" },
-      { label: "การแจ้งเตือน", to: "/notifications" },
-      { label: "ประวัติการรับเงิน", to: "/history" },
+      { label: "แดชบอร์ด", to: "/dashboard" },
+      { label: "หน้ารับเงิน", to: "/donate-page" },
     ],
   },
 ];

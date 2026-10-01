@@ -1,10 +1,13 @@
 import { Navigate } from "react-router-dom";
+import { getTokenPayload } from "../../utils/auth";
 
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
-  if (!token) {
+  const payload = getTokenPayload();
+
+  if (!payload) {
     return <Navigate to="/login" replace />;
   }
+
   return children;
 };
 export default ProtectedRoute;

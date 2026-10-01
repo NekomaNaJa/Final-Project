@@ -56,8 +56,13 @@ npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเ�
 | ------------- | -------------------------------------------------- | --------------------------------- |
 | `PORT`        | พอร์ตสำหรับเซิร์ฟเวอร์ Express API                 | `5000`                            |
 | `MONGODB_URI` | Connection String สำหรับเชื่อมต่อฐานข้อมูล MongoDB | `mongodb://localhost:27017/donix` |
-| `CLIENT_URL`  | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS             | `http://localhost:3000`           |
-| `JWT_SECRET`  | คีย์ลับสำหรับเซ็น JWT Token                        | -                                 |
+| `CLIENT_URL`  | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS (**ห้ามต่อท้าย `/`**) | `http://localhost:3000` |
+| `JWT_SECRET`  | คีย์ลับสำหรับเซ็น JWT Token (**บังคับต้องมี** server จะไม่ยอมสตาร์ทถ้าไม่มี) | - |
+
+- มีไฟล์ `server/.env.example` ให้คัดลอกไปเป็น `.env` (`cp .env.example .env`) แล้วแก้ค่าให้เหมาะกับเครื่องตัวเอง
+- `CLIENT_URL` ห้ามต่อท้ายด้วย `/` เพราะ `cors` เทียบ Origin แบบ exact string (`"http://localhost:3000/" !== "http://localhost:3000"`) ถ้าผิดจะถูกเบราว์เซอร์บล็อกทุก request ที่ยิงเข้า server แม้ `index.js` จะตัด trailing slash ให้แล้วก็ตาม
+- โหลด `.env` ด้วย `dotenv.config({ path: <โฟลเดอร์ server>/.env })` เสมอ เพื่อให้รันจากไดเรกทอรีไหนก็ได้
+- ห้าม commit `.env` (อยู่ใน `.gitignore` แล้ว) และห้ามใส่ credential จริงลงในโค้ดหรือเอกสาร
 
 ### Client
 
@@ -93,15 +98,26 @@ server/
 
 ### 4.3 รายละเอียด User Schema (`server/Models/User.js`)
 
-- **ข้อมูลการยืนยันตัวตน**: `username`, `email`, `password`, `googleId`
-- **โปรไฟล์**: `profile` (`displayName`, `avatar`, `bio`)
-- **โซเชียลมีเดีย**: `socialLinks` (Facebook, Instagram, YouTube, TikTok, Twitch, X)
+- **ข้อมูลการยืนยันตัวตน**: `username`, `email`, `password` (`select: false` ต้อง query ด้วย `.select("+password")` ถ้าจะเทียบรหัสผ่าน และ `toJSON` transform จะตัด `password`/`__v` ออกเสมอ), `googleId`
+- **โปรไฟล์**: `nickname`, `firstName`, `lastName`, `birthDate`, `phone`, `gender`, `bio`, `isPhoneVerified`, `isEmailVerified`
+- **โซเชียลมีเดีย (`social`)**: `youtube`, `facebook`, `instagram`, `tiktok`, `twitch`, `x`
 - **ช่องทางรับเงิน (`payment`)**:
   - `promptpay`: `enabled`, `type` (เบอร์โทรศัพท์/เลขบัตร ปชช.), `number`
   - `bank`: `enabled`, `bankName`, `accountNumber`, `accountName`
   - `truemoney`: `enabled`, `phone`
 - **การตั้งค่าหน้ารับเงิน (`donationPage`)**:
-  - `welcomeMessage`, `thankYouMessage`, `minAmount`, `charLimit`, `filteredWords`, `coverImage`, `backgroundImage`
+  - `welcomeMessage`, `thankYouMessage`, `minAmount` (default `1`), `charLimit` (default `100`, `0` = ไม่จำกัด), `disableFilter`, `filteredWords`, `coverImage`, `backgroundImage`
+
+### 4.3.1 API ที่มีอยู่จริง
+
+| Method | Path              | การยืนยันตัวตน | รายละเอียด                                        |
+| ------ | ----------------- | -------------- | ------------------------------------------------- |
+| `POST` | `/api/auth/register` | ไม่ต้อง        | สมัครสมาชิก คืนค่า `token` + `user`                 |
+| `POST` | `/api/auth/login`    | ไม่ต้อง        | เข้าสู่ระบบด้วยอีเมล **หรือ** ชื่อผู้ใช้ คืนค่า `token` + `user` |
+| `GET`  | `/api/auth/me`       | Bearer token   | ข้อมูลผู้ใช้ปัจจุบัน (รวม `createdAt` เป็น `joinedAt`) |
+
+- ทุก response เป็น JSON เสมอ มี error handler ตัวสุดท้ายใน `index.js` กันไม่ให้ HTML/stack trace หลุดออกไป
+- ฝั่ง client อ่าน response ผ่าน `parseResponse()` ใน `client/src/utils/api.js` ห้ามเรียก `res.json()` ตรง ๆ เพราะจะพังเมื่อเจอ response ที่ไม่ใช่ JSON
 
 ### 4.4 การป้องกัน NoSQL Injection (บังคับทุก route ใหม่)
 
@@ -146,20 +162,19 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 
 ### 5.2 เส้นทาง URL และหน้าระบบ (Routing & Pages)
 
-| เส้นทาง (Route)                      | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง      | คำอธิบาย                                                             |
-| ------------------------------------ | -------------- | ------------------ | -------------------------------------------------------------------- |
-| `/`                                  | `MainPage`     | สาธารณะ            | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer     |
-| `/how-it-works`                      | `HowToUse`     | สาธารณะ            | หน้าคู่มือและขั้นตอนการเริ่มต้นใช้งานระบบ                            |
-| `/login`                             | `Login`        | สาธารณะ            | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) ได้รับ JWT Token       |
-| `/register`                          | `Register`     | สาธารณะ            | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ       |
-| `/dashboard`                         | `Dashboard`    | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟ, ช่องทางรับเงิน) |
-| `/payment`                           | `PaymentPage`  | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, TrueMoney, Bank, Coming Soon)  |
-| `/donate-page`                       | `DonatePage`   | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, โซเชียล |
-| `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล      |
-| `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าตรวจสอบประวัติการรับเงินและตารางรายการโดเนท                      |
-| `/widget`                            | `WidgetPage`   | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Preview |
-| `/:username` หรือ `/donor/:username` | `DonorPage`    | สาธารณะ            | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน      |
-| `*`                                  | `NotFound`     | สาธารณะ            | หน้าแจ้งเตือน 404 ไม่พบหน้าที่ค้นหา                                  |
+**ตารางนี้คือ route ที่มีอยู่จริงใน `client/src/App.js` เท่านั้น** ถ้าจะเพิ่มลิงก์ใน Sidebar / Navbar / Footer ต้องมี route มารองรับด้วยเสมอ ไม่งั้นผู้ใช้จะเจอหน้า 404
+
+| เส้นทาง (Route)     | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง      | คำอธิบาย                                                          |
+| ------------------- | -------------- | ------------------ | ----------------------------------------------------------------- |
+| `/`                 | `MainPage`     | สาธารณะ            | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer  |
+| `/login`            | `Login`        | สาธารณะ            | หน้าเข้าสู่ระบบ เข้าด้วยอีเมลหรือชื่อผู้ใช้ (Google Auth ยังไม่เชื่อมจริง) |
+| `/register`         | `Register`     | สาธารณะ            | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ      |
+| `/dashboard`        | `Dashboard`    | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟ, ช่องทางรับเงิน) |
+| `/donate-page`      | `DonatePage`   | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, โซเชียล |
+| `/account`          | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย, และเชื่อมต่อโซเชียล      |
+| `*`                 | `NotFound`     | สาธารณะ            | หน้าแจ้งเตือน 404 ไม่พบหน้าที่ค้นหา                                  |
+
+**หน้าที่ยังไม่ได้สร้าง** (เคยเป็นแค่ในเอกสาร ปัจจุบันถูกเอาลิงก์ออกแล้วเพราะพาไป 404): `/how-it-works`, `/discover`, `/payment`, `/history`, `/widget`, `/settings`, `/donor/:username` — ต้องสร้างหน้าและ register ใน `App.js` ก่อนจึงจะใส่ลิงก์กลับได้
 
 ---
 
@@ -236,7 +251,9 @@ client/src/
 │   └── Topbar.jsx           → แถบเมนูด้านบนแบบ Sticky (มี Breadcrumb หน้าหลัก/Dashboard/ชื่อหน้า, กระดิ่งแจ้งเตือน, รูปโปรไฟล์)
 ├── pages/                   → หน้าระบบทั้ง 12 หน้า
 ├── utils/
-│   └── passwordValidation.js→ ตรวจสอบความถูกต้องของรหัสผ่าน
+│   ├── api.js                → ค่า URL ของ API ทั้งหมด + `parseResponse()` สำหรับอ่าน response ให้ไม่พังเมื่อเจอ non-JSON
+│   ├── auth.js               → จัดการ token ใน localStorage (`getToken`, `setToken`, `clearToken`, `getTokenPayload`)
+│   └── passwordValidation.js → ตรวจสอบความถูกต้องของรหัสผ่าน
 ├── App.js                   → การกำหนดเส้นทาง Routing ทั้งหมด
 ├── App.test.js              → Test พื้นฐาน (render หน้า Landing Page) ที่ CI ใช้
 ├── setupTests.js            → ตั้งค่า Jest (jest-dom และ polyfill TextEncoder/TextDecoder)
@@ -257,6 +274,9 @@ client/src/
 5. **การจัดการ State**: หน้า Donor และ Widget รองรับการซิงค์ข้อมูลผ่าน `localStorage` เป็นหลัก และพร้อมสำหรับการต่อยอดเชื่อมต่อ REST API / Cloud Database ในอนาคต
 6. **ห้าม import ที่ไม่ได้ใช้ (ESLint warning)**: บน CI ตัวแปร `CI=true` ทำให้ warning กลายเป็น error และ build จะแดง
 7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่ query MongoDB ด้วยค่าจาก request ต้องทำตามรูปแบบในหัวข้อ 4.4 (ตรวจ `typeof` → ตัดสายด้วย `String()` → ครอบ `$eq`)
+8. **Tailwind เวอร์ชัน**: โปรเจกต์ใช้ **Tailwind v3** คลาส gradient ที่ถูกต้องคือ `bg-gradient-to-br/-tr/-b/-r` ห้ามใช้ `bg-linear-to-*` (เป็นชื่อของ v4) ไม่งั้น CSS จะไม่ถูก generate และพื้นหลังจะไม่แสดง
+9. **ห้ามแตะ `localStorage` ตรง ๆ ในคอมโพเนนต์**: ใช้ `utils/auth.js` (`getToken`, `setToken`, `clearToken`, `getTokenPayload`) เสมอ `getTokenPayload()` แปลง base64url ให้เป็น base64 ก่อน `atob` และตรวจ `exp` ให้อัตโนมัติ
+10. **ห้ามเรียก `res.json()` ตรง ๆ ใน client**: ใช้ `parseResponse()` จาก `utils/api.js` ซึ่งโยน Error พร้อมข้อความไทยเสมอแม้ server ตอบกลับมาไม่ใช่ JSON
 
 ---
 
