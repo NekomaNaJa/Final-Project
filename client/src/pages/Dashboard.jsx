@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import useJwtUser from "../hooks/useJwtUser";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import StatsCard from "../components/Dashboard/StatsCard";
@@ -10,22 +9,7 @@ import PaymentChannels from "../components/Dashboard/PaymentChannels";
 import { Sword, Coins, Gem, Eye } from "lucide-react";
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setTimeout(() => setUser(payload), 0);
-    } catch {
-      navigate("/login");
-    }
-  }, [navigate]);
+  const user = useJwtUser();
 
   return (
     <div className="min-h-screen bg-[#0A0B12] bg-[radial-gradient(ellipse_at_top_left,rgba(124,58,237,0.15),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(220,38,38,0.08),transparent_60%)]">

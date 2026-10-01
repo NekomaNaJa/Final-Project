@@ -155,6 +155,7 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 | เส้นทาง (Route)                      | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง      | คำอธิบาย                                                             |
 | ------------------------------------ | -------------- | ------------------ | -------------------------------------------------------------------- |
 | `/`                                  | `MainPage`     | สาธารณะ            | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer     |
+| `/discover`                          | `Discover`     | สาธารณะ            | หน้าค้นพบสตรีมเมอร์ จัดกลุ่มตามหมวด (กำลังไลฟ์/เกม/แนะนำ)                     |
 | `/how-it-works`                      | `HowToUse`     | สาธารณะ            | หน้าคู่มือและขั้นตอนการเริ่มต้นใช้งานระบบ                            |
 | `/login`                             | `Login`        | สาธารณะ            | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) ได้รับ JWT Token       |
 | `/register`                          | `Register`     | สาธารณะ            | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ       |
@@ -234,17 +235,21 @@ client/src/
 │   ├── Dashboard/           → StatCard, DonationChart, RecentDonations, PaymentChannels, SupportPanel
 │   ├── DonatePage/          → DonatePageLink, DecorateSection, MessageFilterSection, SocialMediaSection, SettingsCard, RichTextField, ImageUploadBox
 │   ├── Donor/               → DonorHeader, DonorPaymentTabs, DonorPromptPayForm, DonorBankForm, DonorTrueMoneyForm, DonorSlipUpload, DonorOfflineCard, DonorDisabledCard
-│   ├── History/             → DonationHistoryTable
+│   ├── Discover/             → CategorySection, StreamerCard (หน้า /discover)
+│   ├── History/              → DonationHistoryTable (ชื่อโฟลเดอร์จริงคือ Histor/ มี typo)
+│   ├── HowToUse/             → StepsSection, BenefitsSection (หน้า /how-it-works)
 │   ├── MainPage/            → Navbar, Hero, Features, StreamerList, CTASection, Footer
 │   ├── Payment/             → PaymentHeader, PromptPayCard, TrueMoneyCard, BankCard, ComingSoonCard
 │   ├── Widget/              → WidgetHeader, WidgetTypeTabs, DonateAlertPanel, DonateGoalPanel, LeaderboardPanel, MissionDonatePanel, WidgetPreview, BrowserSourceCard, AccordionSection, AudioUploadField, widgetStorage.js
 │   ├── Sidebar.jsx          → เมนูหลักซ้ายแบบ Sticky (มีเมนูทั่วไปและการชำระเงิน)
 │   └── Topbar.jsx           → แถบเมนูด้านบนแบบ Sticky (มี Breadcrumb หน้าหลัก/Dashboard/ชื่อหน้า, กระดิ่งแจ้งเตือน, รูปโปรไฟล์)
+├── hooks/
+│   └── useJwtUser.js         → อ่าน user จาก JWT ใน localStorage (ใช้ร่วมกัน Dashboard/HistoryPage)
 ├── pages/                   → หน้าระบบทั้ง 12 หน้า
 ├── utils/
 │   └── passwordValidation.js→ ตรวจสอบความถูกต้องของรหัสผ่าน
-├── App.js                   → การกำหนดเส้นทาง Routing ทั้งหมด
-├── App.test.js              → Test พื้นฐาน (render หน้า Landing Page) ที่ CI ใช้
+├── App.js                   → การกำหนดเส้นทาง Routing ทั้งหมด (route `*` ต้องอยู่บรรทัดสุดท้ายเสมอ)
+├── App.test.js              → Test routing ของหน้าใหม่ (/discover, /how-it-works, /history)
 ├── setupTests.js            → ตั้งค่า Jest (jest-dom และ polyfill TextEncoder/TextDecoder)
 ├── index.css                → สไตล์ CSS หลักและนำเข้า Font Kanit / Tailwind
 └── index.js                 → React Root Mounting
@@ -331,6 +336,10 @@ npm test -- --watchAll=false
 - Secret: `SONAR_TOKEN` (GitHub repo แล้ว Settings แล้ว Secrets and variables แล้ว Actions) ห้ามใส่ token ในโค้ด
 - Main Branch บน SonarCloud ต้องชื่อ `main` ให้ตรงกับ GitHub เป๊ะ (ถ้าตั้งผิดเป็น `master` ผลสแกนจาก CI จะไม่อัปเดตหน้า Overview เพราะแผนฟรีวิเคราะห์เฉพาะ Main Branch)
 - Quality Gate ตรวจเฉพาะโค้ดใหม่ (New Code) ส่วนปัญหาเก่าเป็น baseline ค่อยๆ แก้ทีละ branch
+- **ทุกไฟล์ใหม่ทุกไฟล์ต้องมีเทสต์ครอบ** ไม่งั้น Coverage on New Code จะเป็น 0% และ gate แดง เพราะ Jest/LCOV รายงานเฉพาะไฟล์ที่ถูก import ในเทสต์เท่านั้น
+- **ห้ามใช้ `sonar.coverage.exclusions` เป็นทางออกแทนการเขียนเทสต์** การ exclude คือการซ่อน ไม่ใช่การแก้
+- **ห้ามคัดลอกบล็อกโค้ด ≥10 บรรทัด** จะโดนจับเป็น Duplication on New Code (เพดาน 3%) ให้ย้ายไปเป็น hook/component กลาง เช่น `hooks/useJwtUser.js`
+- ตรวจผลเองก่อน push ได้ด้วย `client/coverage/lcov.info` ว่ามีบรรทัด `SF:` ของไฟล์ใหม่ครบ และดู % จากรายงาน `coverage/lcov-report/`
 - ดูผลสแกนที่ sonarcloud.io (โปรเจค `nekomanaja_Final-Project`) และในคอมเมนต์ของบอทบน PR
 - ห้ามเปิด Automatic Analysis บน SonarCloud (ชนกับการสแกนผ่าน CI)
 - แก้ Security/Bug ที่ Sonar แจ้ง: ดูรูปแบบการแก้ NoSQL Injection ในหัวข้อ 4.4 ก่อนเขียนวิธีแก้ใหม่

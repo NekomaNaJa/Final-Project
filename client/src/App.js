@@ -8,6 +8,9 @@ import PaymentPage from "./pages/PaymentPage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 import Account from "./pages/Account";
 import DonorPage from "./pages/DonorPage";
+import Discover from "./pages/Discover";
+import HowToUse from "./pages/HowToUse";
+import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 
 const App = () => {
@@ -17,6 +20,8 @@ const App = () => {
         <Route path="/" element={<MainPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/discover" element={<Discover />} />
+        <Route path="/how-it-works" element={<HowToUse />} />
         <Route
           path="/dashboard"
           element={
@@ -42,12 +47,20 @@ const App = () => {
           }
         />
         <Route
-            path="/account"
-            element={
-              <ProtectedRoute>
-                <Account />
-              </ProtectedRoute>
-            }
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <Account />
+            </ProtectedRoute>
+          }
         />
         <Route path="/donor/:username" element={<DonorPage />} />
         <Route path="/:username" element={<DonorPage />} />
