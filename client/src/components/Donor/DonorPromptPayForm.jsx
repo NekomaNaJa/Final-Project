@@ -39,7 +39,7 @@ const DonorPromptPayForm = ({
       {/* Amount Input */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-[#d4cfdf]">
+          <label htmlFor="donor-promptpay-amount" className="text-sm font-semibold text-[#d4cfdf]">
             จำนวนเงิน (บาท)
           </label>
           {minAmount > 0 && (
@@ -49,6 +49,7 @@ const DonorPromptPayForm = ({
           )}
         </div>
         <input
+          id="donor-promptpay-amount"
           type="number"
           min={minAmount || 1}
           step="1"

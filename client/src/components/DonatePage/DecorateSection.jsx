@@ -63,7 +63,7 @@ const DecorateSection = () => {
 
       {/* Full Width: Minimum Amount */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-[#d4cfdf]">
+        <label htmlFor="decorate-min-amount" className="text-xs font-semibold text-[#d4cfdf]">
           จำนวนเงินขั้นต่ำ
         </label>
         <p className="text-[10px] text-[#7e778d]">
@@ -71,6 +71,7 @@ const DecorateSection = () => {
         </p>
         <div className="relative mt-0.5">
           <input
+            id="decorate-min-amount"
             type="number"
             min="0"
             step="1"

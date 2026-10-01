@@ -26,7 +26,7 @@ const SocialMediaTab = () => {
       <div className="grid gap-4 sm:grid-cols-2">
         {socialPlatforms.map(({ key, label, icon }) => (
           <div key={key} className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold tracking-wider text-[#9891ab]">
+            <label htmlFor={`account-social-${key}`} className="text-[11px] font-bold tracking-wider text-[#9891ab]">
               {label}
             </label>
             <div className="relative flex items-center rounded-xl border border-[#2e2648] bg-[#110d22] px-3 py-2 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
@@ -34,6 +34,7 @@ const SocialMediaTab = () => {
                 {icon}
               </div>
               <input
+                id={`account-social-${key}`}
                 type="text"
                 value={socialLinks[key]}
                 onChange={(e) => handleChange(key, e.target.value)}

@@ -91,10 +91,11 @@ const TrueMoneyCard = ({ initialData, onSave }) => {
         >
           {/* TrueMoney Phone Number */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#d4cfdf]">
+            <label htmlFor="truemoney-phone" className="text-xs font-semibold text-[#d4cfdf]">
               เบอร์โทรศัพท์ทรูมันนี่
             </label>
             <input
+              id="truemoney-phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}

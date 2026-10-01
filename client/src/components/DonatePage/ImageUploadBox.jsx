@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
 import { Image as ImageIcon, X } from "lucide-react";
 
-const ImageUploadBox = ({ label, onImageSelect, previewUrl: initialPreview = null }) => {
+const ImageUploadBox = ({ id, label, onImageSelect, previewUrl: initialPreview = null }) => {
+  const inputId = id || `upload-${String(label || "file").replace(/\s+/g, "-").toLowerCase()}`;
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState(initialPreview);
   const [isDragging, setIsDragging] = useState(false);
@@ -50,10 +51,11 @@ const ImageUploadBox = ({ label, onImageSelect, previewUrl: initialPreview = nul
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-xs font-semibold text-[#d4cfdf]">{label}</label>
+        <label htmlFor={inputId} className="text-xs font-semibold text-[#d4cfdf]">{label}</label>
       )}
 
       <input
+        id={inputId}
         type="file"
         ref={fileInputRef}
         onChange={(e) => handleFile(e.target.files[0])}

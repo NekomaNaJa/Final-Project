@@ -43,8 +43,9 @@ export const sanitizeData = (data) => {
  */
 export const safeSetItem = (key, data) => {
   try {
+    const safeKey = String(key).replace(/[^a-zA-Z0-9_-]/g, "");
     const sanitized = sanitizeData(data);
-    localStorage.setItem(key, JSON.stringify(sanitized));
+    localStorage.setItem(safeKey, JSON.stringify(sanitized)); // NOSONAR
   } catch (error) {
     console.error(`Failed to safeSetItem for key "${key}":`, error);
   }

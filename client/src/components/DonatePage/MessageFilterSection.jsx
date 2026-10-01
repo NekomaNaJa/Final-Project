@@ -44,11 +44,12 @@ const MessageFilterSection = () => {
     >
       {/* 1. Character Limit Dropdown */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-[#d4cfdf]">
+        <label htmlFor="filter-char-limit" className="text-xs font-semibold text-[#d4cfdf]">
           จำกัดจำนวนตัวอักษร
         </label>
         <div className="relative">
           <select
+            id="filter-char-limit"
             value={charLimit}
             onChange={(e) => setCharLimit(e.target.value)}
             className="w-full appearance-none rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 text-xs font-medium text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all cursor-pointer pr-10"
@@ -106,11 +107,12 @@ const MessageFilterSection = () => {
 
       {/* 3. Custom Filtered Words Input & Tag Chips */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-[#d4cfdf]">
+        <label htmlFor="filter-custom-word" className="text-xs font-semibold text-[#d4cfdf]">
           เพิ่มคำที่กรองของคุณเอง
         </label>
         <div className="flex gap-2">
           <input
+            id="filter-custom-word"
             type="text"
             value={inputWord}
             onChange={(e) => setInputWord(e.target.value)}

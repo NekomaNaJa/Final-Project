@@ -245,7 +245,7 @@ const DonorPage = () => {
               {/* Donor Name Input */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-[#d4cfdf]">
+                  <label htmlFor="donor-name-input" className="text-sm font-semibold text-[#d4cfdf]">
                     ชื่อของคุณ
                   </label>
                   <span className="text-xs text-gray-500 font-medium">
@@ -253,6 +253,7 @@ const DonorPage = () => {
                   </span>
                 </div>
                 <input
+                  id="donor-name-input"
                   type="text"
                   maxLength={24}
                   value={donorName}
@@ -265,7 +266,7 @@ const DonorPage = () => {
               {/* Message Textarea */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-[#d4cfdf]">
+                  <label htmlFor="donor-message-input" className="text-sm font-semibold text-[#d4cfdf]">
                     ข้อความ
                   </label>
                   <span className="text-xs text-gray-500 font-medium">
@@ -273,6 +274,7 @@ const DonorPage = () => {
                   </span>
                 </div>
                 <textarea
+                  id="donor-message-input"
                   rows={3}
                   maxLength={streamerConfig.charLimit || 200}
                   value={message}

@@ -28,8 +28,9 @@ const UserInfoTab = ({ user }) => {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-[#d4cfdf]">ชื่อเล่น</label>
+          <label htmlFor="user-nickname" className="text-xs font-semibold text-[#d4cfdf]">ชื่อเล่น</label>
           <input
+            id="user-nickname"
             type="text"
             name="nickname"
             value={form.nickname}
@@ -40,8 +41,9 @@ const UserInfoTab = ({ user }) => {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-[#d4cfdf]">ชื่อ-สกุล</label>
+          <label htmlFor="user-fullname" className="text-xs font-semibold text-[#d4cfdf]">ชื่อ-สกุล</label>
           <input
+            id="user-fullname"
             type="text"
             name="fullName"
             value={form.fullName}
@@ -52,8 +54,9 @@ const UserInfoTab = ({ user }) => {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-[#d4cfdf]">วันเกิด</label>
+          <label htmlFor="user-birthdate" className="text-xs font-semibold text-[#d4cfdf]">วันเกิด</label>
           <input
+            id="user-birthdate"
             type="text"
             name="birthDate"
             value={form.birthDate}
@@ -64,9 +67,10 @@ const UserInfoTab = ({ user }) => {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-[#d4cfdf]">เพศ</label>
+          <label htmlFor="user-gender" className="text-xs font-semibold text-[#d4cfdf]">เพศ</label>
           <div className="relative">
             <select
+              id="user-gender"
               name="gender"
               value={form.gender}
               onChange={handleChange}
@@ -92,8 +96,9 @@ const UserInfoTab = ({ user }) => {
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-2">
-          <label className="text-xs font-semibold text-[#d4cfdf]">เกี่ยวกับฉัน</label>
+          <label htmlFor="user-bio" className="text-xs font-semibold text-[#d4cfdf]">เกี่ยวกับฉัน</label>
           <textarea
+            id="user-bio"
             name="bio"
             value={form.bio}
             onChange={handleChange}

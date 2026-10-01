@@ -2,12 +2,18 @@ import React, { useState } from "react";
 import { Bold, Italic, Type } from "lucide-react";
 
 const RichTextField = ({
+  id,
   label,
   value,
   onChange,
   placeholder = "",
   rows = 3,
 }) => {
+  const fieldId =
+    id ||
+    `richtext-${String(label || "field")
+      .replace(/\s+/g, "-")
+      .toLowerCase()}`;
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -21,7 +27,9 @@ const RichTextField = ({
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-xs font-semibold text-[#d4cfdf]">{label}</label>
+        <label htmlFor={fieldId} className="text-xs font-semibold text-[#d4cfdf]">
+          {label}
+        </label>
       )}
       <div className="rounded-xl border border-[#2e2648] bg-[#110d22] overflow-hidden focus-within:border-purple-500/80 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
         {/* Mock Toolbar */}
@@ -66,6 +74,7 @@ const RichTextField = ({
 
         {/* Textarea */}
         <textarea
+          id={fieldId}
           rows={rows}
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
