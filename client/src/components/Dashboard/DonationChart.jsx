@@ -1,34 +1,122 @@
-import { BarChart3 } from "lucide-react";
+import { useState } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { TrendingUp } from "lucide-react";
+import { Card, CardHeader } from "./CardWrapper";
 
-const DonationChart = () => (
-  <section className="rounded-2xl border border-[#302a49] bg-[#1d1930] p-4 min-h-[220px]">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-4 w-4 text-[#9b78ff]" />
-        <div>
-          <p className="text-xs font-bold text-[#d9d5e1]">ภาพรวมรายได้ของคุณ</p>
-          <p className="text-[8px] uppercase tracking-wide text-[#766f83]">Revenue overview</p>
-        </div>
-      </div>
-      <div className="flex overflow-hidden rounded-md border border-[#40385d] text-[9px]">
-        <button className="bg-[#7656dc] px-2 py-1 text-white">7D</button>
-        <button className="border-l border-[#40385d] px-2 py-1 text-[#aaa4b5]">1M</button>
-        <button className="border-l border-[#40385d] px-2 py-1 text-[#aaa4b5]">ALL</button>
-      </div>
-    </div>
+const emptyData = {
+  "7D": [
+    { d: "จ", amount: 0 },
+    { d: "อ", amount: 0 },
+    { d: "พ", amount: 0 },
+    { d: "พฤ", amount: 0 },
+    { d: "ศ", amount: 0 },
+    { d: "ส", amount: 0 },
+    { d: "อา", amount: 0 },
+  ],
+  "30D": [
+    { d: "1", amount: 0 },
+    { d: "5", amount: 0 },
+    { d: "10", amount: 0 },
+    { d: "15", amount: 0 },
+    { d: "20", amount: 0 },
+    { d: "25", amount: 0 },
+    { d: "30", amount: 0 },
+  ],
+  ALL: [
+    { d: "ม.ค.", amount: 0 },
+    { d: "ก.พ.", amount: 0 },
+    { d: "มี.ค.", amount: 0 },
+    { d: "เม.ย.", amount: 0 },
+    { d: "พ.ค.", amount: 0 },
+    { d: "มิ.ย.", amount: 0 },
+  ],
+};
 
-    <div className="relative mt-3 h-36 overflow-hidden rounded-xl border border-[#2d2841] bg-[#1b172c] px-5 pb-5 pt-3">
-      <div className="absolute inset-x-5 top-3 bottom-5 grid grid-rows-5">
-        {[0, 1, 2, 3, 4].map((line) => <div key={line} className="border-t border-[#342e49]" />)}
+const DonationChart = () => {
+  const [range, setRange] = useState("7D");
+
+  return (
+    <Card>
+      <CardHeader
+        icon={TrendingUp}
+        title="โดเนทล่าสุด"
+        subtitle="7 วันที่ผ่านมา"
+        subtitleClass="font-sans"
+        right={
+          <div className="flex gap-1 rounded-lg border border-white/8 bg-white/5 p-0.5 text-[10px] uppercase tracking-[0.18em]">
+            {["7D", "30D", "ALL"].map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={`rounded px-2.5 py-1 transition-colors ${
+                  range === r
+                    ? "bg-purple-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      <div className="h-64 px-2 pb-4 pt-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={emptyData[range]}
+            margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="donixFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#7C3AED" stopOpacity={0.55} />
+                <stop offset="100%" stopColor="#7C3AED" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(255,255,255,0.06)"
+            />
+            <XAxis
+              dataKey="d"
+              stroke="#6B7280"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+            />
+            <YAxis
+              stroke="#6B7280"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "#111320",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="amount"
+              stroke="#7C3AED"
+              strokeWidth={2}
+              fill="url(#donixFill)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
-      <div className="absolute inset-y-3 left-5 right-5 grid grid-cols-7">
-        {[0, 1, 2, 3, 4, 5, 6].map((line) => <div key={line} className="border-l border-[#2b2640]" />)}
-      </div>
-      <div className="absolute inset-x-5 bottom-1 flex justify-between text-[7px] text-[#766f83]">
-        <span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span><span>อา</span>
-      </div>
-    </div>
-  </section>
-);
+    </Card>
+  );
+};
 
 export default DonationChart;

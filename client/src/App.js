@@ -10,7 +10,6 @@ import Account from "./pages/Account";
 import DonorPage from "./pages/DonorPage";
 import NotFound from "./pages/NotFound";
 
-
 const App = () => {
   return (
     <BrowserRouter>
