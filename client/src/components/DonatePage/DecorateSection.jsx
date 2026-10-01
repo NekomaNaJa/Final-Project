@@ -2,23 +2,39 @@ import React, { useState } from "react";
 import SettingsCard from "./SettingsCard";
 import RichTextField from "./RichTextField";
 import ImageUploadBox from "./ImageUploadBox";
+import { safeGetItem, safeSetItem, sanitizeValue } from "../../utils/sanitizeStorage";
 
 const DecorateSection = () => {
-  const [welcomeMessage, setWelcomeMessage] = useState("");
-  const [thankYouMessage, setThankYouMessage] = useState("");
-  const [minAmount, setMinAmount] = useState(1);
-  const [coverImage, setCoverImage] = useState(null);
-  const [backgroundImage, setBackgroundImage] = useState(null);
+  const saved = safeGetItem("donix_donate_config", {});
+
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    saved.welcomeMessage || "",
+  );
+  const [thankYouMessage, setThankYouMessage] = useState(
+    saved.thankYouMessage || "",
+  );
+  const [minAmount, setMinAmount] = useState(
+    saved.minAmount !== undefined ? saved.minAmount : 10,
+  );
+  const [coverImage, setCoverImage] = useState(saved.coverImage || null);
+  const [backgroundImage, setBackgroundImage] = useState(
+    saved.backgroundImage || null,
+  );
 
   const handleSave = () => {
-    // Mock save data
-    console.log("Saving donate page settings:", {
-      welcomeMessage,
-      thankYouMessage,
-      minAmount,
-      coverImage,
-      backgroundImage,
-    });
+    const cleanWelcome = sanitizeValue(welcomeMessage);
+    const cleanThankYou = sanitizeValue(thankYouMessage);
+    const cleanMin = Math.max(1, Number(minAmount) || 10);
+    const config = {
+      ...saved,
+      welcomeMessage: cleanWelcome,
+      thankYouMessage: cleanThankYou,
+      minAmount: cleanMin,
+      coverImage: typeof coverImage === "string" ? coverImage : null,
+      backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
+    };
+    safeSetItem("donix_donate_config", config);
+    console.log("Saved donate page settings:", config);
   };
 
   return (
@@ -47,7 +63,7 @@ const DecorateSection = () => {
 
       {/* Full Width: Minimum Amount */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-[#d4cfdf]">
+        <label htmlFor="decorate-min-amount" className="text-xs font-semibold text-[#d4cfdf]">
           จำนวนเงินขั้นต่ำ
         </label>
         <p className="text-[10px] text-[#7e778d]">
@@ -55,11 +71,12 @@ const DecorateSection = () => {
         </p>
         <div className="relative mt-0.5">
           <input
+            id="decorate-min-amount"
             type="number"
             min="0"
             step="1"
             value={minAmount}
-            onChange={(e) => setMinAmount(e.target.value)}
+            onChange={(e) => setMinAmount(Number(e.target.value))}
             className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2 text-xs font-medium text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all"
             placeholder="เช่น 1 หรือ 10"
           />

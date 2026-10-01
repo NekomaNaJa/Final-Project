@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/Auth/AuthLayout";
 import InputField from "../components/Auth/InputField";
 import SocialAuthButtons from "../components/Auth/SocialAuthButtons";
+import { API } from "../utils/api";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ const Login = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch(API.login, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
