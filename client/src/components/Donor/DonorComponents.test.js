@@ -252,5 +252,44 @@ describe("Donor Components", () => {
       fireEvent.change(fileInput, { target: { files: [badFile] } });
       expect(window.alert).toHaveBeenCalledWith("รองรับเฉพาะไฟล์รูปภาพประเภท jpg, png, gif, webp เท่านั้น");
     });
+
+    test("handles drag, drop, and keyboard events in DonorSlipUpload", () => {
+      const handleSlip = jest.fn();
+      render(<DonorSlipUpload onSlipSelected={handleSlip} />);
+
+      const dropzone = screen.getByRole("button");
+      fireEvent.dragOver(dropzone);
+      fireEvent.dragLeave(dropzone);
+
+      const file = new File(["dummy content"], "slip.png", { type: "image/png" });
+      fireEvent.drop(dropzone, {
+        dataTransfer: { files: [file] },
+      });
+      expect(handleSlip).toHaveBeenCalled();
+
+      fireEvent.keyDown(dropzone, { key: "Enter" });
+      fireEvent.keyDown(dropzone, { key: " " });
+    });
+  });
+
+  describe("DonorBankForm additional coverage", () => {
+    test("handles bank form submission with slip", () => {
+      const handleSubmit = jest.fn();
+      render(<DonorBankForm onSubmit={handleSubmit} />);
+
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      const fileInput = document.querySelector('input[type="file"]');
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+      expect(handleSubmit).toHaveBeenCalled();
+    });
+
+    test("handles copy button click in DonorBankForm", () => {
+      render(<DonorBankForm accountNumber="123-456" />);
+      const copyBtn = screen.getByRole("button", { name: /คัดลอก/i });
+      fireEvent.click(copyBtn);
+    });
   });
 });
