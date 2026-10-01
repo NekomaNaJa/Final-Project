@@ -12,8 +12,14 @@ const DonorBankForm = ({
   const [slipFile, setSlipFile] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(accountNumber.replace(/[^0-9]/g, ""));
+  const handleCopy = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(accountNumber.replace(/[^0-9]/g, ""));
+      }
+    } catch {
+      // Ignore clipboard write failure
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
