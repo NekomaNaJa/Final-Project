@@ -1,6 +1,14 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, UserCircle2, Image, LogOut } from "lucide-react";
-import { clearToken } from "../utils/auth";
+import {
+  LayoutDashboard,
+  UserCircle2,
+  Wallet,
+  Image,
+  Sparkles,
+  History,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import DonixLogo from "../assets/PrimaryLogo.png";
 
 const menuTop = [
@@ -8,7 +16,12 @@ const menuTop = [
   { label: "บัญชีผู้ใช้", icon: UserCircle2, to: "/account" },
 ];
 
-const menuFinance = [{ label: "หน้ารับเงิน", icon: Image, to: "/donate-page" }];
+const menuFinance = [
+  { label: "บัญชีรับเงิน", icon: Wallet, to: "/payment" },
+  { label: "หน้ารับเงิน", icon: Image, to: "/donate-page" },
+  { label: "วิดเจ็ตรับเงิน", icon: Sparkles, to: "/widget" },
+  { label: "ประวัติการรับเงิน", icon: History, to: "/history" },
+];
 
 const SidebarItem = ({ icon: Icon, label, to, end }) => {
   const base =
@@ -47,7 +60,7 @@ const Sidebar = ({ onLogout }) => {
     if (onLogout) {
       onLogout();
     } else {
-      clearToken();
+      localStorage.removeItem("token");
       navigate("/login");
     }
   };
@@ -81,6 +94,7 @@ const Sidebar = ({ onLogout }) => {
       </div>
 
       <div className="mt-auto space-y-1">
+        <SidebarItem icon={Settings} label="ตั้งค่า" to="/settings" />
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
