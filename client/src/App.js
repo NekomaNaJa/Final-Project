@@ -6,7 +6,6 @@ import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 
-
 const App = () => {
   return (
     <BrowserRouter>

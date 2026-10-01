@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import Footer from "../components/MainPage/Footer";
 import DonatePageLink from "../components/DonatePage/DonatePageLink";
 import DecorateSection from "../components/DonatePage/DecorateSection";
 import MessageFilterSection from "../components/DonatePage/MessageFilterSection";
@@ -31,7 +30,7 @@ const DonatePage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex">
       {/* Ambient Gradient Background */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         {/* Top-center primary purple glow */}
@@ -59,12 +58,10 @@ const DonatePage = () => {
           }}
         />
       </div>
-
       {/* Sidebar */}
       <div className="relative z-20 shrink-0">
         <Sidebar onLogout={handleLogout} />
-      </div>
-
+      </div>{" "}
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
@@ -79,9 +76,6 @@ const DonatePage = () => {
             <SocialMediaSection />
           </main>
         </div>
-
-        {/* Footer */}
-        <Footer />
       </div>
     </div>
   );

@@ -54,15 +54,19 @@ const SidebarItem = ({ icon: Icon, label, to, end }) => {
   );
 };
 
-const Sidebar = () => {
+const Sidebar = ({ onLogout }) => {
   const navigate = useNavigate();
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem("token");
+      navigate("/login");
+    }
   };
 
   return (
-    <aside className="sticky top-0 h-screen w-56 shrink-0 flex flex-col border-r border-border bg-abyss/60 px-4 py-6 backdrop-blur-xl">
+    <aside className="sticky top-0 h-screen w-56 shrink-0 flex flex-col border-r border-border bg-abyss/80 px-4 py-6 backdrop-blur-xl z-30 overflow-y-auto">
       <div className="px-2 mb-8">
         <img src={DonixLogo} alt="DONIX" className="h-7 w-auto" />
       </div>
