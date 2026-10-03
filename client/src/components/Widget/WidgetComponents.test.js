@@ -316,6 +316,84 @@ describe("Widget Components & Functions", () => {
       fireEvent.click(saveBtn);
       expect(handleSave).toHaveBeenCalled();
     });
+
+    test("handles sound, TTS, typography styles, animations, and tier edits", () => {
+      const handleChange = jest.fn();
+      const handleSave = jest.fn();
+
+      render(
+        <DonateAlertPanel
+          value={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            useAmountTiers: true,
+          }}
+          onChange={handleChange}
+          onSave={handleSave}
+        />
+      );
+
+      // Open Audio & TTS accordion
+      const audioBtn = screen.getByRole("button", {
+        name: /เสียงแจ้งเตือน & ข้อความเสียง \(TTS\)/,
+      });
+      fireEvent.click(audioBtn);
+
+      const soundSelect = screen.getByDisplayValue("Mythic Horn");
+      fireEvent.change(soundSelect, { target: { value: "dragon-roar" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ soundPreset: "dragon-roar" })
+      );
+
+      const ttsVoiceSelect = screen.getByDisplayValue(/Thai หญิง/);
+      fireEvent.change(ttsVoiceSelect, { target: { value: "th-male" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ ttsVoice: "th-male" })
+      );
+
+      const ttsSpeedSelect = screen.getByDisplayValue("1.0x");
+      fireEvent.change(ttsSpeedSelect, { target: { value: "1.5x" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ ttsSpeed: "1.5x" })
+      );
+
+      // Open Style accordion
+      const msgBtn = screen.getByRole("button", { name: /ข้อความ & การจัดสไตล์/ });
+      fireEvent.click(msgBtn);
+
+      const fontSelect = screen.getByDisplayValue(/Kanit/);
+      fireEvent.change(fontSelect, { target: { value: "Cinzel" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ fontFamily: "Cinzel" })
+      );
+
+      const weightSelect = screen.getByDisplayValue(/Bold \(700\)/);
+      fireEvent.change(weightSelect, { target: { value: "400" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ fontWeight: "400" })
+      );
+
+      // Open Effects accordion
+      const effectBtn = screen.getByRole("button", {
+        name: /เอฟเฟกต์ & การแสดงผลตามจำนวนเงิน/,
+      });
+      fireEvent.click(effectBtn);
+
+      const animInSelect = screen.getByDisplayValue(/Bounce In/);
+      fireEvent.change(animInSelect, { target: { value: "fadeIn" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ animationIn: "fadeIn" })
+      );
+
+      const filterSelect = screen.getByDisplayValue(/Glow/);
+      fireEvent.change(filterSelect, { target: { value: "Pulse" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ filterEffect: "Pulse" })
+      );
+
+      const deleteTierBtn = screen.getAllByTitle("ลบช่วงนี้")[0];
+      fireEvent.click(deleteTierBtn);
+      expect(handleChange).toHaveBeenCalled();
+    });
   });
 
   describe("WidgetPreview", () => {
@@ -393,6 +471,29 @@ describe("Widget Components & Functions", () => {
 
   describe("WidgetPage (Full Page Integration)", () => {
     test("renders full widget page with authenticated token and handles tab switching and save", () => {
+      const mockAudio = {
+        currentTime: 0,
+        createOscillator: jest.fn().mockReturnValue({
+          type: "",
+          frequency: {
+            setValueAtTime: jest.fn(),
+            exponentialRampToValueAtTime: jest.fn(),
+          },
+          connect: jest.fn(),
+          start: jest.fn(),
+          stop: jest.fn(),
+        }),
+        createGain: jest.fn().mockReturnValue({
+          gain: {
+            setValueAtTime: jest.fn(),
+            exponentialRampToValueAtTime: jest.fn(),
+          },
+          connect: jest.fn(),
+        }),
+        destination: {},
+      };
+      window.AudioContext = jest.fn().mockImplementation(() => mockAudio);
+
       const mockPayload = btoa(JSON.stringify({ username: "widget_streamer" }));
       localStorage.setItem("token", `header.${mockPayload}.signature`);
 
@@ -405,19 +506,25 @@ describe("Widget Components & Functions", () => {
       expect(screen.getByText("WIDGETS")).toBeInTheDocument();
       expect(screen.getAllByText("วิดเจ็ตรับเงิน").length).toBeGreaterThan(0);
 
-      // Switch to Goal
+      // Switch to Goal and edit
       fireEvent.click(screen.getByText("Donate Goal"));
       expect(screen.getByText("GOAL PROGRESS BAR")).toBeInTheDocument();
+      const goalTitleInput = screen.getByPlaceholderText(/เป้าหมายพัฒนาสตรีม/);
+      fireEvent.change(goalTitleInput, { target: { value: "Live Stream Goal" } });
 
-      // Switch to Leaderboard
+      // Switch to Leaderboard and edit
       fireEvent.click(screen.getByText("Leaderboard"));
       expect(screen.getByText("TOP SUPPORTERS RANKING")).toBeInTheDocument();
+      const lbTitleInput = screen.getByPlaceholderText(/TOP 5/);
+      fireEvent.change(lbTitleInput, { target: { value: "Top Supporters Ranking" } });
 
-      // Switch to Mission
+      // Switch to Mission and edit
       fireEvent.click(screen.getByText("Mission Donate"));
       expect(screen.getByText("DONATION MISSION SLOTS")).toBeInTheDocument();
+      const missionTitleInput = screen.getByPlaceholderText(/ภารกิจสตรีมเมอร์วันนี้/);
+      fireEvent.change(missionTitleInput, { target: { value: "New Mission" } });
 
-      // Test Alert playback
+      // Test Alert playback with audio synthesis
       fireEvent.click(screen.getByText("Donate Alert"));
       const testAlertBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
       fireEvent.click(testAlertBtn);
@@ -431,6 +538,16 @@ describe("Widget Components & Functions", () => {
       // Logout
       const logoutBtn = screen.getByText("ออกจากระบบ");
       fireEvent.click(logoutBtn);
+      expect(localStorage.getItem("token")).toBeNull();
+    });
+
+    test("handles corrupted token and redirects", () => {
+      localStorage.setItem("token", "corrupt_jwt_token");
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
       expect(localStorage.getItem("token")).toBeNull();
     });
   });
