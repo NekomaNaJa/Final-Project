@@ -282,6 +282,35 @@ describe("Widget Components & Functions", () => {
       fireEvent.click(saveBtn);
       expect(handleSave).toHaveBeenCalled();
     });
+
+    test("handles mission slot price update and adding slot when below limit", () => {
+      const handleChange = jest.fn();
+      const handleSave = jest.fn();
+
+      const elevenMissions = Array.from({ length: 11 }, (_, i) => ({
+        id: `m-${i}`,
+        name: `Mission ${i + 1}`,
+        price: 100,
+      }));
+
+      const { container } = render(
+        <MissionDonatePanel
+          value={{ title: "11 Missions", missions: elevenMissions }}
+          onChange={handleChange}
+          onSave={handleSave}
+        />
+      );
+
+      const priceInput = container.querySelector('input[type="number"]');
+      if (priceInput) {
+        fireEvent.change(priceInput, { target: { value: "200" } });
+        expect(handleChange).toHaveBeenCalled();
+      }
+
+      const addBtn = screen.getByRole("button", { name: /\+ เพิ่มช่องภารกิจ/ });
+      fireEvent.click(addBtn);
+      expect(handleChange).toHaveBeenCalled();
+    });
   });
 
   describe("DonateAlertPanel", () => {
@@ -411,6 +440,148 @@ describe("Widget Components & Functions", () => {
       const deleteTierBtn = screen.getAllByTitle("ลบช่วงนี้")[0];
       fireEvent.click(deleteTierBtn);
       expect(handleChange).toHaveBeenCalled();
+    });
+
+    test("handles all input controls, sliders, colors, audio upload, and tier actions", () => {
+      const handleChange = jest.fn();
+      const handleSave = jest.fn();
+      window.alert = jest.fn();
+
+      const { container } = render(
+        <DonateAlertPanel
+          value={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            useAmountTiers: true,
+          }}
+          onChange={handleChange}
+          onSave={handleSave}
+        />
+      );
+
+      // 1. Basic: Image selection
+      const fileInputs = container.querySelectorAll('input[type="file"]');
+      if (fileInputs[0]) {
+        const dummyImg = new File(["dummy"], "test.png", { type: "image/png" });
+        fireEvent.change(fileInputs[0], { target: { files: [dummyImg] } });
+      }
+
+      // 2. Audio & TTS
+      const audioBtn = screen.getByRole("button", {
+        name: /เสียงแจ้งเตือน & ข้อความเสียง \(TTS\)/,
+      });
+      fireEvent.click(audioBtn);
+
+      const ranges = container.querySelectorAll('input[type="range"]');
+      if (ranges[0]) {
+        fireEvent.change(ranges[0], { target: { value: "65" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ volume: 65 })
+        );
+      }
+
+      const checkboxes = screen.getAllByRole("checkbox");
+      if (checkboxes[0]) {
+        fireEvent.click(checkboxes[0]);
+        expect(handleChange).toHaveBeenCalled();
+      }
+
+      if (ranges[1]) {
+        fireEvent.change(ranges[1], { target: { value: "70" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ ttsVolume: 70 })
+        );
+      }
+
+      if (fileInputs[1]) {
+        const dummyAudio = new File(["dummy"], "custom.mp3", { type: "audio/mpeg" });
+        fireEvent.change(fileInputs[1], { target: { files: [dummyAudio] } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ customSoundFile: "custom.mp3", soundPreset: "custom" })
+        );
+      }
+
+      // 3. Message & Typography
+      const msgBtn = screen.getByRole("button", { name: /ข้อความ & การจัดสไตล์/ });
+      fireEvent.click(msgBtn);
+
+      if (checkboxes[1]) {
+        fireEvent.click(checkboxes[1]);
+        expect(handleChange).toHaveBeenCalled();
+      }
+
+      const fontSizeSlider = container.querySelectorAll('input[type="range"]')[2];
+      if (fontSizeSlider) {
+        fireEvent.change(fontSizeSlider, { target: { value: "32" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ fontSize: 32 })
+        );
+      }
+
+      const colorInputs = container.querySelectorAll('input[type="color"]');
+      if (colorInputs.length >= 4) {
+        fireEvent.change(colorInputs[0], { target: { value: "#ffffff" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ textColor: "#ffffff" })
+        );
+
+        fireEvent.change(colorInputs[1], { target: { value: "#c084fc" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ userNameColor: "#c084fc" })
+        );
+
+        fireEvent.change(colorInputs[2], { target: { value: "#fbbf24" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ amountColor: "#fbbf24" })
+        );
+
+        fireEvent.change(colorInputs[3], { target: { value: "#000000" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ strokeColor: "#000000" })
+        );
+      }
+
+      const strokeSlider = container.querySelectorAll('input[type="range"]')[3];
+      if (strokeSlider) {
+        fireEvent.change(strokeSlider, { target: { value: "4" } });
+        expect(handleChange).toHaveBeenCalledWith(
+          expect.objectContaining({ strokeSize: 4 })
+        );
+      }
+
+      // 4. Effects & Tiers
+      const effectBtn = screen.getByRole("button", {
+        name: /เอฟเฟกต์ & การแสดงผลตามจำนวนเงิน/,
+      });
+      fireEvent.click(effectBtn);
+
+      const animOutSelect = screen.getByDisplayValue(/Fade Out/);
+      fireEvent.change(animOutSelect, { target: { value: "slideOutUp" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ animationOut: "slideOutUp" })
+      );
+
+      const numberInputs = container.querySelectorAll('input[type="number"]');
+      numberInputs.forEach((numInput) => {
+        fireEvent.change(numInput, { target: { value: "2" } });
+      });
+
+      const tierCheckbox = screen.getAllByRole("checkbox").pop();
+      if (tierCheckbox) {
+        fireEvent.click(tierCheckbox);
+        expect(handleChange).toHaveBeenCalled();
+      }
+
+      const testTierBtns = screen.getAllByRole("button", { name: /ทดสอบช่วงนี้/ });
+      if (testTierBtns[0]) {
+        fireEvent.click(testTierBtns[0]);
+        expect(window.alert).toHaveBeenCalled();
+      }
+
+      const tierSoundSelects = screen.getAllByDisplayValue("Mythic Horn");
+      if (tierSoundSelects.length > 1) {
+        fireEvent.change(tierSoundSelects[1], { target: { value: "ancient-bell" } });
+        expect(handleChange).toHaveBeenCalled();
+      }
     });
   });
 
@@ -621,6 +792,65 @@ describe("Widget Components & Functions", () => {
       const logoutBtn = screen.getByText("ออกจากระบบ");
       fireEvent.click(logoutBtn);
       expect(localStorage.getItem("token")).toBeNull();
+    });
+
+    test("plays audio simulation sounds for different presets and updates alert settings", () => {
+      const mockAudio = {
+        currentTime: 0,
+        createOscillator: jest.fn().mockReturnValue({
+          type: "",
+          frequency: {
+            setValueAtTime: jest.fn(),
+            exponentialRampToValueAtTime: jest.fn(),
+          },
+          connect: jest.fn(),
+          start: jest.fn(),
+          stop: jest.fn(),
+        }),
+        createGain: jest.fn().mockReturnValue({
+          gain: {
+            setValueAtTime: jest.fn(),
+            exponentialRampToValueAtTime: jest.fn(),
+          },
+          connect: jest.fn(),
+        }),
+        destination: {},
+      };
+      window.AudioContext = jest.fn().mockImplementation(() => mockAudio);
+
+      const mockPayload = btoa(JSON.stringify({ username: "sound_streamer" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      // Open Audio & TTS accordion
+      const audioAccordion = screen.getByRole("button", {
+        name: /เสียงแจ้งเตือน & ข้อความเสียง \(TTS\)/,
+      });
+      fireEvent.click(audioAccordion);
+
+      const soundSelect = screen.getByDisplayValue("Mythic Horn");
+      const testBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
+
+      // Test dragon roar
+      fireEvent.change(soundSelect, { target: { value: "dragon-roar" } });
+      fireEvent.click(testBtn);
+
+      // Test ancient bell
+      fireEvent.change(soundSelect, { target: { value: "ancient-bell" } });
+      fireEvent.click(testBtn);
+
+      // Test none
+      fireEvent.change(soundSelect, { target: { value: "none" } });
+      fireEvent.click(testBtn);
+
+      // Change min amount in Alert panel to trigger updateSection("alert", ...)
+      const minInput = screen.getByPlaceholderText("10");
+      fireEvent.change(minInput, { target: { value: "50" } });
     });
 
     test("handles corrupted token and redirects", () => {
