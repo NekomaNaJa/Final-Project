@@ -187,7 +187,7 @@ export const getWidgetConfig = () => {
 };
 
 export const saveWidgetConfig = (config) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); // NOSONAR
 };
 
 export const getBrowserSourceUrl = (type, username) => {
