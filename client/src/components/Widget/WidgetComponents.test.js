@@ -181,6 +181,18 @@ describe("Widget Components & Functions", () => {
         expect.objectContaining({ theme: "crimson" })
       );
 
+      const startDateInput = screen.getByDisplayValue("2026-09-01");
+      fireEvent.change(startDateInput, { target: { value: "2026-10-01" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: "2026-10-01" })
+      );
+
+      const endDateInput = screen.getByDisplayValue("2026-09-30");
+      fireEvent.change(endDateInput, { target: { value: "2026-10-31" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ endDate: "2026-10-31" })
+      );
+
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
       fireEvent.click(saveBtn);
       expect(handleSave).toHaveBeenCalled();
@@ -220,6 +232,12 @@ describe("Widget Components & Functions", () => {
         fireEvent.click(minusBtn);
         expect(handleChange).toHaveBeenCalled();
       }
+
+      const startDateInput = screen.getByDisplayValue("2026-09-01");
+      fireEvent.change(startDateInput, { target: { value: "2026-10-01" } });
+      expect(handleChange).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: "2026-10-01" })
+      );
 
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
       fireEvent.click(saveBtn);
@@ -401,8 +419,13 @@ describe("Widget Components & Functions", () => {
       const { rerender } = render(
         <WidgetPreview
           type="alert"
-          config={DEFAULT_WIDGET_CONFIG.alert}
-          playing={false}
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            overlayImage: "http://localhost/alert.png",
+            filterEffect: "Glow",
+            strokeSize: 2,
+          }}
+          playing={true}
         />
       );
       expect(screen.getByText(/Shadow King/)).toBeInTheDocument();
@@ -410,15 +433,46 @@ describe("Widget Components & Functions", () => {
       rerender(
         <WidgetPreview
           type="alert"
-          config={{ ...DEFAULT_WIDGET_CONFIG.alert, filterEffect: "Shake" }}
-          playing={true}
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "Glitch",
+          }}
+          playing={false}
+        />
+      );
+
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "Wave",
+          }}
+          playing={false}
+        />
+      );
+
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "None",
+            strokeSize: 0,
+          }}
+          playing={false}
         />
       );
 
       rerender(
         <WidgetPreview
           type="goal"
-          config={DEFAULT_WIDGET_CONFIG.goal}
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.goal,
+            theme: "crimson",
+            startDate: "2026-09-01",
+            endDate: "2026-09-30",
+          }}
           playing={false}
         />
       );
@@ -426,12 +480,40 @@ describe("Widget Components & Functions", () => {
 
       rerender(
         <WidgetPreview
+          type="goal"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.goal,
+            theme: "gold",
+            target: 0,
+          }}
+          playing={false}
+        />
+      );
+
+      rerender(
+        <WidgetPreview
           type="leaderboard"
-          config={DEFAULT_WIDGET_CONFIG.leaderboard}
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.leaderboard,
+            limit: 10,
+            showAmount: true,
+          }}
           playing={false}
         />
       );
       expect(screen.getByText("TOP DONORS ประจำเดือน")).toBeInTheDocument();
+
+      rerender(
+        <WidgetPreview
+          type="leaderboard"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.leaderboard,
+            limit: 2,
+            showAmount: false,
+          }}
+          playing={false}
+        />
+      );
 
       rerender(
         <WidgetPreview
