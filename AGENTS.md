@@ -7,7 +7,7 @@
 
 ## 1. ข้อมูลภาพรวมของระบบ (Project Overview)
 
-**DONIX** คือแพลตฟอร์มรับบริจาคและสนับสนุนสตรีมเมอร์ (Streamer Donation & Overlay Platform) ในรูปแบบ Monorepo ประกอบด้วย 2 แพ็กเกจหลักที่ทำงานแยกกันอย่างอิสระ:
+**DONIX** คือแพลตฟอร์มรับบริจาคและสนับสนุนสตรีมเมอร์ (Streamer Donation & Overlay Platform) ในรูปแบบ Monorepo ประกอบด้วย 2 แพ็กเกจหลักที่ทำงานร่วมกัน:
 
 ```
 Donix/
@@ -39,14 +39,14 @@ npm start        # รันในโหมด Production
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (ไม่ค้างโหมด watch)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (17 Suites, 116 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
 ### 2.3 คำสั่งทดสอบและตรวจสอบ CI สำหรับ Local Environment
 
 ```bash
-# ทดสอบ Build บน Client ให้เหมือนบน GitHub Actions (CI=true จะเปลี่ยน Warning เป็น Fatal Error)
+# ทดสอบ Test Suite และ Build บน Client ให้เหมือนบน GitHub Actions (CI=true จะเปลี่ยน Warning เป็น Fatal Error)
 cd client
 set CI=true&& npm test -- --coverage --watchAll=false
 set CI=true&& npm run build
@@ -54,86 +54,46 @@ set CI=true&& npm run build
 
 ---
 
-<<<<<<< HEAD
-- **Server uses ES modules** (`"type": "module"` in server/package.json). Use `import`/`export`, not `require`.
-- **Server uses Express 5** (`^5.2.1`), not Express 4. Note Express 5 breaking changes (e.g. promise-returning route handlers, no `app.del()`).
-- **Client uses JSX** via CRA (CommonJS-style `module.exports` in config files like tailwind.config.js).
-- **Routing uses react-router-dom v7** — `<BrowserRouter>`/`<Routes>`/`<Route>` in `client/src/App.js`. Protected pages wrap children in `<ProtectedRoute>`.
-- **Thai UI text** — error messages, labels, and validation strings are in Thai. Match this convention when adding user-facing text.
-- **Password validation is duplicated** — `utils/passwordValidation.js` exists in both `client/src/utils/` and `server/utils/` with identical logic. Keep them in sync if modifying rules.
-<<<<<<< HEAD
-- **Icons use lucide-react** — All icons come from `lucide-react`. Import named icons (e.g. `<Home className="h-4 w-4" />`). The custom SVG icon file (`components/Dashboard/Icons.jsx`) was removed.
-- **Tailwind theme** — custom fonts (`Kanit` sans, `Nanum Myeongjo` serif) and brand colors (`mana` purple, `gold`, `crimson`, dark `void`/`abyss`) are defined in `client/tailwind.config.js`.
-
-## Architecture Notes
-
-- **Client pages** (`client/src/pages/`): `MainPage` (`/`), `Login` (`/login`), `Register` (`/register`), `Dashboard` (`/dashboard`, protected), `DonatePage` (`/donate-page`, protected). Shared layout/components live in `client/src/components/` (`Auth/`, `Dashboard/`, `DonatePage/`, `MainPage/`, plus shared `Topbar.jsx`/`Sidebar.jsx`).
-- Auth flow: `/api/auth/register` and `/api/auth/login` — JWT returned on success, 7-day expiry. Also supports Google login field (`googleId`) on the User model.
-- Socket.IO is initialized in `server/index.js` (attached to `req.io` via middleware, and CORS-restricted to `CLIENT_URL`). Events: `join-stream`, `disconnect`.
-- User model (`server/Models/User.js`) is the central schema — includes profile, social links, payment config (PromptPay/bank/TrueMoney), and donation page settings (welcome/thank-you messages, min amount, filtered words).
-- Routes are minimal: only `auth.js` exists in `server/routes/`.
-- MongoDB connection is handled in `server/config/db.js` (`connectDB`), called from `server/index.js`.
-=======
-- **Icons use lucide-react** — All icons come from `lucide-react`. Import named icons (e.g. `<Home className="h-4 w-4" />`). The custom SVG icon file (`components/Dashboard/Icons.jsx`) was removed. Brand/social icons (Instagram, Twitch, Facebook, YouTube, TikTok, X, Google) use inline SVGs.
-- **Client has a typo'd directory** — `Histor/` (not `History/`) contains `DonationHistoryTable.jsx`.
-=======
 ## 3. สภาพแวดล้อมและการตั้งค่า (Environment Variables)
->>>>>>> 1b2ed5ebb440b69dd060cee71da93bff8658b080
 
 ### 3.1 Server (`server/.env`)
 
-| ตัวแปร        | รายละเอียด                                         | ค่าเริ่มต้น (Default)             |
-| ------------- | -------------------------------------------------- | --------------------------------- |
-| `PORT`        | พอร์ตสำหรับเซิร์ฟเวอร์ Express API                 | `5000`                            |
+| ตัวแปร | รายละเอียด | ค่าเริ่มต้น (Default) |
+| :--- | :--- | :--- |
+| `PORT` | พอร์ตสำหรับเซิร์ฟเวอร์ Express API | `5000` |
 | `MONGODB_URI` | Connection String สำหรับเชื่อมต่อฐานข้อมูล MongoDB | `mongodb://localhost:27017/donix` |
-| `CLIENT_URL`  | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS             | `http://localhost:3000`           |
-| `JWT_SECRET`  | คีย์ลับสำหรับเซ็น JWT Token                        | -                                 |
+| `CLIENT_URL` | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS | `http://localhost:3000` |
+| `JWT_SECRET` | คีย์ลับสำหรับเซ็นและตรวจสอบ JWT Token | กำหนดใน `.env` ฝั่ง Server |
 
-### Client
+### 3.2 Client
 
-<<<<<<< HEAD
-- **Routing** (`client/src/App.js`): `/` → MainPage, `/login`, `/register`, `/dashboard`, `/donate-page`, `/history` (and a duplicate `/Histor` alias).
-- **Pages** (6): MainPage (landing), Login, Register, Dashboard (stats/charts with placeholder data), DonatePage (donation settings), HistoryPage (donation history with empty data, has TODO: replace with real data from `GET /api/donations/history`).
-- **Components**:
-  - `Auth/` — AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
-  - `Dashboard/` — StatsCard, DonationChart (recharts), TopDonors, RealtimeFeed, PaymentChannels, CardWrapper
-  - `DonatePage/` — DonatePageLink, DecorateSection, MessageFilterSection, SocialMediaSection, ImageUploadBox, SettingsCard, RichTextField
-  - `Histor/` — DonationHistoryTable (note the typo'd directory name)
-  - `MainPage/` — Navbar, Hero, Features, StreamerList, CTASection, Footer
-  - Shared: Sidebar.jsx, Topbar.jsx
-- **Styling**: Tailwind CSS with custom theme in `tailwind.config.js` — custom colors (`void`, `abyss`, `mana`, `gold`, `crimson`, `border`, `muted`), fonts (`Kanit` for sans, `Nanum Myeongjo` for serif).
-- **Key dependencies**: `react-router-dom` (routing), `recharts` (charts), `lucide-react` (icons), `@testing-library/*` (testing).
-- **Assets** (`client/src/assets/`): PrimaryLogo.png, HeroLogo.png, hero.png, bg-login.png.
-- Client JWT decoding uses `atob` with base64url-safe handling (`.replace(/-/g,"+").replace(/_/g,"/")`).
->>>>>>> e82569751fe6620599cf80bb24f0f046047e1be3
-=======
 - Base URL ของ API กำหนดไว้ที่ `http://localhost:5000`
 - การจัดการสิทธิ์และการสื่อสารข้ามโดเมนใช้ CORS จากฝั่ง Server
+- การอ่าน JWT Token บน Client มีการจัดการ base64url-safe string decoding ใน `useJwtUser.js`
 
 ---
 
 ## 4. โครงสร้างและรายละเอียดระบบฝั่ง Server (`server/`)
->>>>>>> 1b2ed5ebb440b69dd060cee71da93bff8658b080
 
 ### 4.1 สถาปัตยกรรมและเทคโนโลยี
 
-- **ES Modules**: กำหนด `"type": "module"` ใน `package.json` ใช้ `import` / `export`
-- **Express 5**: รองรับ Async/Await และ Promise-returning route handlers
-- **Socket.IO**: เชื่อมต่อแบบเรียลไทม์ (Attached กับ `req.io`) สำหรับสตรีม Event: `join-stream`, `disconnect`, `donation-alert`
-- **Mongoose & MongoDB**: จัดการ Schema ฐานข้อมูล
+- **ES Modules**: กำหนด `"type": "module"` ใน `package.json` ใช้คำสั่ง `import` / `export` ทั้งหมด
+- **Express 5**: เวอร์ชัน `^5.2.1` รองรับ Async/Await และ Promise-returning route handlers
+- **Socket.IO**: เชื่อมต่อแบบเรียลไทม์ (Attached กับ `req.io`) สำหรับส่ง Event แจ้งเตือน: `join-stream`, `disconnect`, `donation-alert`
+- **Mongoose & MongoDB**: จัดการ Database Schema และเชื่อมต่อ MongoDB
 
 ### 4.2 โครงสร้างไฟล์ Server
 
 ```
 server/
 ├── config/
-│   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (Mongoose)
+│   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── Models/
 │   └── User.js                  → Central User Schema
 ├── routes/
 │   └── auth.js                  → เส้นทาง /api/auth (register, login)
 ├── utils/
-│   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน
+│   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 ├── index.js                     → Entry Point ของเซิร์ฟเวอร์ Express + Socket.IO
 └── package.json
 ```
@@ -150,15 +110,15 @@ server/
 - **การตั้งค่าหน้ารับเงิน (`donationPage`)**:
   - `welcomeMessage`, `thankYouMessage`, `minAmount`, `charLimit`, `filteredWords`, `coverImage`, `backgroundImage`
 
-### 4.4 การป้องกัน NoSQL Injection (บังคับทุก route ใหม่)
+### 4.4 การป้องกัน NoSQL Injection (บังคับใช้ทุก route)
 
-ทุก route ที่รับค่าจาก `req.body`, `req.query` หรือ `req.params` แล้วนำไปใช้ใน query ของ Mongoose (`findOne`, `find`, `updateOne` ฯลฯ) **ต้องทำตามลำดับนี้เสมอ** อ้างอิงจาก `server/routes/auth.js`:
+ทุก route ที่รับค่าจาก `req.body`, `req.query` หรือ `req.params` แล้วนำไปใช้ใน query ของ Mongoose (`findOne`, `find`, `updateOne` ฯลฯ) **ต้องทำตาม 3 ขั้นตอนนี้เสมอ**:
 
-1. **ตรวจชนิดก่อน** ด้วย `typeof` ว่าเป็น `string` (หรือชนิดที่คาดไว้) ปฏิเสธด้วย `400` ถ้าไม่ตรง
-2. **ตัดสาย taint** ด้วยการสร้างตัวแปรใหม่ผ่าน `String(value)` ก่อนใช้ ห้ามส่งตัวแปรจาก `req.body` เข้า query ตรงๆ แม้จะเช็ก `typeof` มาก่อนแล้วก็ตาม
-3. **ครอบเงื่อนไขด้วย `$eq`** ในทุก query object เช่น `User.findOne({ email: { $eq: safeEmail } })` แทน `User.findOne({ email })`
+1. **ตรวจชนิดข้อมูลก่อน** ด้วย `typeof` ว่าเป็น `string` (หรือชนิดที่ต้องการ) และปฏิเสธด้วยสถานะ `400` ทันทีหากไม่ตรง
+2. **ตัดสาย taint** ด้วยการสร้างตัวแปรใหม่ผ่าน `String(value)` ก่อนนำไปใช้ (ห้ามส่งตัวแปรตรงจาก `req.body`)
+3. **ครอบเงื่อนไขด้วย `$eq`** ใน query object เสมอ เช่น `User.findOne({ email: { $eq: safeEmail } })`
 
-ตัวอย่างรูปแบบที่ถูกต้อง:
+ตัวอย่างรูปแบบที่ถูกต้อง (อ้างอิง `server/routes/auth.js`):
 
 ```js
 const { email } = req.body;
@@ -171,9 +131,7 @@ const safeEmail = String(email);
 const user = await User.findOne({ email: { $eq: safeEmail } });
 ```
 
-เหตุผล: SonarCloud (กฎ `jssecurity:S5147`) ตามรอยค่าจาก `req.body` ว่าไหลเข้า query โดยตรง (taint tracking) การเช็ก `typeof` เพียงอย่างเดียวหรือครอบ `$eq` โดยไม่ตัดสายตัวแปรก่อน ไม่เพียงพอที่จะปิด Quality Gate
-
-ไม่ส่ง error ภายใน (`err.message`) กลับไปให้ client ในทุก route ใช้ `console.error` เก็บ log ฝั่ง server แล้วตอบข้อความไทยทั่วไปแทน (ดูตัวอย่างใน `catch` ของ `auth.js`)
+*หมายเหตุ: ไม่ส่งข้อความ Error ภายใน (`err.message`) กลับไปยัง Client ให้บันทึกด้วย `console.error` ฝั่ง Server และส่งข้อความภาษาไทยทั่วไปกลับไปแทน*
 
 ---
 
@@ -181,87 +139,97 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 
 ### 5.1 สถาปัตยกรรมและเทคโนโลยี
 
-- **React 18**: Single Page Application (SPA)
+- **React 18.3.1**: Single Page Application (SPA)
 - **React Router v7**: กำหนดเส้นทาง URL ทั้งหมดใน `src/App.js` พร้อม `<ProtectedRoute>`
-- **Tailwind CSS v3**: ตกแต่ง UI ด้วยโทนสีแบรนด์และ Dark Theme:
+- **Tailwind CSS v3**: ตกแต่ง UI Dark Theme ตามแบรนด์ DONIX:
   - สี: `void` (`#090812`), `abyss` (`#0f0d1b`), `mana` (`#7c3aed`), `gold` (`#fbbf24`), `crimson` (`#ef4444`), `border` (`rgba(255,255,255,0.08)`)
   - ฟอนต์: `Kanit` (Sans-serif ภาษาไทย/สากล) และ `Nanum Myeongjo` (Serif)
-- **Lucide React**: ไลบรารีไอคอนมาตรฐาน
+- **Lucide React**: ไอคอนมาตรฐานหลักของโปรเจกต์
 - **Recharts**: แสดงกราฟสถิติยอดโดเนทในหน้า Dashboard
 
 ---
 
-### 5.2 เส้นทาง URL และหน้าระบบ (Routing & Pages)
+### 5.2 เส้นทาง URL และหน้าระบบทั้งหมด (12 หน้า + 404)
 
-| เส้นทาง (Route)                      | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง      | คำอธิบาย                                                             |
-| ------------------------------------ | -------------- | ------------------ | -------------------------------------------------------------------- |
-| `/`                                  | `MainPage`     | สาธารณะ            | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer     |
-| `/discover`                          | `Discover`     | สาธารณะ            | หน้าค้นพบสตรีมเมอร์ จัดกลุ่มตามหมวด (กำลังไลฟ์/เกม/แนะนำ)                     |
-| `/how-it-works`                      | `HowToUse`     | สาธารณะ            | หน้าคู่มือและขั้นตอนการเริ่มต้นใช้งานระบบ                            |
-| `/login`                             | `Login`        | สาธารณะ            | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) ได้รับ JWT Token       |
-| `/register`                          | `Register`     | สาธารณะ            | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ       |
-| `/dashboard`                         | `Dashboard`    | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟ, ช่องทางรับเงิน) |
-| `/payment`                           | `PaymentPage`  | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, TrueMoney, Bank, Coming Soon)  |
-| `/donate-page`                       | `DonatePage`   | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, โซเชียล |
-| `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล      |
-| `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าตรวจสอบประวัติการรับเงินและตารางรายการโดเนท                      |
-| `/widget`                            | `WidgetPage`   | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Preview |
-| `/:username` หรือ `/donor/:username` | `DonorPage`    | สาธารณะ            | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน      |
-| `*`                                  | `NotFound`     | สาธารณะ            | หน้าแจ้งเตือน 404 ไม่พบหน้าที่ค้นหา                                  |
+| เส้นทาง (Route) | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง | คำอธิบาย |
+| :--- | :--- | :--- | :--- |
+| `/` | `MainPage` | สาธารณะ | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer |
+| `/discover` | `Discover` | สาธารณะ | หน้าค้นพบสตรีมเมอร์ จัดกลุ่มตามหมวด (กำลังไลฟ์, หมวดเกม, แนะนำ) |
+| `/how-it-works` | `HowToUse` | สาธารณะ | หน้าคู่มือและขั้นตอนการเริ่มต้นใช้งานระบบสำหรับสตรีมเมอร์และผู้สนับสนุน |
+| `/login` | `Login` | สาธารณะ | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) รองรับ JWT Token |
+| `/register` | `Register` | สาธารณะ | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ |
+| `/dashboard` | `Dashboard` | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟสถิติ, กิจกรรมล่าสุด) |
+| `/payment` | `PaymentPage` | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, TrueMoney, Bank, Coming Soon) |
+| `/donate-page` | `DonatePage` | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, โซเชียล |
+| `/account` | `Account` | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
+| `/history` | `HistoryPage` | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ |
+| `/widget` | `WidgetPage` | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Live Preview |
+| `/:username` หรือ `/donor/:username` | `DonorPage` | สาธารณะ | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน |
+| `*` | `NotFound` | สาธารณะ | หน้าแจ้งเตือน 404 Not Found เมื่อไม่พบเส้นทาง URL |
 
 ---
 
 ### 5.3 รายละเอียดของแต่ละหน้าระบบหลัก
 
-#### 1) หน้า Dashboard (`/dashboard`)
+#### 1) หน้าแรก (MainPage) & หน้าสาธารณะ
+- **MainPage (`/`)**: Navbar, Hero Section, Features Showcase, Streamer Showcase, CTA Section, Footer
+- **Discover (`/discover`)**: จัดหมวดหมู่สตรีมเมอร์ที่กำลังไลฟ์, หมวดเกมยอดนิยม, ค้นหาและแนะนำสตรีมเมอร์
+- **HowToUse (`/how-it-works`)**: ขั้นตอนการใช้งาน 4 ขั้นตอน พร้อมจุดเด่นและคำแนะนำสำหรับสตรีมเมอร์มือใหม่
 
-- การ์ดสถิติ (StatCards): ยอดการรับเงิน (บาท), จำนวนโดเนท (ครั้ง), จำนวนผู้ชม (คน)
-- กราฟสถิติโดเนท (DonationChart) แสดงรายสัปดาห์/รายเดือนด้วย Recharts
-- แผงควบคุม RecentDonations, SupportPanel และ PaymentChannels
-- โครงสร้างใช้ **Sticky Sidebar** ทางซ้าย และ **Sticky Topbar** ด้านบน
+#### 2) หน้าเข้าสู่ระบบและสมัครสมาชิก (Auth)
+- **Login (`/login`)**: รองรับการล็อกอินด้วย Email และรหัสผ่าน หรือ Google OAuth พร้อมแจ้งเตือนข้อผิดพลาด
+- **Register (`/register`)**: ระบบสมัครสมาชิก พร้อม `PasswordChecklist` ตรวจสอบความปลอดภัยแบบเรียลไทม์ 5 ข้อ (ความยาว, ตัวพิมพ์เล็ก, ตัวพิมพ์ใหญ่, ตัวเลข, อักขระพิเศษ)
 
-#### 2) หน้าบัญชีรับเงิน (`/payment`)
+#### 3) หน้าแดชบอร์ด (Dashboard) — `/dashboard`
+- การ์ดสถิติ (StatCards): ยอดการรับเงินรวม (บาท), จำนวนครั้งที่โดเนท, จำนวนผู้ชม/ผู้สนับสนุน
+- กราฟสถิติโดเนท (DonationChart): แสดงสถิติโดเนทแบบแท่ง/เส้นด้วย Recharts รองรับรายสัปดาห์และรายเดือน
+- ฟีดกิจกรรมล่าสุด (RealtimeFeed) และภาพรวมช่องทางรับเงิน (PaymentChannels)
+- ใช้เลย์เอาต์ร่วม **Sticky Sidebar** ด้านซ้าย และ **Sticky Topbar** ด้านบน
 
-- การ์ด 4 ช่องทางการเงิน (2x2 Grid กว้าง `max-w-[1240px]`):
-  - **PromptPayCard**: แบนเนอร์สีน้ำเงิน, สวิตช์เปิด/ปิด, เมนูกด `จัดการ ˅`, เลือกเบอร์โทรศัพท์/เลขบัตร ปชช., บันทึกข้อมูล
-  - **TrueMoneyCard**: แบนเนอร์สีส้ม, สวิตช์เปิด/ปิด, ฟอร์มเบอร์โทรศัพท์ TrueMoney Wallet
-  - **BankCard**: แบนเนอร์สี Slate, สวิตช์เปิด/ปิด, เลือกธนาคาร (SCB, KBank, BBL ฯลฯ), เลขบัญชี, ชื่อบัญชี
-  - **ComingSoonCard**: การ์ดแจ้งช่องทางใหม่ในอนาคต
+#### 4) หน้าบัญชีรับเงิน (PaymentPage) — `/payment`
+- แผงการ์ด 4 ช่องทางการเงิน (2x2 Grid):
+  - **PromptPayCard**: เปิด/ปิดการรับเงิน, เมนูจัดการ, สลับเบอร์โทรศัพท์/บัตร ปชช., บันทึกข้อมูล
+  - **TrueMoneyCard**: เปิด/ปิดการรับเงิน, ฟอร์มเบอร์โทรศัพท์ TrueMoney Wallet
+  - **BankCard**: เปิด/ปิดการรับเงิน, เลือกธนาคาร (SCB, KBank, BBL, KTB ฯลฯ), เลขบัญชี, ชื่อบัญชี
+  - **ComingSoonCard**: ช่องทางใหม่ในอนาคต (เช่น บัตรเครดิต/เดบิต, Crypto)
 
-#### 3) หน้าหน้ารับเงิน (`/donate-page`)
+#### 5) หน้าตกแต่งหน้ารับเงิน (DonatePage) — `/donate-page`
+- **DonatePageLink**: ลิงก์ส่วนตัว `donix.app/{username}`, ปุ่มคัดลอกลิงก์, ปุ่มแชร์, ปุ่มเปิดหน้า Donor Page
+- **DecorateSection**: แก้ไขข้อความต้อนรับ, ข้อความขอบคุณ, กำหนดยอดโดเนทขั้นต่ำ, อัปโหลดรูปภาพหน้าปกและพื้นหลัง
+- **MessageFilterSection**: กำหนดความยาวตัวอักษรสูงสุด, สวิตช์เปิด/ปิดตัวกรองคำหยาบ, ระบบแท็กคำที่ต้องการบล็อก
+- **SocialMediaSection**: เชื่อมต่อและแสดงผลลิงก์โซเชียลมีเดีย 6 แพลตฟอร์ม
 
-- **DonatePageLink**: แสดงลิงก์หน้ารับเงิน `donix.app/{username}`, ปุ่มคัดลอก, ปุ่มแชร์โซเชียล, และปุ่มเปิดดูตัวอย่างหน้าเว็บในแท็บใหม่
-- **DecorateSection**: ข้อความต้อนรับ, ข้อความขอบคุณ, กำหนดยอดโดเนทขั้นต่ำ, อัปโหลดรูปภาพหน้าปกและพื้นหลัง
-- **MessageFilterSection**: กำหนดความยาวตัวอักษรสูงสุด, สวิตช์ตัวกรองคำหยาบ, ระบบแท็กคำที่ต้องการบล็อก
-- **SocialMediaSection**: เชื่อมต่อลิงก์โซเชียลมีเดีย 6 แพลตฟอร์ม
+#### 6) หน้ารับเงินจริงสำหรับผู้สนับสนุน (DonorPage) — `/:username` หรือ `/donor/:username`
+- รองรับ **5 สถานะการแสดงผล** ตามแบบ Figma:
+  1. **Offline**: เมื่อสตรีมเมอร์ปิดระบบ Avatar จะขึ้นป้าย `ออฟไลน์` พร้อมการ์ด "ขณะนี้ปิดรับโดเนทชั่วคราว"
+  2. **Online - PromptPay**: Avatar เรืองแสงสีแดงพร้อมป้าย `🔴 LIVE`, ข้อความต้อนรับ, แท็บเลือกช่องทาง, ฟอร์มชื่อและข้อความโดเนท, ระบุจำนวนเงิน, **PromptPay QR Code อัตโนมัติตามยอดเงิน**, อัปโหลดสลิป, ปุ่มยืนยัน
+  3. **Online - Bank**: แสดงข้อมูลบัญชีธนาคารพร้อมปุ่มคัดลอกเลขบัญชี, อัปโหลดสลิป, ปุ่มยืนยันชำระเงิน
+  4. **Online - TrueMoney**: ช่องกรอกลิงก์ซองของขวัญทรูมันนี่ อั่งเปา, ปุ่มยืนยัน
+  5. **Online - Channel Disabled**: แสดงการ์ด "ไม่พร้อมให้บริการ" เมื่อสตรีมเมอร์ปิดช่องทางนั้นๆ
+- **Floating Test Controls**: เครื่องมือจำลองสลับสถานะ Online/Offline และเปิด/ปิดช่องทางรับเงินเพื่อทดสอบ UI ทันที
 
-#### 4) หน้า Donor Page (`/:username`) — หน้ารับโดเนทสำหรับผู้สนับสนุน
-
-- ดีไซน์ครอบคลุม **5 สถานะการแสดงผล** ตามแบบ Figma:
-  1. **Donor-page (offline)**: เมื่อ Widget ออฟไลน์ Avatar แสดงป้าย `ออฟไลน์` พร้อมการ์ดไอคอน 🚫 "ขณะนี้ปิดรับโดเนทชั่วคราว"
-  2. **Online - PromptPay**: Avatar มีวงแหวนสีแดงเรืองแสงและป้าย `🔴 LIVE`, ข้อความต้อนรับ, แท็บเลือกช่องทาง, ช่องกรอกชื่อและข้อความ, ช่องกรอกจำนวนเงิน, **PromptPay QR Code อัตโนมัติตามยอดเงิน**, กล่องอัปโหลดสลิป, ปุ่มยืนยันชำระเงิน
-  3. **Online - Bank**: แสดงข้อมูลบัญชีธนาคารพร้อมปุ่มกดคัดลอกเลขบัญชี, อัปโหลดสลิป, ปุ่มยืนยันชำระเงิน
-  4. **Online - TrueMoney**: ช่องกรอกลิงก์ซองของขวัญทรูมันนี่ อั่งเปา, ปุ่มยืนยันชำระเงิน
-  5. **Online - Channel Disabled**: เมื่อสตรีมเมอร์ปิดรับเงินช่องทางนั้น จะแสดงการ์ดไอคอน 🚫 "ไม่พร้อมให้บริการ"
-- **Floating Test Controls**: ปุ่มจำลองสลับสถานะ Online/Offline และเปิด/ปิดช่องทางรับเงินเพื่อทดสอบ UI ได้ทันที
-
-#### 5) หน้า Widget Settings (`/widget`)
-
-- รองรับการตั้งค่าวิดเจ็ต 4 รูปแบบใน Layout 2 คอลัมน์ (ฟอร์มตั้งค่า + Real-time Preview):
+#### 7) หน้าตั้งค่าวิดเจ็ต OBS (WidgetPage) — `/widget`
+- รองรับการตั้งค่าวิดเจ็ต 4 รูปแบบใน Layout 2 คอลัมน์ (ฟอร์มตั้งค่า + Real-time Preview เสมือนจริง):
   1. **Donate Alert**:
-     - _พื้นฐาน_: ยอดขั้นต่ำที่แจ้งเตือน (บาท), อัปโหลดรูปภาพ (JPG/PNG/GIF)
-     - _เสียง & TTS_: เสียงแจ้งเตือน (Mythic Horn, Dragon Roar, Ancient Bell, เสียงของฉัน MP3, ไม่มีเสียง), ปรับระดับเสียง, TTS อ่านข้อความโดเนท (ไทย/อังกฤษ, ชาย/หญิง, ปรับความเร็ว 0.5x–2.0x)
-     - _ข้อความ_: Template `{user} {amount}`, Shine Effect, ฟอนต์ (Kanit, Cinzel, FC Vision ฯลฯ), ขนาด, สีข้อความ, ขอบตัวอักษร, สีชื่อ/สีจำนวนเงิน
-     - _เอฟเฟกต์ & ช่วงเงิน_: แอนิเมชั่นเข้า/ออก, เวลาแสดงผล, ฟิลเตอร์ (Glow, Pulse, Shake, Glitch ฯลฯ), ระบบแสดงผลตามช่วงยอดเงิน (Amount Tiers)
-  2. **Donate Goal**: ชื่อเป้าหมาย, ธีมสี (Mana, Crimson, Gold), ยอดเริ่มต้น/เป้าหมาย, ช่วงวันที่, หลอด Progress Bar เรืองแสง
-  3. **Leaderboard**: ชื่อหัวข้อ, เปิด/ปิดแสดงยอดบาท, ช่วงวันที่, ตัวปรับอันดับ 1–10 (ปุ่ม +/-)
-  4. **Mission Donate**: จัดการช่องภารกิจสูงสุด 12 ช่อง (ชื่อ + ราคา ฿) แสดงผลบนหน้า Donor Page
-- **BrowserSourceCard**: แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, ปุ่มคัดลอก และปุ่ม "ทดสอบ Alert" พร้อมเสียงจำลอง
+     - _พื้นฐาน_: ยอดขั้นต่ำที่แจ้งเตือน (บาท), อัปโหลดรูปภาพแสดงผล (JPG/PNG/GIF)
+     - _เสียง & TTS_: เสียงแจ้งเตือน Presets (Mythic Horn, Dragon Roar, Ancient Bell, เสียง MP3 ของฉัน, ปิดเสียง), ตัวปรับระดับเสียง, TTS อ่านข้อความโดเนท (ไทย/อังกฤษ, ชาย/หญิง, ความเร็ว 0.5x–2.0x)
+     - _ข้อความ_: Message Template `{user} {amount}`, Shine Effect, ฟอนต์ (Kanit, Cinzel, FC Vision ฯลฯ), ขนาดตัวอักษร, Palette สี (ข้อความ, ชื่อ, จำนวนเงิน, สีขอบตัวอักษร), ขนาดขอบตัวอักษร
+     - _เอฟเฟกต์ & Tiers_: แอนิเมชั่นเข้า/ออก, เวลาแสดงผล, ฟิลเตอร์ (Glow, Pulse, Shake, Glitch ฯลฯ), ระบบแสดงผลตามช่วงยอดเงิน (Amount Tiers) ปรับเสียงและเอฟเฟกต์แยกตามยอดเงิน
+  2. **Donate Goal**: ชื่อเป้าหมาย, ธีมสี (Mana, Crimson, Gold), ยอดเริ่มต้น/ยอดเป้าหมาย, กำหนดช่วงวันที่, หลอดความคืบหน้า Progress Bar เรืองแสง
+  3. **Leaderboard**: ชื่อหัวข้อ, สวิตช์แสดงยอดเงิน, กำหนดช่วงเวลา, ปรับจำนวนอันดับ 1–10 (Stepper +/-)
+  4. **Mission Donate**: จัดการช่องภารกิจสูงสุด 12 ช่อง (ชื่อภารกิจ + ราคา ฿) สำหรับนำไปแสดงผลบน Donor Page
+- **BrowserSourceCard**: แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, ปุ่มคัดลอก URL, และปุ่มทดสอบ Alert พร้อมจำลอง Web Audio API เสียงจริง
 
-#### 6) หน้าจัดการบัญชีผู้ใช้ (`/account`)
+#### 8) หน้าจัดการบัญชี (Account) — `/account`
+- `AccountProfileCard`: แสดงรูปโปรไฟล์ Avatar, ชื่อผู้ใช้, อีเมล, สถานะการยืนยันตัวตน
+- `AccountTabs`: แท็บสลับ 3 หมวดหมู่:
+  - **UserInfoTab**: จัดการข้อมูลส่วนตัว, ชื่อแสดงผล, ข้อมูลติดต่อ
+  - **SecurityTab**: จัดการรหัสผ่าน, เปลี่ยนรหัสผ่านใหม่พร้อม Checklist
+  - **SocialMediaTab**: เชื่อมต่อลิงก์โซเชียลมีเดียทั้ง 6 แพลตฟอร์ม
 
-- `AccountProfileCard`: แสดงรูป Avatar, ชื่อผู้ใช้, อีเมล, สถานะยืนยันตัวตน
-- `AccountTabs`: แท็บสลับข้อมูลส่วนตัว (UserInfoTab), ความปลอดภัยเปลี่ยนรหัสผ่าน (SecurityTab), โซเชียลมีเดีย (SocialMediaTab)
+#### 9) หน้าประวัติการรับเงิน (HistoryPage) — `/history`
+- แสดงสถิติสรุปยอดโดเนททั้งหมด, จำนวนรายการที่สำเร็จ
+- ตารางประวัติการรับเงิน `DonationHistoryTable` แสดงวันเวลา, ผู้สนับสนุน, จำนวนเงิน, ช่องทางที่ใช้, และสถานะ
 
 ---
 
@@ -269,153 +237,114 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 
 ```
 client/src/
-├── assets/                  → โลโก้ รูปภาพประกอบ (PrimaryLogo, HeroLogo, hero, bg-login)
+├── assets/                    → โลโก้และรูปภาพประกอบ (PrimaryLogo, HeroLogo, hero, bg-login)
 ├── components/
-│   ├── Account/             → AccountProfileCard, AccountTabs, SecurityTab, SocialMediaTab, UserInfoTab
-│   ├── Auth/                → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
-│   ├── Dashboard/           → StatCard, DonationChart, RecentDonations, PaymentChannels, SupportPanel
-│   ├── DonatePage/          → DonatePageLink, DecorateSection, MessageFilterSection, SocialMediaSection, SettingsCard, RichTextField, ImageUploadBox
-│   ├── Donor/               → DonorHeader, DonorPaymentTabs, DonorPromptPayForm, DonorBankForm, DonorTrueMoneyForm, DonorSlipUpload, DonorOfflineCard, DonorDisabledCard
-│   ├── Discover/             → CategorySection, StreamerCard (หน้า /discover)
-│   ├── History/              → DonationHistoryTable (ชื่อโฟลเดอร์จริงคือ Histor/ มี typo)
-│   ├── HowToUse/             → StepsSection, BenefitsSection (หน้า /how-it-works)
-│   ├── MainPage/            → Navbar, Hero, Features, StreamerList, CTASection, Footer
-│   ├── Payment/             → PaymentHeader, PromptPayCard, TrueMoneyCard, BankCard, ComingSoonCard
-│   ├── Widget/              → WidgetHeader, WidgetTypeTabs, DonateAlertPanel, DonateGoalPanel, LeaderboardPanel, MissionDonatePanel, WidgetPreview, BrowserSourceCard, AccordionSection, AudioUploadField, widgetStorage.js
-│   ├── Sidebar.jsx          → เมนูหลักซ้ายแบบ Sticky (มีเมนูทั่วไปและการชำระเงิน)
-│   └── Topbar.jsx           → แถบเมนูด้านบนแบบ Sticky (มี Breadcrumb หน้าหลัก/Dashboard/ชื่อหน้า, กระดิ่งแจ้งเตือน, รูปโปรไฟล์)
+│   ├── Account/               → AccountProfileCard, AccountTabs, ManageAccountCard, SecurityTab, SocialMediaTab, UserInfoTab
+│   ├── Auth/                  → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
+│   ├── Dashboard/             → CardWrapper, DonationChart, PaymentChannels, ProtectedRoute, RealtimeFeed, StatsCard, TopDonors
+│   ├── Discover/              → CategorySection, StreamerCard
+│   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection
+│   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorTrueMoneyForm
+│   ├── Histor/                → DonationHistoryTable (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
+│   ├── HowToUse/              → BenefitsSection, StepsSection
+│   ├── MainPage/              → CTASection, Features, Footer, Hero, Navbar, StreamerList
+│   ├── Payment/               → BankCard, ComingSoonCard, PaymentHeader, PromptPayCard, TrueMoneyCard
+│   ├── Widget/                → AccordionSection, AudioUploadField, BrowserSourceCard, DonateAlertPanel, DonateGoalPanel, LeaderboardPanel, MissionDonatePanel, WidgetHeader, WidgetPreview, WidgetTypeTabs, widgetStorage.js, WidgetComponents.test.js
+│   ├── Navigation.test.js     → การทดสอบ Sidebar และ Topbar ร่วมกัน
+│   ├── Sidebar.jsx            → เมนูหลักด้านซ้ายแบบ Sticky
+│   └── Topbar.jsx             → เมนูด้านบนแบบ Sticky พร้อม Breadcrumb
+├── constants/
+│   └── socialPlatforms.js     → รายชื่อและไอคอนของแพลตฟอร์มโซเชียลมีเดีย
 ├── hooks/
-│   └── useJwtUser.js         → อ่าน user จาก JWT ใน localStorage (ใช้ร่วมกัน Dashboard/HistoryPage)
-├── pages/                   → หน้าระบบทั้ง 12 หน้า
+│   └── useJwtUser.js          → Custom hook ดึงข้อมูล user จาก JWT ใน localStorage
+├── pages/                     → หน้าหลักทั้ง 12 หน้า และ NotFound
 ├── utils/
-│   └── passwordValidation.js→ ตรวจสอบความถูกต้องของรหัสผ่าน
-├── App.js                   → การกำหนดเส้นทาง Routing ทั้งหมด (route `*` ต้องอยู่บรรทัดสุดท้ายเสมอ)
-├── App.test.js              → Test routing ของหน้าใหม่ (/discover, /how-it-works, /history)
-├── setupTests.js            → ตั้งค่า Jest (jest-dom และ polyfill TextEncoder/TextDecoder)
-├── index.css                → สไตล์ CSS หลักและนำเข้า Font Kanit / Tailwind
-└── index.js                 → React Root Mounting
+│   ├── api.js                 → Axios instance / Base API config
+│   ├── passwordValidation.js  → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน
+│   ├── passwordValidation.test.js
+│   ├── sanitizeStorage.js     → ฟังก์ชันกรองและจัดเก็บข้อมูล localStorage ให้ปลอดภัย
+│   └── sanitizeStorage.test.js
+├── App.js                     → การกำหนดเส้นทาง URL Routing ทั้งหมด
+├── App.test.js                → การทดสอบ Routing ภาพรวม
+├── setupTests.js              → การตั้งค่า Jest polyfill (TextEncoder/TextDecoder)
+├── index.css                  → สไตล์หลัก Tailwind CSS & Fonts
+└── index.js                   → React Root Mounting Entry Point
 ```
 
 ---
 
 ## 7. กฎและข้อตกลงสำคัญในการพัฒนา (Key Conventions)
 
-1. **ภาษาและข้อความ UI**: ข้อความทั้งหมดที่ผู้ใช้เห็น (Labels, Placeholders, Error Messages, Buttons) ให้ใช้ **ภาษาไทย** เสมอ
-2. **ไอคอน**: ใช้ named imports จากไลบรารี `lucide-react` เท่านั้น (ยกเว้นโลโก้โซเชียลมีเดีย/แบรนด์ใช้ SVG inline)
-3. **การตกแต่งและเลย์เอาต์**:
-   - หน้าแดชบอร์ดและหน้าการจัดการทั้งหมดต้องมี **Sidebar** (`sticky top-0 h-screen z-30`) และ **Topbar** (`sticky top-0 z-40 backdrop-blur-xl`)
-   - ห้ามใส่ `overflow-x: hidden` บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
-4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกัน
-5. **การจัดการ State**: หน้า Donor และ Widget รองรับการซิงค์ข้อมูลผ่าน `localStorage` เป็นหลัก และพร้อมสำหรับการต่อยอดเชื่อมต่อ REST API / Cloud Database ในอนาคต
-6. **ห้าม import ที่ไม่ได้ใช้ (ESLint warning)**: บน CI ตัวแปร `CI=true` ทำให้ warning กลายเป็น error และ build จะแดง
-7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่ query MongoDB ด้วยค่าจาก request ต้องทำตามรูปแบบในหัวข้อ 4.4 (ตรวจ `typeof` → ตัดสายด้วย `String()` → ครอบ `$eq`)
+1. **ภาษาและข้อความบน UI**: ข้อความทั้งหมดที่ผู้ใช้เห็น (Labels, Placeholders, Error Messages, Tooltips, Buttons) ให้ใช้ **ภาษาไทย** เสมอ
+2. **การใช้งานไอคอน**: ใช้ named imports จาก `lucide-react` เท่านั้น สำหรับโลโก้แบรนด์/โซเชียลมีเดียให้ใช้ SVG inline
+3. **เลย์เอาต์ Sidebar และ Topbar**:
+   - แดชบอร์ดและหน้าการจัดการต้องมี **Sidebar** (`sticky top-0 h-screen z-30`) และ **Topbar** (`sticky top-0 z-40 backdrop-blur-xl`)
+   - **ห้ามใส่ `overflow-x: hidden`** บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้คุณสมบัติ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
+4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกันเสมอ
+5. **การจัดการ State และ Storage**:
+   - หน้า Donor และ Widget รองรับการอ่านและบันทึกข้อมูลผ่านไฟล์กลาง เช่น `widgetStorage.js` และ `sanitizeStorage.js` ห้ามเรียก `localStorage` ตรงๆ เพื่อป้องกันช่องโหว่และพร้อมสำหรับการเปลี่ยนไปใช้ REST API
+6. **Zero Warning Policy บน CI**: ตัวแปร `CI=true` บน GitHub Actions จะเปลี่ยน warning ทุกตัวเป็น fatal error ดังนั้นห้ามทิ้ง unused variables หรือ unused imports
+7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่รับค่าจาก client ต้องทำตามกฎ 3 ขั้นตอนในหัวข้อ 4.4 อย่างเคร่งครัด
+8. **ห้ามทำ Code Duplication ซ้ำซ้อน**: ห้ามคัดลอกบล็อกโค้ดที่ซ้ำกันเกิน 10 บรรทัดข้ามไฟล์ ให้แยกเป็น shared component หรือ hook กลาง เพื่อไม่ให้ติด Quality Gate ของ SonarCloud
 
 ---
 
-## 8. สถานะงานปัจจุบัน (Project Status)
+## 8. สถานะของระบบ (Current Project Status)
 
-| ส่วนงาน                                                             | สถานะ                                                                          |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Auth (register / login, JWT)                                        | ใช้งานได้จริง (Client → Server → MongoDB) ปิดช่องโหว่ NoSQL Injection แล้ว     |
-| Dashboard, Payment, DonatePage, Account, History, Widget, DonorPage | UI เสร็จแล้ว ข้อมูลเก็บที่ `localStorage` ชั่วคราว                             |
-| Models ฝั่ง Server                                                  | มีแค่ `User` (รวม `payment` และ `donationPage`)                                |
-| Models ที่จะเพิ่ม                                                   | `Donation` (Phase 6), `Widget`, `Mission`, `Blacklist` (Phase 7) — ดูหัวข้อ 11 |
-| Socket.IO                                                           | มี event `join-stream`, `disconnect`, `donation-alert` ยังไม่ผูกกับข้อมูลจริง  |
-| CI (GitHub Actions) + branch protection                             | ใช้งานได้ (Phase 1 เสร็จ) `client` และ `server` ต้องผ่านก่อน merge เข้า `main` |
-| SonarCloud                                                          | ใช้งานได้ (Phase 2 เสร็จ) Security: 0 open issues บน `main`                    |
-| OCR ตรวจสลิป                                                        | ยังไม่ได้ทำ (ตามแผน Phase 8)                                                   |
-
-**แนวทางย้ายจาก localStorage → MongoDB**
-
-- ทุกหน้าเรียกข้อมูลผ่านไฟล์กลาง (เช่น `widgetStorage.js`) ห้ามเรียก `localStorage` ตรงๆ ในคอมโพเนนต์
-- เมื่อมี API ให้แก้เฉพาะไฟล์กลาง เปลี่ยนจากอ่าน/เขียน localStorage เป็น `fetch` ไปยัง server
+| ส่วนงาน | สถานะ | รายละเอียด |
+| :--- | :--- | :--- |
+| **Auth System** | สมบูรณ์ | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection |
+| **Frontend Pages (12 หน้า)** | สมบูรณ์ | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI |
+| **Widget System** | สมบูรณ์ | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL |
+| **Test Suites** | สมบูรณ์ | 17 Test Suites ผ่านครบ 100% (116 Tests), Coverage เฉลี่ยเกิน 88% |
+| **CI / CD Pipeline** | สมบูรณ์ | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check |
+| **SonarCloud Quality Gate** | ผ่าน | 0 Security Issues, 0 Vulnerabilities, New Code Coverage > 88% |
+| **Database Models** | อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase ถัดไป |
+| **OCR Slip Verification** | ตามแผนงาน | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ) |
 
 ---
 
-## 9. CI (GitHub Actions)
+## 9. กระบวนการ CI (GitHub Actions) และ SonarCloud
 
-ไฟล์: `.github/workflows/ci.yml` รันตอน push เข้า `main` และตอนเปิด PR เข้า `main` ใช้ Node 22 และ npm 11
+ไฟล์ CI: `.github/workflows/ci.yml` รันอัตโนมัติเมื่อ push เข้า `main` หรือเปิด Pull Request เข้า `main`:
 
-| Job      | ขั้นตอน                                                                                          |
-| -------- | ------------------------------------------------------------------------------------------------ |
-| `client` | `npm ci` แล้ว `npm test -- --watchAll=false` แล้ว `npm run build`                                |
-| `server` | `npm ci` แล้ว `npm test --if-present` (ยังไม่มี test ฝั่ง server)                                |
-| `sonar`  | checkout แบบ `fetch-depth: 0` แล้วสแกนด้วย `sonarqube-scan-action` (ต้องมี secret `SONAR_TOKEN`) |
+| Job | สภาพแวดล้อม | ขั้นตอนการทำงาน |
+| :--- | :--- | :--- |
+| `client` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm test -- --coverage --watchAll=false` → `npm run build` → Upload coverage artifact |
+| `server` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm test --if-present` |
+| `sonar` | Ubuntu (หลัง client ผ่าน) | Download coverage artifact → SonarQube Scan Action |
 
-**Branch protection บน `main`**
+### Branch Protection บน `main`
+- ล็อกห้าม Push ตรงเข้า `main` ทุกกรณี ต้องเปิด Pull Request เท่านั้น
+- ทุก Checks (`CI / client`, `CI / server`, `CI / sonar`, `SonarCloud Code Analysis`) ต้องผ่าน (เครื่องหมายถูกสีเขียว) ก่อน Merge
 
-- ต้องเปิด PR เท่านั้น ห้าม push ตรง
-- ต้องผ่านทั้ง `client` และ `server` ก่อน merge
-- ต้องผ่าน `SonarCloud Code Analysis` (Quality Gate) ก่อน merge
-- ต้องอัปเดต branch ให้ทันกับ `main` ก่อน merge
-- ไม่บังคับ approval (ทีมเล็ก) แต่ควรให้เพื่อนรีวิวก่อน merge
-
-**ตรวจในเครื่องก่อนเปิด PR** (ใน `client/`, Windows cmd):
-
-```cmd
-set CI=true&& npm run build
-npm test -- --watchAll=false
-```
-
-**ค่าที่จำเป็นต่อ Jest (อย่าลบ)**
-
-- `moduleNameMapper` ใน `client/package.json` ชี้ `react-router/dom` ไปที่ `dom-export.js` เพราะ Jest ของ CRA ไม่อ่านฟิลด์ `exports`
-- polyfill `TextEncoder` / `TextDecoder` ใน `client/src/setupTests.js` เพราะ React Router v7 ต้องใช้แต่ jsdom ไม่มี
-
-**แก้ปัญหา CI แดงที่เจอบ่อย**
-
-| อาการ                                                | สาเหตุและวิธีแก้                                                                                                              |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `npm ci` แจ้ง `Missing ... from lock file`           | lock file สร้างด้วย npm คนละเวอร์ชัน ใช้ npm 11 รัน `npm install` ใน `client/` หรือ `server/` แล้ว commit `package-lock.json` |
-| `Treating warnings as errors because process.env.CI` | มี ESLint warning (เช่น import ที่ไม่ได้ใช้) แก้ตามที่ log ระบุ                                                               |
-| `Cannot find module ...` เฉพาะบน CI                  | ตัวพิมพ์ใหญ่เล็กของ path ใน `import` ไม่ตรงกับชื่อไฟล์จริง (Windows ไม่จับ Linux จับ)                                         |
-| `Unable to find an element with the text ...`        | UI เปลี่ยนแต่ `App.test.js` ยังหา text เก่า แก้ test ให้ตรงกับหน้าจริง                                                        |
-
-**SonarCloud**
-
-- ไฟล์ตั้งค่า: `sonar-project.properties` ที่ root (กำหนด organization, project key, โฟลเดอร์ที่สแกน `client/src` และ `server`, ข้ามไฟล์ test)
-- Secret: `SONAR_TOKEN` (GitHub repo แล้ว Settings แล้ว Secrets and variables แล้ว Actions) ห้ามใส่ token ในโค้ด
-- Main Branch บน SonarCloud ต้องชื่อ `main` ให้ตรงกับ GitHub เป๊ะ (ถ้าตั้งผิดเป็น `master` ผลสแกนจาก CI จะไม่อัปเดตหน้า Overview เพราะแผนฟรีวิเคราะห์เฉพาะ Main Branch)
-- Quality Gate ตรวจเฉพาะโค้ดใหม่ (New Code) ส่วนปัญหาเก่าเป็น baseline ค่อยๆ แก้ทีละ branch
-- **ทุกไฟล์ใหม่ทุกไฟล์ต้องมีเทสต์ครอบ** ไม่งั้น Coverage on New Code จะเป็น 0% และ gate แดง เพราะ Jest/LCOV รายงานเฉพาะไฟล์ที่ถูก import ในเทสต์เท่านั้น
-- **ห้ามใช้ `sonar.coverage.exclusions` เป็นทางออกแทนการเขียนเทสต์** การ exclude คือการซ่อน ไม่ใช่การแก้
-- **ห้ามคัดลอกบล็อกโค้ด ≥10 บรรทัด** จะโดนจับเป็น Duplication on New Code (เพดาน 3%) ให้ย้ายไปเป็น hook/component กลาง เช่น `hooks/useJwtUser.js`
-- ตรวจผลเองก่อน push ได้ด้วย `client/coverage/lcov.info` ว่ามีบรรทัด `SF:` ของไฟล์ใหม่ครบ และดู % จากรายงาน `coverage/lcov-report/`
-- ดูผลสแกนที่ sonarcloud.io (โปรเจค `nekomanaja_Final-Project`) และในคอมเมนต์ของบอทบน PR
-- ห้ามเปิด Automatic Analysis บน SonarCloud (ชนกับการสแกนผ่าน CI)
-- แก้ Security/Bug ที่ Sonar แจ้ง: ดูรูปแบบการแก้ NoSQL Injection ในหัวข้อ 4.4 ก่อนเขียนวิธีแก้ใหม่
+### ข้อกำหนด SonarCloud Quality Gate
+- **Coverage on New Code**: ต้องไม่ต่ำกว่า **80%** (ปัจจุบันทำได้ > 88%)
+- **Duplication on New Code**: ต้องไม่เกิน **3%**
+- **Security Hotspots & Bugs**: ต้องเป็น **0**
 
 ---
 
-## 10. Git Workflow
+## 10. Git Workflow และข้อตกลงในการทำงานร่วมกัน
 
-1. `main` ต้องรันได้เสมอ ห้ามแก้หรือ push ตรงบน `main` (GitHub ล็อกไว้แล้ว ต้องผ่าน PR และ CI เขียว)
-2. 1 feature = 1 branch แตกจาก `main` ล่าสุด ตั้งชื่อตัวพิมพ์เล็กทั้งหมด (เช่น `donor-page`)
-   Windows แยกตัวพิมพ์ใหญ่เล็กไม่ได้ ชื่อ `History` กับ `history` จึงกลายเป็น branch ซ้ำบน GitHub
-3. ไฟล์ร่วม (`Sidebar.jsx`, `Topbar.jsx`, `App.js`, `index.css`, `package.json`, `package-lock.json`, `utils/`, `.github/workflows/`) แก้ใน branch สั้นๆ แยกต่างหาก แล้ว merge เข้า `main` ทันที จากนั้นแจ้งทีมให้ `git pull origin main`
-4. ก่อน commit: `git status` แล้ว `git add` เฉพาะไฟล์ที่ตั้งใจ ห้ามให้ `.env` และ `node_modules` หลุดเข้า repo
-5. หลัง merge ที่แตะ `package.json` ให้รัน `npm install` ทั้ง `client/` และ `server/` (ใช้ npm 11) และ commit `package-lock.json` ที่เปลี่ยนด้วย
-6. แก้ conflict ให้ไม่เหลือเครื่องหมาย `<<<<<<<` / `=======` / `>>>>>>>` ใน `App.js` ให้รวม route ของทั้งสองฝั่ง และ route `*` (NotFound) ต้องอยู่ล่างสุดเสมอ
-7. ก่อนเปิด PR: รันใน `client/` ให้ผ่านทั้ง `set CI=true&& npm run build` และ `npm test -- --watchAll=false` และ `git status` ต้องสะอาด
-8. ห้าม push เข้า branch ของเพื่อนโดยไม่แจ้งก่อน
-9. ชื่อโฟลเดอร์และ `import` ต้องสะกดตัวพิมพ์ใหญ่เล็กตรงกัน (เช่น `Models/`) เพราะ deploy บน Linux (Render)
-10. CI แดง ห้าม merge: กด Details ดู log แก้แล้ว push ซ้ำใน branch เดิม PR จะรัน CI ใหม่เอง
+1. **ห้าม push โค้ดตรงเข้า branch `main`**: ให้แตก branch ย่อยเสมอ เช่น `widget`, `payment`, `history`
+2. **การตั้งชื่อ Branch**: ใช้ภาษาอังกฤษตัวพิมพ์เล็กและคั่นด้วยขีดกลาง เช่น `feature-name` (Windows มองชื่อตัวพิมพ์ใหญ่เล็กไม่ต่างกัน ป้องกันปัญหาชื่อซ้ำ)
+3. **ก่อนเปิด Pull Request**:
+   - รัน `npm test -- --watchAll=false` ใน `client/` เพื่อยืนยันว่าการทดสอบผ่านครบ 100%
+   - รัน `set CI=true&& npm run build` เพื่อให้แน่ใจว่าไม่มี Warning ตกค้าง
+   - ตรวจสอบ `git status` ไม่ให้ไฟล์ขยะหรือ `.env` หลุดขึ้น Git
+4. **การลบ Branch**: เมื่อ Merge เข้า `main` เรียบร้อยแล้ว สามารถลบ Local Branch ได้ด้วย `git branch -d <branch_name>`
+5. **การจัดการ Conflict**: ตรวจสอบและแก้ไขให้เรียบร้อย ห้ามทิ้งเครื่องหมาย `<<<<<<<`, `=======`, `>>>>>>>` ไว้ในโค้ดหรือเอกสารอย่างเด็ดขาด
 
 ---
 
-## 11. แผน Models ที่จะเพิ่ม (ตาม Phase)
+## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-ตอนนี้มีแค่ `User` เท่านั้น Model ใหม่จะทยอยเพิ่มตามลำดับ Phase ด้านล่าง **Phase 3 (รากฐาน backend) ไม่มีการสร้างหรือแก้ Model** เป็นแค่ middleware, error handler, validation และ test
-
-| Model       | Phase | รายละเอียดคร่าวๆ                                                                                                                                   |
-| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Donation`  | 6     | `streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`, timestamps; index บน `streamerId + createdAt` |
-| `Widget`    | 7     | เก็บ token สำหรับ URL Browser Source ของ OBS และการตั้งค่า Alert/Goal/Leaderboard/Mission ต่อผู้ใช้                                                |
-| `Mission`   | 7     | ภารกิจโดเนทของแต่ละสตรีมเมอร์ (ชื่อ + ราคา) อ้างอิงจาก `missionId` ใน `Donation`                                                                   |
-| `Blacklist` | 7     | รายชื่อ/คำที่ถูกบล็อกไม่ให้โดเนทหรือใช้ข้อความ                                                                                                     |
-
-เมื่อถึง Phase ที่เกี่ยวข้อง ให้ออกแบบ schema แล้วอัปเดตหัวข้อ 4.2 (โครงสร้างไฟล์) และหัวข้อ 8 (สถานะงาน) ในเอกสารนี้ทันที
-|
-| `Blacklist` | 7 | รายชื่อ/คำที่ถูกบล็อกไม่ให้โดเนทหรือใช้ข้อความ |
-
-เมื่อถึง Phase ที่เกี่ยวข้อง ให้ออกแบบ schema แล้วอัปเดตหัวข้อ 4.2 (โครงสร้างไฟล์) และหัวข้อ 8 (สถานะงาน) ในเอกสารนี้ทันที
+- **Phase 6: Donation REST API & Database Schema**
+  - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`)
+  - สร้าง API Endpoints: `POST /api/donations` (สร้างรายการโดเนท), `GET /api/donations/history` (ดึงประวัติ)
+- **Phase 7: Widget API & Real-time Alerts**
+  - สร้าง `server/Models/Widget.js` สำหรับบันทึกการตั้งค่าวิดเจ็ตของแต่ละสตรีมเมอร์ลง MongoDB
+  - เชื่อมต่อ Socket.IO เมื่อมีรายการบริจาคใหม่ ให้ emit Event `donation-alert` ไปยัง Browser Source ของ OBS แบบ Real-time
+- **Phase 8: OCR Slip Verification**
+  - เชื่อมต่อระบบตรวจสอบความถูกต้องของสลิปโอนเงิน (สลิปธนาคาร / พร้อมเพย์) แบบอัตโนมัติ
