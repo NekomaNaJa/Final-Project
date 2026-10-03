@@ -105,11 +105,12 @@ const BankCard = ({ initialData, onSave }) => {
         >
           {/* Bank Select */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#d4cfdf]">
+            <label htmlFor="bank-select" className="text-xs font-semibold text-[#d4cfdf]">
               เลือกธนาคาร
             </label>
             <div className="relative">
               <select
+                id="bank-select"
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
                 className="w-full appearance-none rounded-xl border border-[#2e2648] bg-[#110d22] px-4 py-2.5 text-sm font-medium text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all cursor-pointer pr-10"
@@ -128,10 +129,11 @@ const BankCard = ({ initialData, onSave }) => {
 
           {/* Account Number */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#d4cfdf]">
+            <label htmlFor="bank-account-number" className="text-xs font-semibold text-[#d4cfdf]">
               เลขที่บัญชี
             </label>
             <input
+              id="bank-account-number"
               type="text"
               value={accountNumber}
               onChange={(e) => setAccountNumber(e.target.value)}
@@ -142,10 +144,11 @@ const BankCard = ({ initialData, onSave }) => {
 
           {/* Account Name */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#d4cfdf]">
+            <label htmlFor="bank-account-name" className="text-xs font-semibold text-[#d4cfdf]">
               ชื่อบัญชี
             </label>
             <input
+              id="bank-account-name"
               type="text"
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}

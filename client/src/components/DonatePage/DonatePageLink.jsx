@@ -5,8 +5,14 @@ const DonatePageLink = ({ username = "Test" }) => {
   const [copied, setCopied] = useState(false);
   const donateUrl = `http://donix.app/${username}`;
 
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(donateUrl);
+  const handleCopy = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(donateUrl);
+      }
+    } catch {
+      // Ignore clipboard write failure
+    }
     setCopied(true);
     setTimeout(() => {
       setCopied(false);

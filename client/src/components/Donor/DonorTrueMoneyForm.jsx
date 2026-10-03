@@ -24,7 +24,7 @@ const DonorTrueMoneyForm = ({ onSubmit, isSubmitting = false }) => {
       {/* TrueMoney Gift Link Input */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-[#d4cfdf]">
+          <label htmlFor="donor-truemoney-link" className="text-sm font-semibold text-[#d4cfdf]">
             ลิงก์ทรูมันนี่ อั่งเปา
           </label>
           <span className="text-xs text-gray-500">
@@ -32,6 +32,7 @@ const DonorTrueMoneyForm = ({ onSubmit, isSubmitting = false }) => {
           </span>
         </div>
         <input
+          id="donor-truemoney-link"
           type="url"
           maxLength={100}
           value={giftLink}

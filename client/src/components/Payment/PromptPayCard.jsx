@@ -108,11 +108,12 @@ const PromptPayCard = ({ initialData, onSave }) => {
         >
           {/* PromptPay Type Select */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#d4cfdf]">
+            <label htmlFor="promptpay-type" className="text-xs font-semibold text-[#d4cfdf]">
               ประเภทพร้อมเพย์
             </label>
             <div className="relative">
               <select
+                id="promptpay-type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 className="w-full appearance-none rounded-xl border border-[#2e2648] bg-[#110d22] px-4 py-2.5 text-sm font-medium text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all cursor-pointer pr-10"
@@ -131,10 +132,11 @@ const PromptPayCard = ({ initialData, onSave }) => {
 
           {/* PromptPay Number */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-[#d4cfdf]">
+            <label htmlFor="promptpay-number" className="text-xs font-semibold text-[#d4cfdf]">
               หมายเลขพร้อมเพย์
             </label>
             <input
+              id="promptpay-number"
               type="text"
               value={number}
               onChange={(e) => setNumber(e.target.value)}

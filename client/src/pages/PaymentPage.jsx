@@ -7,6 +7,7 @@ import PromptPayCard from "../components/Payment/PromptPayCard";
 import TrueMoneyCard from "../components/Payment/TrueMoneyCard";
 import BankCard from "../components/Payment/BankCard";
 import ComingSoonCard from "../components/Payment/ComingSoonCard";
+import { safeGetItem, safeSetItem, sanitizeValue } from "../utils/sanitizeStorage";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -14,7 +15,7 @@ const getUserFromToken = () => {
 
   try {
     const payload = token.split(".")[1];
-    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return JSON.parse(atob(payload.replaceAll("-", "+").replaceAll("_", "/")));
   } catch {
     localStorage.removeItem("token");
     return null;
@@ -30,33 +31,42 @@ const PaymentPage = () => {
     navigate("/login");
   };
 
-  const getSavedPayment = () => {
-    try {
-      return JSON.parse(localStorage.getItem("donix_payment_config")) || {};
-    } catch {
-      return {};
-    }
-  };
+  const getSavedPayment = () => safeGetItem("donix_payment_config", {});
   const savedPayment = getSavedPayment();
 
   const handleSavePromptPay = (data) => {
     const current = getSavedPayment();
-    const updated = { ...current, promptpay: data };
-    localStorage.setItem("donix_payment_config", JSON.stringify(updated));
+    const cleanPromptPay = {
+      enabled: Boolean(data?.enabled),
+      type: sanitizeValue(data?.type) || "เบอร์โทรศัพท์",
+      number: typeof data?.number === "string" ? data.number.replace(/[^0-9]/g, "").trim() : "",
+    };
+    const updated = { ...current, promptpay: cleanPromptPay };
+    safeSetItem("donix_payment_config", updated);
     console.log("Saved PromptPay settings:", updated);
   };
 
   const handleSaveTrueMoney = (data) => {
     const current = getSavedPayment();
-    const updated = { ...current, truemoney: data };
-    localStorage.setItem("donix_payment_config", JSON.stringify(updated));
+    const cleanTrueMoney = {
+      enabled: Boolean(data?.enabled),
+      phone: typeof data?.phone === "string" ? data.phone.replace(/[^0-9]/g, "").trim() : "",
+    };
+    const updated = { ...current, truemoney: cleanTrueMoney };
+    safeSetItem("donix_payment_config", updated);
     console.log("Saved TrueMoney settings:", updated);
   };
 
   const handleSaveBank = (data) => {
     const current = getSavedPayment();
-    const updated = { ...current, bank: data };
-    localStorage.setItem("donix_payment_config", JSON.stringify(updated));
+    const cleanBank = {
+      enabled: Boolean(data?.enabled),
+      bankName: sanitizeValue(data?.bankName) || "",
+      accountNumber: typeof data?.accountNumber === "string" ? data.accountNumber.replace(/[^0-9-]/g, "").trim() : "",
+      accountName: sanitizeValue(data?.accountName) || "",
+    };
+    const updated = { ...current, bank: cleanBank };
+    safeSetItem("donix_payment_config", updated);
     console.log("Saved Bank settings:", updated);
   };
 

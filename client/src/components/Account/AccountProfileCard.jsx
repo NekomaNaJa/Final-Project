@@ -6,8 +6,14 @@ const AccountProfileCard = ({ user }) => {
   const username = user?.username || "Test";
   const donixUrl = `donix.app/${username}`;
 
-  const handleCopy = () => {
-    navigator.clipboard?.writeText(`https://${donixUrl}`);
+  const handleCopy = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`https://${donixUrl}`);
+      }
+    } catch {
+      // Ignore clipboard write failure
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

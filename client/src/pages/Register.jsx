@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/Auth/AuthLayout";
 import InputField from "../components/Auth/InputField";
@@ -9,7 +9,16 @@ import { API } from "../utils/api";
 
 const Register = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
+
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+  });
+
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,21 +28,27 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!agreed) return setError("กรุณายอมรับข้อตกลงก่อน");
+
     if (!isPasswordValid(form.password)) {
       return setError(getPasswordError(form.password));
     }
 
     setLoading(true);
     setError("");
+
     try {
       const res = await fetch(API.register, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.message);
+
       localStorage.setItem("token", data.token);
       navigate("/dashboard");
     } catch (err) {
@@ -55,6 +70,7 @@ const Register = () => {
           value={form.username}
           onChange={handleChange}
         />
+
         <InputField
           name="email"
           label="อีเมล"
@@ -62,6 +78,7 @@ const Register = () => {
           value={form.email}
           onChange={handleChange}
         />
+
         <InputField
           name="password"
           label="รหัสผ่าน"
@@ -80,15 +97,24 @@ const Register = () => {
             onChange={(e) => setAgreed(e.target.checked)}
             className="mt-0.5 accent-purple-500"
           />
+
           <span className="text-gray-400 text-xs">
             ฉันได้อ่านและยอมรับ{" "}
-            <a href="#" className="text-purple-400 hover:underline">
+            <button
+              type="button"
+              className="text-purple-400 hover:underline"
+              onClick={() => setShowPrivacy(true)}
+            >
               นโยบายความเป็นส่วนตัว
-            </a>{" "}
+            </button>{" "}
             และ{" "}
-            <a href="#" className="text-purple-400 hover:underline">
-              เงื่อนไขการให้บริการส่วนต่างๆ
-            </a>
+            <button
+              type="button"
+              className="text-purple-400 hover:underline"
+              onClick={() => setShowTerms(true)}
+            >
+              เงื่อนไขการให้บริการ
+            </button>
           </span>
         </label>
 
@@ -122,6 +148,52 @@ const Register = () => {
       </div>
 
       <SocialAuthButtons />
+
+      {/* Privacy Policy Modal */}
+      {showPrivacy && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-[#151728] p-6">
+            <h2 className="mb-4 text-xl font-semibold text-white">
+              นโยบายความเป็นส่วนตัว
+            </h2>
+
+            <p className="text-sm text-gray-400">
+              เนื้อหานโยบายความเป็นส่วนตัวของ DONIX
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowPrivacy(false)}
+              className="mt-6 rounded-lg bg-purple-600 px-4 py-2 text-white"
+            >
+              ปิด
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTerms && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-[#151728] p-6">
+            <h2 className="mb-4 text-xl font-semibold text-white">
+              เงื่อนไขการให้บริการ
+            </h2>
+
+            <p className="text-sm text-gray-400">
+              เนื้อหาเงื่อนไขการให้บริการของ DONIX
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowTerms(false)}
+              className="mt-6 rounded-lg bg-purple-600 px-4 py-2 text-white"
+            >
+              ปิด
+            </button>
+          </div>
+        </div>
+      )}
     </AuthLayout>
   );
 };

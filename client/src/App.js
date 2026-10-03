@@ -8,19 +8,21 @@ import PaymentPage from "./pages/PaymentPage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 import Account from "./pages/Account";
 import DonorPage from "./pages/DonorPage";
-import NotFound from "./pages/NotFound";
-import HistoryPage from "./pages/HistoryPage";
+import Discover from "./pages/Discover";
 import HowToUse from "./pages/HowToUse";
-import WidgetPage from "./pages/WidgetPage";
+import HistoryPage from "./pages/HistoryPage";
+import NotFound from "./pages/NotFound";
+import Widget from "./pages/WidgetPage";
 
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainPage />} />
-        <Route path="/how-it-works" element={<HowToUse />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/discover" element={<Discover />} />
+        <Route path="/how-it-works" element={<HowToUse />} />
         <Route
           path="/dashboard"
           element={
@@ -46,10 +48,10 @@ const App = () => {
           }
         />
         <Route
-          path="/account"
+          path="/widget"
           element={
             <ProtectedRoute>
-              <Account />
+              <Widget />
             </ProtectedRoute>
           }
         />
@@ -62,10 +64,10 @@ const App = () => {
           }
         />
         <Route
-          path="/widget"
+          path="/account"
           element={
             <ProtectedRoute>
-              <WidgetPage />
+              <Account />
             </ProtectedRoute>
           }
         />
@@ -76,5 +78,4 @@ const App = () => {
     </BrowserRouter>
   );
 };
-
 export default App;

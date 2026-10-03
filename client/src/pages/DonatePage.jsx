@@ -13,7 +13,7 @@ const getUserFromToken = () => {
 
   try {
     const payload = token.split(".")[1];
-    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return JSON.parse(atob(payload.replaceAll("-", "+").replaceAll("_", "/")));
   } catch {
     localStorage.removeItem("token");
     return null;
@@ -58,12 +58,10 @@ const DonatePage = () => {
           }}
         />
       </div>
-
       {/* Sidebar */}
       <div className="relative z-20 shrink-0">
         <Sidebar onLogout={handleLogout} />
-      </div>
-
+      </div>{" "}
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>

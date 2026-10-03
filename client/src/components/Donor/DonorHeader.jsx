@@ -46,7 +46,7 @@ const DonorHeader = ({
               {isOnline ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white shadow-lg uppercase tracking-wider">
                   <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                  LIVE
+                  <span>LIVE</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium bg-[#374151] text-gray-300">

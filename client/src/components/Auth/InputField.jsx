@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 const InputField = ({
+  id,
   label,
   type = "text",
   placeholder,
@@ -9,16 +10,18 @@ const InputField = ({
   onChange,
   name,
 }) => {
+  const inputId = id || name || `input-${String(label || "field").replace(/\s+/g, "-").toLowerCase()}`;
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
 
   return (
     <div className="mb-5">
       {label && (
-        <label className="block text-[#9ca3af] text-sm mb-2">{label}</label>
+        <label htmlFor={inputId} className="block text-[#9ca3af] text-sm mb-2">{label}</label>
       )}
       <div className="relative">
         <input
+          id={inputId}
           type={isPassword && showPassword ? "text" : type}
           name={name}
           placeholder={placeholder}

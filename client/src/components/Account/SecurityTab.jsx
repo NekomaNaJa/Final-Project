@@ -7,10 +7,11 @@ const PasswordInput = ({ label, name, value, onChange }) => {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold text-[#d4cfdf]">{label}</label>
+      <label htmlFor={name} className="text-xs font-semibold text-[#d4cfdf]">{label}</label>
       <div className="relative flex items-center rounded-xl border border-[#2e2648] bg-[#110d22] px-3 py-2.5 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
         <Lock size={14} className="mr-2.5 shrink-0 text-[#6e6682]" />
         <input
+          id={name}
           type={show ? "text" : "password"}
           name={name}
           value={value}
