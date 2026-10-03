@@ -54,7 +54,31 @@ set CI=true&& npm run build
 
 ---
 
+<<<<<<< HEAD
+- **Server uses ES modules** (`"type": "module"` in server/package.json). Use `import`/`export`, not `require`.
+- **Server uses Express 5** (`^5.2.1`), not Express 4. Note Express 5 breaking changes (e.g. promise-returning route handlers, no `app.del()`).
+- **Client uses JSX** via CRA (CommonJS-style `module.exports` in config files like tailwind.config.js).
+- **Routing uses react-router-dom v7** — `<BrowserRouter>`/`<Routes>`/`<Route>` in `client/src/App.js`. Protected pages wrap children in `<ProtectedRoute>`.
+- **Thai UI text** — error messages, labels, and validation strings are in Thai. Match this convention when adding user-facing text.
+- **Password validation is duplicated** — `utils/passwordValidation.js` exists in both `client/src/utils/` and `server/utils/` with identical logic. Keep them in sync if modifying rules.
+<<<<<<< HEAD
+- **Icons use lucide-react** — All icons come from `lucide-react`. Import named icons (e.g. `<Home className="h-4 w-4" />`). The custom SVG icon file (`components/Dashboard/Icons.jsx`) was removed.
+- **Tailwind theme** — custom fonts (`Kanit` sans, `Nanum Myeongjo` serif) and brand colors (`mana` purple, `gold`, `crimson`, dark `void`/`abyss`) are defined in `client/tailwind.config.js`.
+
+## Architecture Notes
+
+- **Client pages** (`client/src/pages/`): `MainPage` (`/`), `Login` (`/login`), `Register` (`/register`), `Dashboard` (`/dashboard`, protected), `DonatePage` (`/donate-page`, protected). Shared layout/components live in `client/src/components/` (`Auth/`, `Dashboard/`, `DonatePage/`, `MainPage/`, plus shared `Topbar.jsx`/`Sidebar.jsx`).
+- Auth flow: `/api/auth/register` and `/api/auth/login` — JWT returned on success, 7-day expiry. Also supports Google login field (`googleId`) on the User model.
+- Socket.IO is initialized in `server/index.js` (attached to `req.io` via middleware, and CORS-restricted to `CLIENT_URL`). Events: `join-stream`, `disconnect`.
+- User model (`server/Models/User.js`) is the central schema — includes profile, social links, payment config (PromptPay/bank/TrueMoney), and donation page settings (welcome/thank-you messages, min amount, filtered words).
+- Routes are minimal: only `auth.js` exists in `server/routes/`.
+- MongoDB connection is handled in `server/config/db.js` (`connectDB`), called from `server/index.js`.
+=======
+- **Icons use lucide-react** — All icons come from `lucide-react`. Import named icons (e.g. `<Home className="h-4 w-4" />`). The custom SVG icon file (`components/Dashboard/Icons.jsx`) was removed. Brand/social icons (Instagram, Twitch, Facebook, YouTube, TikTok, X, Google) use inline SVGs.
+- **Client has a typo'd directory** — `Histor/` (not `History/`) contains `DonationHistoryTable.jsx`.
+=======
 ## 3. สภาพแวดล้อมและการตั้งค่า (Environment Variables)
+>>>>>>> 1b2ed5ebb440b69dd060cee71da93bff8658b080
 
 ### 3.1 Server (`server/.env`)
 
@@ -67,12 +91,29 @@ set CI=true&& npm run build
 
 ### Client
 
+<<<<<<< HEAD
+- **Routing** (`client/src/App.js`): `/` → MainPage, `/login`, `/register`, `/dashboard`, `/donate-page`, `/history` (and a duplicate `/Histor` alias).
+- **Pages** (6): MainPage (landing), Login, Register, Dashboard (stats/charts with placeholder data), DonatePage (donation settings), HistoryPage (donation history with empty data, has TODO: replace with real data from `GET /api/donations/history`).
+- **Components**:
+  - `Auth/` — AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
+  - `Dashboard/` — StatsCard, DonationChart (recharts), TopDonors, RealtimeFeed, PaymentChannels, CardWrapper
+  - `DonatePage/` — DonatePageLink, DecorateSection, MessageFilterSection, SocialMediaSection, ImageUploadBox, SettingsCard, RichTextField
+  - `Histor/` — DonationHistoryTable (note the typo'd directory name)
+  - `MainPage/` — Navbar, Hero, Features, StreamerList, CTASection, Footer
+  - Shared: Sidebar.jsx, Topbar.jsx
+- **Styling**: Tailwind CSS with custom theme in `tailwind.config.js` — custom colors (`void`, `abyss`, `mana`, `gold`, `crimson`, `border`, `muted`), fonts (`Kanit` for sans, `Nanum Myeongjo` for serif).
+- **Key dependencies**: `react-router-dom` (routing), `recharts` (charts), `lucide-react` (icons), `@testing-library/*` (testing).
+- **Assets** (`client/src/assets/`): PrimaryLogo.png, HeroLogo.png, hero.png, bg-login.png.
+- Client JWT decoding uses `atob` with base64url-safe handling (`.replace(/-/g,"+").replace(/_/g,"/")`).
+>>>>>>> e82569751fe6620599cf80bb24f0f046047e1be3
+=======
 - Base URL ของ API กำหนดไว้ที่ `http://localhost:5000`
 - การจัดการสิทธิ์และการสื่อสารข้ามโดเมนใช้ CORS จากฝั่ง Server
 
 ---
 
 ## 4. โครงสร้างและรายละเอียดระบบฝั่ง Server (`server/`)
+>>>>>>> 1b2ed5ebb440b69dd060cee71da93bff8658b080
 
 ### 4.1 สถาปัตยกรรมและเทคโนโลยี
 

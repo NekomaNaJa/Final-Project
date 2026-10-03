@@ -12,6 +12,7 @@ import Discover from "./pages/Discover";
 import HowToUse from "./pages/HowToUse";
 import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
+import Widget from "./pages/WidgetPage";
 
 const App = () => {
   return (
@@ -43,6 +44,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <DonatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/widget"
+          element={
+            <ProtectedRoute>
+              <Widget />
             </ProtectedRoute>
           }
         />
