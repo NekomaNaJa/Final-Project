@@ -109,9 +109,9 @@ server/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
 │   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page พร้อม protect)
 ├── tests/
-│   ├── auth.test.js             → ชุดทดสอบ Authentication (12 tests)
-│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware และ Users Route (35 tests)
-│   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (20 tests)
+│   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
+│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware และ Users Route (47 tests: GET /me, PUT /me, PUT /payment, PUT /donation-page)
+│   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 ├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler)
@@ -298,7 +298,7 @@ client/src/
 │   └── useJwtUser.js          → Custom hook ดึงข้อมูล user จาก JWT ใน localStorage
 ├── pages/                     → หน้าหลักทั้ง 12 หน้า และ NotFound
 ├── utils/
-│   ├── api.js                 → Axios instance / Base API config
+│   ├── api.js                 → ฟังก์ชัน fetch กลาง (fetchCurrentUser, updateCurrentUser, updatePaymentSettings, updateDonationPageSettings) + API Endpoint Constants
 │   ├── passwordValidation.js  → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน
 │   ├── passwordValidation.test.js
 │   ├── sanitizeStorage.js     → ฟังก์ชันกรองและจัดเก็บข้อมูล localStorage ให้ปลอดภัย
@@ -321,7 +321,9 @@ client/src/
    - **ห้ามใส่ `overflow-x: hidden`** บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้คุณสมบัติ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
 4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกันเสมอ
 5. **การจัดการ State และ Storage**:
-   - หน้า Donor และ Widget รองรับการอ่านและบันทึกข้อมูลผ่านไฟล์กลาง เช่น `widgetStorage.js` และ `sanitizeStorage.js` ห้ามเรียก `localStorage` ตรงๆ เพื่อป้องกันช่องโหว่และพร้อมสำหรับการเปลี่ยนไปใช้ REST API
+   - หน้า **Account**, **Payment**, **DonatePage** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — ห้ามอ่าน/เขียนข้อมูลหลักลง `localStorage` โดยตรงในหน้าเหล่านี้
+   - หน้า **Donor** และ **Widget** ยังอ่านและบันทึกข้อมูลผ่านไฟล์กลาง `widgetStorage.js` และ `sanitizeStorage.js` (เตรียมสำหรับการย้ายขึ้น REST API ใน Phase ถัดไป)
+   - ห้ามเรียก `localStorage` ตรงๆ ในทุกกรณี ให้ใช้ผ่าน `safeGetItem`/`safeSetItem` ใน `sanitizeStorage.js` เสมอ
 6. **Zero Warning Policy บน CI**: ตัวแปร `CI=true` บน GitHub Actions จะเปลี่ยน warning ทุกตัวเป็น fatal error ดังนั้นห้ามทิ้ง unused variables หรือ unused imports
 7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่รับค่าจาก client ต้องทำตามกฎ 3 ขั้นตอนในหัวข้อ 4.4 อย่างเคร่งครัด
 8. **ห้ามทำ Code Duplication ซ้ำซ้อน**: ห้ามคัดลอกบล็อกโค้ดที่ซ้ำกันเกิน 10 บรรทัดข้ามไฟล์ ให้แยกเป็น shared component หรือ hook กลาง เพื่อไม่ให้ติด Quality Gate ของ SonarCloud
@@ -332,15 +334,16 @@ client/src/
 
 | ส่วนงาน                      | สถานะ            | รายละเอียด                                                                                                 |
 | :--------------------------- | :--------------- | :--------------------------------------------------------------------------------------------------------- |
-| **Backend Foundation**       | สมบูรณ์          | สถาปัตยกรรมแยก `app.js`/`index.js`, Helmet, Rate Limiter, Error Handler กลาง, Response `{ message, data }` |
-| **Auth System**              | สมบูรณ์          | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting                |
-| **Frontend Pages (12 หน้า)** | สมบูรณ์          | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI                                         |
-| **Widget System**            | สมบูรณ์          | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
-| **Test Suites**              | สมบูรณ์          | Client: 17 Suites (116 Tests ผ่าน 100%), Server: 3 Suites (24 Tests ผ่าน 100%, Coverage > 99%)             |
-| **CI / CD Pipeline**         | สมบูรณ์          | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
-| **SonarCloud Quality Gate**  | ผ่าน             | 0 Security Issues, 0 Vulnerabilities, New Code Coverage > 88%                                              |
-| **Database Models**          | อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase ถัดไป                   |
-| **OCR Slip Verification**    | ตามแผนงาน        | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
+| **Backend Foundation**       | ✅ สมบูรณ์       | สถาปัตยกรรมแยก `app.js`/`index.js`, Helmet, Rate Limiter, Error Handler กลาง, Response `{ message, data }` |
+| **Auth System**              | ✅ สมบูรณ์       | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting                |
+| **Frontend Pages (12 หน้า)** | ✅ สมบูรณ์       | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI                                         |
+| **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
+| **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (155 Tests ผ่าน 100%), Server: 3 Suites (65 Tests ผ่าน 100%, Coverage > 98%)             |
+| **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
+| **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
+| **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase 6                      |
+| **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---
 
@@ -382,18 +385,12 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-- **Phase 4: ย้ายข้อมูลรอบแรก — ส่วนที่ User Schema รองรับอยู่แล้ว (ขนาดกลาง)**
-  - ย้ายข้อมูลจาก `localStorage` มาเชื่อมต่อ MongoDB ผ่าน REST API กลาง (`client/src/utils/api.js`)
-  - พัฒนา Endpoints & Controller:
-    - Account: `GET /api/users/me` และ `PUT /api/users/me` (ข้อมูลโปรไฟล์และโซเชียล)
-    - Payment: `PUT /api/users/payment` (ตั้งค่า PromptPay, TrueMoney, Bank)
-    - DonatePage: `PUT /api/users/donation-page` (ข้อความต้อนรับ, ขั้นต่ำ, คำกรอง)
-  - แบ่งทำทีละหน้าแยก Branch สั้นๆ: `feature/account`, `feature/payment`, `feature/donate-page`
+> **Phase 1–4 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, และการย้าย Account/Payment/DonatePage ขึ้น REST API + MongoDB
 
-- **Phase 5: Deploy ก่อนที่ระบบจะซับซ้อน (ขนาดเล็กถึงกลาง)**
+- **Phase 5: Deploy (ขนาดเล็กถึงกลาง)**
   - Server ขึ้น **Render**, Client ขึ้น **Vercel**, และใช้ **MongoDB Atlas**
   - ตรวจสอบปัญหา CORS, Linux Case-sensitive Paths (เช่น `Models/`), และ Environment Variables (`MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL`)
-  - ปรับ Base URL ของ Client ให้อ่านจาก `process.env.REACT_APP_API_URL` แทน localhost:5000
+  - ปรับ Base URL ของ Client ให้อ่านจาก `process.env.REACT_APP_API_URL` แทน `http://localhost:5000`
 
 - **Phase 6: แกนหลัก Donation REST API & Database Schema (ขนาดใหญ่)**
   - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`) ทำ index ที่ `streamerId + createdAt`
@@ -411,3 +408,4 @@ client/src/
 - **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
   - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน
   - ป้องกันสลิปซ้ำด้วย unique index ของ Transaction Reference
+
