@@ -25,7 +25,7 @@ jobs:
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage
+          name: client-coverage
           path: client/coverage
 
   server:
@@ -42,10 +42,14 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm install -g npm@11
       - run: npm ci
-      - run: npm test --if-present
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage
 
   sonar:
-    needs: client
+    needs: [client, server]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,8 +57,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
-          name: coverage
+          name: client-coverage
           path: client/coverage
+      - uses: actions/download-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:

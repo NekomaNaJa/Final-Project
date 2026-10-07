@@ -310,9 +310,9 @@ client/src/
 
 | Job | สภาพแวดล้อม | ขั้นตอนการทำงาน |
 | :--- | :--- | :--- |
-| `client` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm test -- --coverage --watchAll=false` → `npm run build` → Upload coverage artifact |
-| `server` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm test --if-present` |
-| `sonar` | Ubuntu (หลัง client ผ่าน) | Download coverage artifact → SonarQube Scan Action |
+| `client` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm test -- --coverage --watchAll=false` → `npm run build` → Upload coverage artifact (`client-coverage`) |
+| `server` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm run test:coverage` → Upload coverage artifact (`server-coverage`) |
+| `sonar` | Ubuntu (หลัง client และ server ผ่าน) | Download `client-coverage` และ `server-coverage` → SonarQube Scan Action |
 
 ### Branch Protection บน `main`
 - ล็อกห้าม Push ตรงเข้า `main` ทุกกรณี ต้องเปิด Pull Request เท่านั้น
