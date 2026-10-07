@@ -9,6 +9,29 @@ import MessageFilterSection from "./MessageFilterSection";
 import SocialMediaSection from "./SocialMediaSection";
 import DonatePage from "../../pages/DonatePage";
 
+jest.mock("../../utils/api", () => {
+  const original = jest.requireActual("../../utils/api");
+  return {
+    ...original,
+    fetchCurrentUser: jest.fn().mockResolvedValue({
+      username: "StreamerMaster",
+      donationPage: {
+        welcomeMessage: "ยินดีต้อนรับ",
+        thankYouMessage: "ขอบคุณครับ",
+        minAmount: 10,
+        charLimit: 100,
+        disableFilter: false,
+        filteredWords: ["คำหยาบ", "สแปม"],
+        coverImage: null,
+        backgroundImage: null,
+      },
+      social: {},
+    }),
+    updateDonationPageSettings: jest.fn().mockResolvedValue({}),
+    updateCurrentUser: jest.fn().mockResolvedValue({}),
+  };
+});
+
 describe("DonatePage Components & Page", () => {
   beforeEach(() => {
     localStorage.clear();

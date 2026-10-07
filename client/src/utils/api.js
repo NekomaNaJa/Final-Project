@@ -6,6 +6,7 @@ export const API = {
   register: `${API_URL}/auth/register`,
   usersMe: `${API_URL}/users/me`,
   usersPayment: `${API_URL}/users/payment`,
+  usersDonationPage: `${API_URL}/users/donation-page`,
 };
 
 export const getAuthToken = () => {
@@ -63,6 +64,22 @@ export const updatePaymentSettings = async (payload) => {
   const json = await res.json();
   if (!res.ok) {
     throw new Error(json.message || "ไม่สามารถอัปเดตช่องทางรับเงินได้");
+  }
+  return json.data;
+};
+
+/**
+ * อัปเดตข้อมูลการตั้งค่าหน้ารับเงิน (PUT /api/users/donation-page)
+ */
+export const updateDonationPageSettings = async (payload) => {
+  const res = await fetch(API.usersDonationPage, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถอัปเดตการตั้งค่าหน้ารับเงินได้");
   }
   return json.data;
 };

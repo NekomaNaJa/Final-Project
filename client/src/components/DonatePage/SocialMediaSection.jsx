@@ -1,24 +1,38 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SettingsCard from "./SettingsCard";
 import { socialPlatforms } from "../../constants/socialPlatforms";
 
-
-const SocialMediaSection = () => {
+const SocialMediaSection = ({ initialData, onSave }) => {
   const [socialLinks, setSocialLinks] = useState({
-    facebook: "",
-    instagram: "",
-    youtube: "",
-    tiktok: "",
-    twitch: "",
-    x: "",
+    facebook: initialData?.facebook || "",
+    instagram: initialData?.instagram || "",
+    youtube: initialData?.youtube || "",
+    tiktok: initialData?.tiktok || "",
+    twitch: initialData?.twitch || "",
+    x: initialData?.x || "",
   });
+
+  useEffect(() => {
+    if (initialData) {
+      setSocialLinks({
+        facebook: initialData.facebook || "",
+        instagram: initialData.instagram || "",
+        youtube: initialData.youtube || "",
+        tiktok: initialData.tiktok || "",
+        twitch: initialData.twitch || "",
+        x: initialData.x || "",
+      });
+    }
+  }, [initialData]);
 
   const handleChange = (key, value) => {
     setSocialLinks((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
-    console.log("Saving social media links:", socialLinks);
+    if (onSave) {
+      onSave(socialLinks);
+    }
   };
 
   return (
