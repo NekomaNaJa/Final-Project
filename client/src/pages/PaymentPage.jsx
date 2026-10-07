@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaymentHeader from "../components/Payment/PaymentHeader";
@@ -7,6 +8,7 @@ import PromptPayCard from "../components/Payment/PromptPayCard";
 import TrueMoneyCard from "../components/Payment/TrueMoneyCard";
 import BankCard from "../components/Payment/BankCard";
 import ComingSoonCard from "../components/Payment/ComingSoonCard";
+import { fetchCurrentUser, updatePaymentSettings } from "../utils/api";
 import { safeGetItem, safeSetItem, sanitizeValue } from "../utils/sanitizeStorage";
 
 const getUserFromToken = () => {
@@ -24,50 +26,142 @@ const getUserFromToken = () => {
 
 const PaymentPage = () => {
   const navigate = useNavigate();
-  const user = getUserFromToken();
+  const [user, setUser] = useState(() => getUserFromToken());
+  const [feedback, setFeedback] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState(() =>
+    safeGetItem("donix_payment_config", {})
+  );
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
   };
 
-  const getSavedPayment = () => safeGetItem("donix_payment_config", {});
-  const savedPayment = getSavedPayment();
+  const loadPaymentData = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
 
-  const handleSavePromptPay = (data) => {
-    const current = getSavedPayment();
-    const cleanPromptPay = {
-      enabled: Boolean(data?.enabled),
-      type: sanitizeValue(data?.type) || "เบอร์โทรศัพท์",
-      number: typeof data?.number === "string" ? data.number.replace(/[^0-9]/g, "").trim() : "",
-    };
-    const updated = { ...current, promptpay: cleanPromptPay };
-    safeSetItem("donix_payment_config", updated);
-    console.log("Saved PromptPay settings:", updated);
+    try {
+      const data = await fetchCurrentUser();
+      if (data) {
+        setUser((prev) => ({ ...prev, ...data }));
+        if (data.payment) {
+          setPaymentConfig(data.payment);
+          safeSetItem("donix_payment_config", data.payment);
+        }
+      }
+    } catch (err) {
+      if (
+        err.message?.includes("ไม่ได้รับอนุญาต") ||
+        err.message?.includes("หมดอายุ")
+      ) {
+        localStorage.removeItem("token");
+        navigate("/login");
+      }
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    loadPaymentData();
+  }, [loadPaymentData]);
+
+  const handleSavePromptPay = async (data) => {
+    try {
+      setFeedback(null);
+      const cleanPromptPay = {
+        enabled: Boolean(data?.enabled),
+        type: sanitizeValue(data?.type) || "เบอร์โทรศัพท์",
+        number:
+          typeof data?.number === "string"
+            ? data.number.replace(/[^0-9]/g, "").trim()
+            : "",
+      };
+
+      const resData = await updatePaymentSettings({ promptpay: cleanPromptPay });
+      const current = safeGetItem("donix_payment_config", paymentConfig);
+      const updated = {
+        ...current,
+        ...(resData || {}),
+        promptpay: cleanPromptPay,
+      };
+
+      setPaymentConfig(updated);
+      safeSetItem("donix_payment_config", updated);
+      setFeedback({ type: "success", message: "บันทึกข้อมูลพร้อมเพย์สำเร็จ" });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลพร้อมเพย์",
+      });
+    }
   };
 
-  const handleSaveTrueMoney = (data) => {
-    const current = getSavedPayment();
-    const cleanTrueMoney = {
-      enabled: Boolean(data?.enabled),
-      phone: typeof data?.phone === "string" ? data.phone.replace(/[^0-9]/g, "").trim() : "",
-    };
-    const updated = { ...current, truemoney: cleanTrueMoney };
-    safeSetItem("donix_payment_config", updated);
-    console.log("Saved TrueMoney settings:", updated);
+  const handleSaveTrueMoney = async (data) => {
+    try {
+      setFeedback(null);
+      const cleanTrueMoney = {
+        enabled: Boolean(data?.enabled),
+        phone:
+          typeof data?.phone === "string"
+            ? data.phone.replace(/[^0-9]/g, "").trim()
+            : "",
+      };
+
+      const resData = await updatePaymentSettings({ truemoney: cleanTrueMoney });
+      const current = safeGetItem("donix_payment_config", paymentConfig);
+      const updated = {
+        ...current,
+        ...(resData || {}),
+        truemoney: cleanTrueMoney,
+      };
+
+      setPaymentConfig(updated);
+      safeSetItem("donix_payment_config", updated);
+      setFeedback({ type: "success", message: "บันทึกข้อมูลทรูมันนี่สำเร็จ" });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลทรูมันนี่",
+      });
+    }
   };
 
-  const handleSaveBank = (data) => {
-    const current = getSavedPayment();
-    const cleanBank = {
-      enabled: Boolean(data?.enabled),
-      bankName: sanitizeValue(data?.bankName) || "",
-      accountNumber: typeof data?.accountNumber === "string" ? data.accountNumber.replace(/[^0-9-]/g, "").trim() : "",
-      accountName: sanitizeValue(data?.accountName) || "",
-    };
-    const updated = { ...current, bank: cleanBank };
-    safeSetItem("donix_payment_config", updated);
-    console.log("Saved Bank settings:", updated);
+  const handleSaveBank = async (data) => {
+    try {
+      setFeedback(null);
+      const cleanBank = {
+        enabled: Boolean(data?.enabled),
+        bankName: sanitizeValue(data?.bankName) || "",
+        accountNumber:
+          typeof data?.accountNumber === "string"
+            ? data.accountNumber.replace(/[^0-9-]/g, "").trim()
+            : "",
+        accountName: sanitizeValue(data?.accountName) || "",
+      };
+
+      const resData = await updatePaymentSettings({ bank: cleanBank });
+      const current = safeGetItem("donix_payment_config", paymentConfig);
+      const updated = {
+        ...current,
+        ...(resData || {}),
+        bank: cleanBank,
+      };
+
+      setPaymentConfig(updated);
+      safeSetItem("donix_payment_config", updated);
+      setFeedback({ type: "success", message: "บันทึกข้อมูลบัญชีธนาคารสำเร็จ" });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลบัญชีธนาคาร",
+      });
+    }
   };
 
   return (
@@ -112,18 +206,37 @@ const PaymentPage = () => {
         <main className="mx-auto w-full max-w-[1240px] px-6 sm:px-10 lg:px-14 py-10 space-y-8">
           <PaymentHeader />
 
+          {/* Feedback Notification Banner */}
+          {feedback && (
+            <div
+              role="status"
+              className={`flex items-center gap-2.5 rounded-xl border p-4 text-xs font-medium transition-all ${
+                feedback.type === "success"
+                  ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-300"
+                  : "border-red-500/30 bg-red-950/40 text-red-300"
+              }`}
+            >
+              {feedback.type === "success" ? (
+                <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+              ) : (
+                <AlertCircle size={16} className="shrink-0 text-red-400" />
+              )}
+              <span>{feedback.message}</span>
+            </div>
+          )}
+
           {/* 2x2 Grid of Payment Channels */}
           <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
             <PromptPayCard
-              initialData={savedPayment.promptpay}
+              initialData={paymentConfig?.promptpay}
               onSave={handleSavePromptPay}
             />
             <TrueMoneyCard
-              initialData={savedPayment.truemoney}
+              initialData={paymentConfig?.truemoney}
               onSave={handleSaveTrueMoney}
             />
             <BankCard
-              initialData={savedPayment.bank}
+              initialData={paymentConfig?.bank}
               onSave={handleSaveBank}
             />
             <ComingSoonCard />

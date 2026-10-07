@@ -5,6 +5,7 @@ export const API = {
   login: `${API_URL}/auth/login`,
   register: `${API_URL}/auth/register`,
   usersMe: `${API_URL}/users/me`,
+  usersPayment: `${API_URL}/users/payment`,
 };
 
 export const getAuthToken = () => {
@@ -50,3 +51,18 @@ export const updateCurrentUser = async (payload) => {
   return json.data;
 };
 
+/**
+ * อัปเดตข้อมูลช่องทางรับเงิน (PUT /api/users/payment)
+ */
+export const updatePaymentSettings = async (payload) => {
+  const res = await fetch(API.usersPayment, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถอัปเดตช่องทางรับเงินได้");
+  }
+  return json.data;
+};

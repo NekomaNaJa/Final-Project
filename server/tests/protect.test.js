@@ -351,6 +351,194 @@ describe("Protect Middleware & Users Route", () => {
       expect(res.body.message).toBe("เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่");
     });
   });
+
+  describe("PUT /api/users/payment", () => {
+    it("should return 401 when Authorization header is missing", async () => {
+      const res = await request(app).put("/api/users/payment").send({ promptpay: { enabled: true } });
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบ");
+    });
+
+    it("should return 404 when user is not found", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ promptpay: { enabled: true } });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("ไม่พบผู้ใช้");
+    });
+
+    it("should return 400 when promptpay is not an object", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ promptpay: "invalid" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อมูลพร้อมเพย์ไม่ถูกต้อง");
+    });
+
+    it("should return 400 when promptpay.type is invalid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ promptpay: { type: "InvalidType" } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ประเภทพร้อมเพย์ไม่ถูกต้อง");
+    });
+
+    it("should return 400 when promptpay.number is not a string", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ promptpay: { number: 12345 } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("หมายเลขพร้อมเพย์ต้องเป็นข้อความ");
+    });
+
+    it("should return 400 when bank is not an object", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ bank: "invalid" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อมูลธนาคารไม่ถูกต้อง");
+    });
+
+    it("should return 400 when bank.bankName is invalid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ bank: { bankName: "Unknown Bank" } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ชื่อธนาคารไม่ถูกต้อง");
+    });
+
+    it("should return 400 when bank.accountNumber is not a string", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ bank: { accountNumber: 12345 } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("เลขบัญชีธนาคารต้องเป็นข้อความ");
+    });
+
+    it("should return 400 when bank.accountName is not a string", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ bank: { accountName: 12345 } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ชื่อบัญชีธนาคารต้องเป็นข้อความ");
+    });
+
+    it("should return 400 when truemoney is not an object", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ truemoney: "invalid" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อมูลทรูมันนี่ไม่ถูกต้อง");
+    });
+
+    it("should return 400 when truemoney.phone is not a string", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ truemoney: { phone: 12345 } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("เบอร์โทรศัพท์ทรูมันนี่ต้องเป็นข้อความ");
+    });
+
+    it("should update payment channels successfully and preserve unset channels", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = {
+        _id: "mockId123",
+        payment: {
+          promptpay: { enabled: false, type: "เบอร์โทรศัพท์", number: "0811111111" },
+          bank: { enabled: false, bankName: null, accountNumber: "", accountName: "" },
+          truemoney: { enabled: false, phone: "" },
+        },
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          promptpay: { enabled: true, type: "e-Wallet ID", number: "1400012345678" },
+          bank: {
+            enabled: true,
+            bankName: "ธนาคารไทยพาณิชย์ (SCB)",
+            accountNumber: "123-4-56789-0",
+            accountName: "นาย สมชาย สายบุญ",
+          },
+          truemoney: { enabled: true, phone: "0898765432" },
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("อัปเดตช่องทางรับเงินสำเร็จ");
+      expect(res.body.data.promptpay.enabled).toBe(true);
+      expect(res.body.data.promptpay.type).toBe("e-Wallet ID");
+      expect(res.body.data.bank.bankName).toBe("ธนาคารไทยพาณิชย์ (SCB)");
+      expect(res.body.data.truemoney.phone).toBe("0898765432");
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("should forward server error to errorHandler on database failure", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockRejectedValueOnce(new Error("Database failure"));
+
+      const res = await request(app)
+        .put("/api/users/payment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ promptpay: { enabled: true } });
+
+      expect(res.status).toBe(500);
+      expect(res.body.message).toBe("เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่");
+    });
+  });
 });
 
 

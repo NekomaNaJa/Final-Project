@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Check } from "lucide-react";
 
 const promptpayTypes = [
@@ -17,6 +17,14 @@ const PromptPayCard = ({ initialData, onSave }) => {
   const [number, setNumber] = useState(initialData?.number || "");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.enabled !== undefined) setEnabled(initialData.enabled);
+      if (initialData.type !== undefined) setType(initialData.type || "เบอร์โทรศัพท์");
+      if (initialData.number !== undefined) setNumber(initialData.number || "");
+    }
+  }, [initialData]);
 
   const handleSave = (e) => {
     e?.preventDefault();
