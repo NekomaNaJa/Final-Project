@@ -123,14 +123,14 @@ server/
 ### 4.3 รายละเอียด User Schema (`server/Models/User.js`)
 
 - **ข้อมูลการยืนยันตัวตน**: `username`, `email`, `password`, `googleId`
-- **โปรไฟล์**: `profile` (`displayName`, `avatar`, `bio`)
-- **โซเชียลมีเดีย**: `socialLinks` (Facebook, Instagram, YouTube, TikTok, Twitch, X)
+- **ข้อมูลโปรไฟล์**: `nickname`, `fullName`, `firstName`, `lastName`, `avatar`, `bio`, `gender`, `birthDate`, `phone`, `isPhoneVerified`, `isEmailVerified`, `isLive` (สถานะเปิดรับเงิน)
+- **โซเชียลมีเดีย (`social`)**: `facebook`, `instagram`, `youtube`, `tiktok`, `twitch`, `x`
 - **ช่องทางรับเงิน (`payment`)**:
-  - `promptpay`: `enabled`, `type` (เบอร์โทรศัพท์/เลขบัตร ปชช.), `number`
-  - `bank`: `enabled`, `bankName`, `accountNumber`, `accountName`
+  - `promptpay`: `enabled`, `type` (เบอร์โทรศัพท์/เลขบัตร ปชช. ฯลฯ), `number`
+  - `bank`: `enabled`, `bankName` (7 ธนาคาร), `accountNumber`, `accountName`
   - `truemoney`: `enabled`, `phone`
 - **การตั้งค่าหน้ารับเงิน (`donationPage`)**:
-  - `welcomeMessage`, `thankYouMessage`, `minAmount`, `charLimit`, `filteredWords`, `coverImage`, `backgroundImage`
+  - `welcomeMessage`, `thankYouMessage`, `minAmount`, `charLimit`, `disableFilter`, `filteredWords`, `coverImage`, `backgroundImage`
 
 ### 4.4 การป้องกัน NoSQL Injection (บังคับใช้ทุก route)
 
