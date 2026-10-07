@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (3 Suites, 65 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (4 Suites, 70 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 98%)
 ```
 
@@ -110,7 +110,8 @@ server/
 │   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page พร้อม protect)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
-│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware และ Users Route (47 tests: GET /me, PUT /me, PUT /payment, PUT /donation-page)
+│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
+│   ├── users.test.js            → ชุดทดสอบ Users Route (47 tests: GET /me, PUT /me, PUT /payment, PUT /donation-page)
 │   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
@@ -126,7 +127,7 @@ server/
 - **ข้อมูลโปรไฟล์**: `nickname`, `fullName`, `firstName`, `lastName`, `avatar`, `bio`, `gender`, `birthDate`, `phone`, `isPhoneVerified`, `isEmailVerified`, `isLive` (สถานะเปิดรับเงิน)
 - **โซเชียลมีเดีย (`social`)**: `facebook`, `instagram`, `youtube`, `tiktok`, `twitch`, `x`
 - **ช่องทางรับเงิน (`payment`)**:
-  - `promptpay`: `enabled`, `type` (เบอร์โทรศัพท์/เลขบัตร ปชช. ฯลฯ), `number`
+  - `promptpay`: `enabled`, `type` (7 ประเภท: เบอร์โทรศัพท์, เลขบัตรประจำตัวประชาชน, e-Wallet ID, K-Shop, SCB แม่มณี, BBL Merchant Pro, ร้านค้าถุงเงิน), `number`
   - `bank`: `enabled`, `bankName` (7 ธนาคาร), `accountNumber`, `accountName`
   - `truemoney`: `enabled`, `phone`
 - **การตั้งค่าหน้ารับเงิน (`donationPage`)**:
@@ -339,7 +340,7 @@ client/src/
 | **Frontend Pages (12 หน้า)** | ✅ สมบูรณ์       | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI                                         |
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (155 Tests ผ่าน 100%), Server: 3 Suites (65 Tests ผ่าน 100%, Coverage > 98%)             |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (155 Tests ผ่าน 100%), Server: 4 Suites (70 Tests ผ่าน 100%, Coverage > 98%)             |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
 | **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase 6                      |
