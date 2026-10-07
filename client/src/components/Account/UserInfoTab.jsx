@@ -1,15 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SettingsCard from "../DonatePage/SettingsCard";
 import { ChevronDown } from "lucide-react";
 
-const UserInfoTab = ({ user }) => {
+const UserInfoTab = ({ user, onSave }) => {
   const [form, setForm] = useState({
-    nickname: user?.username || "Test",
-    fullName: "",
-    birthDate: "",
-    gender: "",
-    bio: "",
+    nickname: user?.nickname || user?.username || "Test",
+    fullName: user?.fullName || "",
+    birthDate: user?.birthDate ? String(user.birthDate).substring(0, 10) : "",
+    gender: user?.gender || "",
+    bio: user?.bio || "",
   });
+
+  useEffect(() => {
+    if (user) {
+      setForm({
+        nickname: user.nickname || user.username || "Test",
+        fullName: user.fullName || "",
+        birthDate: user.birthDate ? String(user.birthDate).substring(0, 10) : "",
+        gender: user.gender || "",
+        bio: user.bio || "",
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -18,6 +30,9 @@ const UserInfoTab = ({ user }) => {
 
   const handleSave = () => {
     console.log("Saving user information:", form);
+    if (onSave) {
+      onSave(form);
+    }
   };
 
   return (

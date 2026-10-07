@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import AccountProfileCard from "../components/Account/AccountProfileCard";
 import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
+import { fetchCurrentUser, updateCurrentUser } from "../utils/api";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -21,11 +23,54 @@ const getUserFromToken = () => {
 
 const Account = () => {
   const navigate = useNavigate();
-  const user = getUserFromToken();
+  const [user, setUser] = useState(() => getUserFromToken());
+  const [feedback, setFeedback] = useState(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
+  };
+
+  const loadUserData = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const data = await fetchCurrentUser();
+      if (data) {
+        setUser((prev) => ({ ...prev, ...data }));
+      }
+    } catch (err) {
+      if (err.message?.includes("ไม่ได้รับอนุญาต") || err.message?.includes("หมดอายุ")) {
+        localStorage.removeItem("token");
+        navigate("/login");
+      }
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  const handleSaveProfile = async (payload) => {
+    try {
+      setFeedback(null);
+      const updated = await updateCurrentUser(payload);
+      setUser((prev) => ({ ...prev, ...updated }));
+      setFeedback({ type: "success", message: "บันทึกข้อมูลเรียบร้อยแล้ว" });
+      setTimeout(() => setFeedback(null), 4000);
+      return { success: true };
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
+      });
+      setTimeout(() => setFeedback(null), 5000);
+      return { success: false, error: err.message };
+    }
   };
 
   return (
@@ -82,19 +127,39 @@ const Account = () => {
               </p>
             </div>
 
+            {/* Notification Alert */}
+            {feedback && (
+              <div
+                role="alert"
+                className={`flex items-center gap-2 rounded-xl p-3.5 text-xs font-medium border transition-all ${
+                  feedback.type === "success"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                    : "bg-red-500/10 border-red-500/30 text-red-300"
+                }`}
+              >
+                {feedback.type === "success" ? (
+                  <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertCircle size={16} className="text-red-400 shrink-0" />
+                )}
+                <span>{feedback.message}</span>
+              </div>
+            )}
+
             {/* Profile Overview */}
             <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
               <AccountProfileCard user={user} />
-              <ManageAccountCard />
+              <ManageAccountCard user={user} />
             </div>
 
             {/* Tabs */}
-            <AccountTabs user={user} />
+            <AccountTabs user={user} onSave={handleSaveProfile} />
           </main>
         </div>
       </div>
     </div>
   );
 };
+
 
 export default Account;

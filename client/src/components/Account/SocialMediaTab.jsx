@@ -1,17 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SettingsCard from "../DonatePage/SettingsCard";
 import { socialPlatforms } from "../../constants/socialPlatforms";
 
-
-const SocialMediaTab = () => {
+const SocialMediaTab = ({ user, onSave }) => {
   const [socialLinks, setSocialLinks] = useState({
-    facebook: "",
-    instagram: "",
-    youtube: "",
-    tiktok: "",
-    twitch: "",
-    x: "",
+    facebook: user?.social?.facebook || "",
+    instagram: user?.social?.instagram || "",
+    youtube: user?.social?.youtube || "",
+    tiktok: user?.social?.tiktok || "",
+    twitch: user?.social?.twitch || "",
+    x: user?.social?.x || "",
   });
+
+  useEffect(() => {
+    if (user?.social) {
+      setSocialLinks({
+        facebook: user.social.facebook || "",
+        instagram: user.social.instagram || "",
+        youtube: user.social.youtube || "",
+        tiktok: user.social.tiktok || "",
+        twitch: user.social.twitch || "",
+        x: user.social.x || "",
+      });
+    }
+  }, [user]);
 
   const handleChange = (key, value) => {
     setSocialLinks((prev) => ({ ...prev, [key]: value }));
@@ -19,6 +31,9 @@ const SocialMediaTab = () => {
 
   const handleSave = () => {
     console.log("Saving account social links:", socialLinks);
+    if (onSave) {
+      onSave({ social: socialLinks });
+    }
   };
 
   return (
