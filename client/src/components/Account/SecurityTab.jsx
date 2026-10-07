@@ -32,25 +32,49 @@ const PasswordInput = ({ label, name, value, onChange }) => {
   );
 };
 
-const SecurityTab = () => {
+const SecurityTab = ({ onSave }) => {
   const [form, setForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [error, setError] = useState("");
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
 
   const handleSave = () => {
     console.log("Saving security settings:", { ...form, twoFactorEnabled });
+    if (form.newPassword || form.confirmPassword) {
+      if (form.newPassword !== form.confirmPassword) {
+        setError("รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน");
+        return;
+      }
+    }
+    if (onSave && (form.currentPassword || form.newPassword)) {
+      onSave({
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+      });
+      setForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    }
   };
 
   return (
     <SettingsCard title="ความปลอดภัย" subtitle="SECURITY" onSave={handleSave}>
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          {error}
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div className="grid gap-4 sm:grid-cols-2">
           <PasswordInput

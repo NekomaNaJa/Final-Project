@@ -9,7 +9,7 @@ const tabs = [
   { key: "security", label: "ความปลอดภัย" },
 ];
 
-const AccountTabs = ({ user }) => {
+const AccountTabs = ({ user, onSave }) => {
   const [activeTab, setActiveTab] = useState("social");
 
   return (
@@ -33,9 +33,9 @@ const AccountTabs = ({ user }) => {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "social" && <SocialMediaTab />}
-      {activeTab === "info" && <UserInfoTab user={user} />}
-      {activeTab === "security" && <SecurityTab />}
+      {activeTab === "social" && <SocialMediaTab user={user} onSave={onSave} />}
+      {activeTab === "info" && <UserInfoTab user={user} onSave={onSave} />}
+      {activeTab === "security" && <SecurityTab onSave={onSave} />}
     </div>
   );
 };

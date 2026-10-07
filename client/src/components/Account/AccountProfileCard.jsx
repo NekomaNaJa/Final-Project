@@ -18,12 +18,30 @@ const AccountProfileCard = ({ user }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const formattedJoinedDate =
+    user?.joinedAt ||
+    (user?.createdAt
+      ? new Date(user.createdAt).toLocaleDateString("th-TH", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        })
+      : "—");
+
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex flex-col items-center text-center">
       {/* Avatar */}
       <div className="relative">
-        <div className="grid h-24 w-24 place-items-center rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white">
-          {username?.[0]?.toUpperCase() || "T"}
+        <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white">
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt={username}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            username?.[0]?.toUpperCase() || "T"
+          )}
         </div>
         <button
           type="button"
@@ -59,7 +77,7 @@ const AccountProfileCard = ({ user }) => {
             เข้าร่วมเมื่อ
           </p>
           <p className="mt-1 text-xs font-semibold text-white">
-            {user?.joinedAt || "—"}
+            {formattedJoinedDate}
           </p>
         </div>
         <div>

@@ -13,38 +13,38 @@ const StreamlabsIcon = (
   </svg>
 );
 
-const rows = [
-  {
-    key: "email",
-    label: "อีเมล",
-    icon: null,
-    value: "user@example.com",
-    connected: true,
-  },
-  {
-    key: "phone",
-    label: "เบอร์โทรศัพท์",
-    icon: null,
-    value: "000-000-0000",
-    connected: true,
-  },
-  {
-    key: "discord",
-    label: "DISCORD",
-    icon: DiscordIcon,
-    value: "ยังไม่ได้เชื่อมต่อ",
-    connected: false,
-  },
-  {
-    key: "streamlabs",
-    label: "STREAMLABS",
-    icon: StreamlabsIcon,
-    value: "ยังไม่ได้เชื่อมต่อ",
-    connected: false,
-  },
-];
+const ManageAccountCard = ({ user }) => {
+  const rows = [
+    {
+      key: "email",
+      label: "อีเมล",
+      icon: null,
+      value: user?.email || "user@example.com",
+      connected: user?.isEmailVerified !== undefined ? user.isEmailVerified : true,
+    },
+    {
+      key: "phone",
+      label: "เบอร์โทรศัพท์",
+      icon: null,
+      value: user?.phone || "000-000-0000",
+      connected: user?.isPhoneVerified !== undefined ? user.isPhoneVerified : true,
+    },
+    {
+      key: "discord",
+      label: "DISCORD",
+      icon: DiscordIcon,
+      value: "ยังไม่ได้เชื่อมต่อ",
+      connected: false,
+    },
+    {
+      key: "streamlabs",
+      label: "STREAMLABS",
+      icon: StreamlabsIcon,
+      value: "ยังไม่ได้เชื่อมต่อ",
+      connected: false,
+    },
+  ];
 
-const ManageAccountCard = () => {
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
       <div className="mb-5 flex items-center justify-between">

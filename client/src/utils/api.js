@@ -4,4 +4,49 @@ export const API_URL =
 export const API = {
   login: `${API_URL}/auth/login`,
   register: `${API_URL}/auth/register`,
+  usersMe: `${API_URL}/users/me`,
 };
+
+export const getAuthToken = () => {
+  return localStorage.getItem("token") || "";
+};
+
+export const getAuthHeaders = () => {
+  const token = getAuthToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+/**
+ * ดึงข้อมูลโปรไฟล์ผู้ใช้ปัจจุบัน (GET /api/users/me)
+ */
+export const fetchCurrentUser = async () => {
+  const res = await fetch(API.usersMe, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถดึงข้อมูลผู้ใช้ได้");
+  }
+  return json.data;
+};
+
+/**
+ * อัปเดตข้อมูลโปรไฟล์ผู้ใช้ปัจจุบัน (PUT /api/users/me)
+ */
+export const updateCurrentUser = async (payload) => {
+  const res = await fetch(API.usersMe, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้");
+  }
+  return json.data;
+};
+
