@@ -1,17 +1,14 @@
-import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
-import authRoutes from "./routes/auth.js";
+import app from "./app.js";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
-const app = express();
 const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
@@ -21,20 +18,7 @@ const io = new Server(httpServer, {
   },
 });
 
-app.use(
-  cors({
-    origin: CLIENT_URL,
-  })
-);
-
-app.use(express.json());
-
-app.use((req, _, next) => {
-  req.io = io;
-  next();
-});
-
-app.use("/api/auth", authRoutes);
+app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
