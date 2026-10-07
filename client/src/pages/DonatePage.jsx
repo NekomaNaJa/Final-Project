@@ -81,7 +81,14 @@ const DonatePage = () => {
     loadDonateData();
   }, [navigate, loadDonateData]);
 
-  const handleSaveDecorate = async (data) => {
+  const triggerFeedback = (type, message) => {
+    setFeedback({ type, message });
+    if (type === "success") {
+      setTimeout(() => setFeedback(null), 4000);
+    }
+  };
+
+  const handleSaveDonationSettings = async (data, successMessage, defaultErrorMessage) => {
     try {
       setFeedback(null);
       const resData = await updateDonationPageSettings(data);
@@ -94,44 +101,25 @@ const DonatePage = () => {
 
       setDonationConfig(updated);
       safeSetItem("donix_donate_config", updated);
-      setFeedback({
-        type: "success",
-        message: "บันทึกข้อมูลตกแต่งหน้ารับเงินสำเร็จ",
-      });
-      setTimeout(() => setFeedback(null), 4000);
+      triggerFeedback("success", successMessage);
     } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลตกแต่งหน้ารับเงิน",
-      });
+      triggerFeedback("error", err.message || defaultErrorMessage);
     }
   };
 
-  const handleSaveFilter = async (data) => {
-    try {
-      setFeedback(null);
-      const resData = await updateDonationPageSettings(data);
-      const current = safeGetItem("donix_donate_config", donationConfig);
-      const updated = {
-        ...current,
-        ...(resData || {}),
-        ...data,
-      };
+  const handleSaveDecorate = (data) =>
+    handleSaveDonationSettings(
+      data,
+      "บันทึกข้อมูลตกแต่งหน้ารับเงินสำเร็จ",
+      "เกิดข้อผิดพลาดในการบันทึกข้อมูลตกแต่งหน้ารับเงิน"
+    );
 
-      setDonationConfig(updated);
-      safeSetItem("donix_donate_config", updated);
-      setFeedback({
-        type: "success",
-        message: "บันทึกตัวกรองข้อความสำเร็จ",
-      });
-      setTimeout(() => setFeedback(null), 4000);
-    } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err.message || "เกิดข้อผิดพลาดในการบันทึกตัวกรองข้อความ",
-      });
-    }
-  };
+  const handleSaveFilter = (data) =>
+    handleSaveDonationSettings(
+      data,
+      "บันทึกตัวกรองข้อความสำเร็จ",
+      "เกิดข้อผิดพลาดในการบันทึกตัวกรองข้อความ"
+    );
 
   const handleSaveSocial = async (data) => {
     try {
@@ -140,16 +128,12 @@ const DonatePage = () => {
       const updated = resData?.social || data;
 
       setSocialConfig(updated);
-      setFeedback({
-        type: "success",
-        message: "บันทึกโซเชียลมีเดียสำเร็จ",
-      });
-      setTimeout(() => setFeedback(null), 4000);
+      triggerFeedback("success", "บันทึกโซเชียลมีเดียสำเร็จ");
     } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลโซเชียลมีเดีย",
-      });
+      triggerFeedback(
+        "error",
+        err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลโซเชียลมีเดีย"
+      );
     }
   };
 

@@ -363,7 +363,6 @@ export const updateDonationPage = async (req, res, next) => {
       filteredWords,
       coverImage,
       backgroundImage,
-      social,
     } = data;
 
     if (welcomeMessage !== undefined) {
@@ -465,29 +464,6 @@ export const updateDonationPage = async (req, res, next) => {
         : null;
     }
 
-    if (social !== undefined) {
-      if (typeof social !== "object" || social === null || Array.isArray(social)) {
-        return res.status(400).json({
-          message: "ข้อมูลโซเชียลมีเดียไม่ถูกต้อง",
-          data: null,
-        });
-      }
-      const allowedPlatforms = ["facebook", "instagram", "youtube", "tiktok", "twitch", "x"];
-      for (const [platform, url] of Object.entries(social)) {
-        if (allowedPlatforms.includes(platform)) {
-          if (typeof url !== "string") {
-            return res.status(400).json({
-              message: `ข้อมูลโซเชียล ${platform} ไม่ถูกต้อง`,
-              data: null,
-            });
-          }
-          if (!user.social) {
-            user.social = {};
-          }
-          user.social[platform] = String(url).trim();
-        }
-      }
-    }
 
     await user.save();
 

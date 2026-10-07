@@ -690,32 +690,6 @@ describe("Protect Middleware & Users Route", () => {
       expect(res.body.message).toBe("รูปภาพพื้นหลังไม่ถูกต้อง");
     });
 
-    it("should return 400 when social is invalid", async () => {
-      const token = jwt.sign({ userId: "mockId123" }, secret);
-      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
-
-      const res = await request(app)
-        .put("/api/users/donation-page")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ social: "invalid-social" });
-
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("ข้อมูลโซเชียลมีเดียไม่ถูกต้อง");
-    });
-
-    it("should return 400 when social url is not a string", async () => {
-      const token = jwt.sign({ userId: "mockId123" }, secret);
-      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
-
-      const res = await request(app)
-        .put("/api/users/donation-page")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ social: { facebook: 123 } });
-
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("ข้อมูลโซเชียล facebook ไม่ถูกต้อง");
-    });
-
     it("should update donationPage fields successfully and handle unlimited charLimit", async () => {
       const token = jwt.sign({ userId: "mockId123" }, secret);
       const mockDoc = {
@@ -730,7 +704,6 @@ describe("Protect Middleware & Users Route", () => {
           coverImage: null,
           backgroundImage: null,
         },
-        social: {},
         save: jest.fn().mockResolvedValue(true),
       };
 
@@ -749,10 +722,6 @@ describe("Protect Middleware & Users Route", () => {
             filteredWords: ["หยาบ1", "หยาบ2"],
             coverImage: "https://example.com/cover.png",
             backgroundImage: "https://example.com/bg.png",
-            social: {
-              facebook: "https://facebook.com/streamer",
-              twitch: "https://twitch.tv/streamer",
-            },
           },
         });
 
@@ -766,8 +735,6 @@ describe("Protect Middleware & Users Route", () => {
       expect(res.body.data.filteredWords).toEqual(["หยาบ1", "หยาบ2"]);
       expect(res.body.data.coverImage).toBe("https://example.com/cover.png");
       expect(res.body.data.backgroundImage).toBe("https://example.com/bg.png");
-      expect(mockDoc.social.facebook).toBe("https://facebook.com/streamer");
-      expect(mockDoc.social.twitch).toBe("https://twitch.tv/streamer");
       expect(mockDoc.save).toHaveBeenCalled();
     });
 
