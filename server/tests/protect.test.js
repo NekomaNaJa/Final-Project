@@ -539,6 +539,218 @@ describe("Protect Middleware & Users Route", () => {
       expect(res.body.message).toBe("เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่");
     });
   });
+
+  describe("PUT /api/users/donation-page", () => {
+    it("should return 401 when token is missing", async () => {
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .send({ welcomeMessage: "ยินดีต้อนรับ" });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบ");
+    });
+
+    it("should return 401 when token is invalid", async () => {
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", "Bearer invalid-token")
+        .send({ welcomeMessage: "ยินดีต้อนรับ" });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("Token ไม่ถูกต้องหรือหมดอายุ");
+    });
+
+    it("should return 404 when user is not found", async () => {
+      const token = jwt.sign({ userId: "mockId999" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ welcomeMessage: "ยินดีต้อนรับ" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("ไม่พบผู้ใช้");
+    });
+
+    it("should return 400 when welcomeMessage is not a string", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ welcomeMessage: 12345 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อความต้อนรับไม่ถูกต้อง");
+    });
+
+    it("should return 400 when thankYouMessage is not a string", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ thankYouMessage: 12345 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อความขอบคุณไม่ถูกต้อง");
+    });
+
+    it("should return 400 when minAmount is invalid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ minAmount: -5 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("จำนวนเงินขั้นต่ำไม่ถูกต้อง");
+    });
+
+    it("should return 400 when charLimit is negative", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ charLimit: -10 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("จำนวนจำกัดตัวอักษรไม่ถูกต้อง");
+    });
+
+    it("should return 400 when disableFilter is not boolean", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ disableFilter: "false" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ค่าตัวกรองข้อความไม่ถูกต้อง");
+    });
+
+    it("should return 400 when filteredWords is not an array", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ filteredWords: "badwords" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("รายการคำที่กรองไม่ถูกต้อง");
+    });
+
+    it("should return 400 when filteredWords contains non-string items", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ filteredWords: ["word1", 123] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("คำที่กรองต้องเป็นข้อความ");
+    });
+
+    it("should return 400 when coverImage is invalid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ coverImage: 123 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("รูปภาพหน้าปกไม่ถูกต้อง");
+    });
+
+    it("should return 400 when backgroundImage is invalid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "mockId123" });
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ backgroundImage: 123 });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("รูปภาพพื้นหลังไม่ถูกต้อง");
+    });
+
+    it("should update donationPage fields successfully and handle unlimited charLimit", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = {
+        _id: "mockId123",
+        donationPage: {
+          welcomeMessage: "",
+          thankYouMessage: "",
+          minAmount: 10,
+          charLimit: 100,
+          disableFilter: false,
+          filteredWords: [],
+          coverImage: null,
+          backgroundImage: null,
+        },
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(mockDoc);
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          donationPage: {
+            welcomeMessage: "ยินดีต้อนรับสู่ห้องสตรีม",
+            thankYouMessage: "ขอบคุณสำหรับการสนับสนุน!",
+            minAmount: 20,
+            charLimit: "unlimited",
+            disableFilter: true,
+            filteredWords: ["หยาบ1", "หยาบ2"],
+            coverImage: "https://example.com/cover.png",
+            backgroundImage: "https://example.com/bg.png",
+          },
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("อัปเดตการตั้งค่าหน้ารับเงินสำเร็จ");
+      expect(res.body.data.welcomeMessage).toBe("ยินดีต้อนรับสู่ห้องสตรีม");
+      expect(res.body.data.thankYouMessage).toBe("ขอบคุณสำหรับการสนับสนุน!");
+      expect(res.body.data.minAmount).toBe(20);
+      expect(res.body.data.charLimit).toBe(0);
+      expect(res.body.data.disableFilter).toBe(true);
+      expect(res.body.data.filteredWords).toEqual(["หยาบ1", "หยาบ2"]);
+      expect(res.body.data.coverImage).toBe("https://example.com/cover.png");
+      expect(res.body.data.backgroundImage).toBe("https://example.com/bg.png");
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("should forward server error to errorHandler on database failure", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findOne").mockRejectedValueOnce(new Error("Database failure"));
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ welcomeMessage: "ข้อความต้อนรับ" });
+
+      expect(res.status).toBe(500);
+      expect(res.body.message).toBe("เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่");
+    });
+  });
 });
 
 

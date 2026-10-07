@@ -323,3 +323,157 @@ export const updatePayment = async (req, res, next) => {
   }
 };
 
+export const updateDonationPage = async (req, res, next) => {
+  try {
+    const rawUserId = req.user?.userId;
+    if (typeof rawUserId !== "string" && typeof rawUserId !== "number") {
+      return res.status(400).json({
+        message: "ข้อมูลผู้ใช้ไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeUserId = String(rawUserId);
+    const user = await User.findOne({ _id: { $eq: safeUserId } });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบผู้ใช้",
+        data: null,
+      });
+    }
+
+    if (!user.donationPage) {
+      user.donationPage = {};
+    }
+
+    const data =
+      typeof req.body.donationPage === "object" &&
+      req.body.donationPage !== null &&
+      !Array.isArray(req.body.donationPage)
+        ? req.body.donationPage
+        : req.body;
+
+    const {
+      welcomeMessage,
+      thankYouMessage,
+      minAmount,
+      charLimit,
+      disableFilter,
+      filteredWords,
+      coverImage,
+      backgroundImage,
+    } = data;
+
+    if (welcomeMessage !== undefined) {
+      if (typeof welcomeMessage !== "string") {
+        return res.status(400).json({
+          message: "ข้อความต้อนรับไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.donationPage.welcomeMessage = String(welcomeMessage).trim();
+    }
+
+    if (thankYouMessage !== undefined) {
+      if (typeof thankYouMessage !== "string") {
+        return res.status(400).json({
+          message: "ข้อความขอบคุณไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.donationPage.thankYouMessage = String(thankYouMessage).trim();
+    }
+
+    if (minAmount !== undefined) {
+      const parsedMin = Number(minAmount);
+      if (isNaN(parsedMin) || parsedMin < 0) {
+        return res.status(400).json({
+          message: "จำนวนเงินขั้นต่ำไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.donationPage.minAmount = parsedMin;
+    }
+
+    if (charLimit !== undefined) {
+      let parsedCharLimit;
+      if (charLimit === "unlimited") {
+        parsedCharLimit = 0;
+      } else {
+        parsedCharLimit = Number(charLimit);
+        if (isNaN(parsedCharLimit) || parsedCharLimit < 0) {
+          return res.status(400).json({
+            message: "จำนวนจำกัดตัวอักษรไม่ถูกต้อง",
+            data: null,
+          });
+        }
+      }
+      user.donationPage.charLimit = parsedCharLimit;
+    }
+
+    if (disableFilter !== undefined) {
+      if (typeof disableFilter !== "boolean") {
+        return res.status(400).json({
+          message: "ค่าตัวกรองข้อความไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.donationPage.disableFilter = Boolean(disableFilter);
+    }
+
+    if (filteredWords !== undefined) {
+      if (!Array.isArray(filteredWords)) {
+        return res.status(400).json({
+          message: "รายการคำที่กรองไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      for (const word of filteredWords) {
+        if (typeof word !== "string") {
+          return res.status(400).json({
+            message: "คำที่กรองต้องเป็นข้อความ",
+            data: null,
+          });
+        }
+      }
+      user.donationPage.filteredWords = filteredWords
+        .map((w) => String(w).trim())
+        .filter(Boolean);
+    }
+
+    if (coverImage !== undefined) {
+      if (coverImage !== null && typeof coverImage !== "string") {
+        return res.status(400).json({
+          message: "รูปภาพหน้าปกไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.donationPage.coverImage = coverImage ? String(coverImage).trim() : null;
+    }
+
+    if (backgroundImage !== undefined) {
+      if (backgroundImage !== null && typeof backgroundImage !== "string") {
+        return res.status(400).json({
+          message: "รูปภาพพื้นหลังไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.donationPage.backgroundImage = backgroundImage
+        ? String(backgroundImage).trim()
+        : null;
+    }
+
+
+    await user.save();
+
+    return res.json({
+      message: "อัปเดตการตั้งค่าหน้ารับเงินสำเร็จ",
+      data: user.donationPage,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+

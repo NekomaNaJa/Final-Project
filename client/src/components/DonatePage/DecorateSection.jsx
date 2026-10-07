@@ -1,25 +1,47 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SettingsCard from "./SettingsCard";
 import RichTextField from "./RichTextField";
 import ImageUploadBox from "./ImageUploadBox";
 import { safeGetItem, safeSetItem, sanitizeValue } from "../../utils/sanitizeStorage";
 
-const DecorateSection = () => {
+const DecorateSection = ({ initialData, onSave }) => {
   const saved = safeGetItem("donix_donate_config", {});
 
   const [welcomeMessage, setWelcomeMessage] = useState(
-    saved.welcomeMessage || "",
+    initialData?.welcomeMessage ?? saved.welcomeMessage ?? ""
   );
   const [thankYouMessage, setThankYouMessage] = useState(
-    saved.thankYouMessage || "",
+    initialData?.thankYouMessage ?? saved.thankYouMessage ?? ""
   );
   const [minAmount, setMinAmount] = useState(
-    saved.minAmount !== undefined ? saved.minAmount : 10,
+    initialData?.minAmount ?? (saved.minAmount !== undefined ? saved.minAmount : 10)
   );
-  const [coverImage, setCoverImage] = useState(saved.coverImage || null);
+  const [coverImage, setCoverImage] = useState(
+    initialData?.coverImage ?? saved.coverImage ?? null
+  );
   const [backgroundImage, setBackgroundImage] = useState(
-    saved.backgroundImage || null,
+    initialData?.backgroundImage ?? saved.backgroundImage ?? null
   );
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.welcomeMessage !== undefined) {
+        setWelcomeMessage(initialData.welcomeMessage || "");
+      }
+      if (initialData.thankYouMessage !== undefined) {
+        setThankYouMessage(initialData.thankYouMessage || "");
+      }
+      if (initialData.minAmount !== undefined) {
+        setMinAmount(initialData.minAmount);
+      }
+      if (initialData.coverImage !== undefined) {
+        setCoverImage(initialData.coverImage || null);
+      }
+      if (initialData.backgroundImage !== undefined) {
+        setBackgroundImage(initialData.backgroundImage || null);
+      }
+    }
+  }, [initialData]);
 
   const handleSave = () => {
     const cleanWelcome = sanitizeValue(welcomeMessage);
@@ -33,8 +55,17 @@ const DecorateSection = () => {
       coverImage: typeof coverImage === "string" ? coverImage : null,
       backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
     };
-    safeSetItem("donix_donate_config", config);
-    console.log("Saved donate page settings:", config);
+    if (onSave) {
+      onSave({
+        welcomeMessage: cleanWelcome,
+        thankYouMessage: cleanThankYou,
+        minAmount: cleanMin,
+        coverImage: typeof coverImage === "string" ? coverImage : null,
+        backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
+      });
+    } else {
+      safeSetItem("donix_donate_config", config);
+    }
   };
 
   return (

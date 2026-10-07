@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
   updateCurrentUser,
   updatePaymentSettings,
+  updateDonationPageSettings,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -19,6 +20,7 @@ describe("API utility functions", () => {
     expect(API.register).toBe(`${API_URL}/auth/register`);
     expect(API.usersMe).toBe(`${API_URL}/users/me`);
     expect(API.usersPayment).toBe(`${API_URL}/users/payment`);
+    expect(API.usersDonationPage).toBe(`${API_URL}/users/donation-page`);
   });
 
   test("getAuthToken returns token or empty string", () => {
@@ -157,5 +159,56 @@ describe("API utility functions", () => {
     });
 
     await expect(updatePaymentSettings({})).rejects.toThrow("ไม่สามารถอัปเดตช่องทางรับเงินได้");
+  });
+
+  test("updateDonationPageSettings sends PUT to API.usersDonationPage and returns updated data", async () => {
+    const payload = {
+      welcomeMessage: "ยินดีต้อนรับ",
+      minAmount: 50,
+    };
+    const mockDonationData = {
+      welcomeMessage: "ยินดีต้อนรับ",
+      minAmount: 50,
+    };
+
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "อัปเดตการตั้งค่าหน้ารับเงินสำเร็จ", data: mockDonationData }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await updateDonationPageSettings(payload);
+
+    expect(result).toEqual(mockDonationData);
+    expect(global.fetch).toHaveBeenCalledWith(API.usersDonationPage, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("updateDonationPageSettings throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "ข้อมูลการตั้งค่าหน้ารับเงินไม่ถูกต้อง" }),
+    });
+
+    await expect(updateDonationPageSettings({ minAmount: -10 })).rejects.toThrow(
+      "ข้อมูลการตั้งค่าหน้ารับเงินไม่ถูกต้อง"
+    );
+  });
+
+  test("updateDonationPageSettings throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(updateDonationPageSettings({})).rejects.toThrow(
+      "ไม่สามารถอัปเดตการตั้งค่าหน้ารับเงินได้"
+    );
   });
 });

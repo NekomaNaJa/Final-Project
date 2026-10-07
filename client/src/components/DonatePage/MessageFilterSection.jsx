@@ -1,12 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SettingsCard from "./SettingsCard";
 import { ChevronDown, Plus, X } from "lucide-react";
 
-const MessageFilterSection = () => {
-  const [charLimit, setCharLimit] = useState("100");
-  const [disableFilter, setDisableFilter] = useState(false);
-  const [customWords, setCustomWords] = useState(["คำหยาบ", "สแปม"]);
+const MessageFilterSection = ({ initialData, onSave }) => {
+  const [charLimit, setCharLimit] = useState(() => {
+    if (initialData?.charLimit === 0) return "unlimited";
+    return String(initialData?.charLimit || "100");
+  });
+  const [disableFilter, setDisableFilter] = useState(
+    initialData?.disableFilter ?? false
+  );
+  const [customWords, setCustomWords] = useState(
+    initialData?.filteredWords || ["คำหยาบ", "สแปม"]
+  );
   const [inputWord, setInputWord] = useState("");
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.charLimit !== undefined) {
+        setCharLimit(
+          initialData.charLimit === 0 ? "unlimited" : String(initialData.charLimit)
+        );
+      }
+      if (initialData.disableFilter !== undefined) {
+        setDisableFilter(Boolean(initialData.disableFilter));
+      }
+      if (initialData.filteredWords !== undefined) {
+        setCustomWords(
+          Array.isArray(initialData.filteredWords) ? initialData.filteredWords : []
+        );
+      }
+    }
+  }, [initialData]);
 
   const handleAddWord = (e) => {
     e?.preventDefault();
@@ -29,11 +54,14 @@ const MessageFilterSection = () => {
   };
 
   const handleSave = () => {
-    console.log("Saving message filter settings:", {
-      charLimit,
-      disableFilter,
-      customWords,
-    });
+    const payload = {
+      charLimit: charLimit === "unlimited" ? "unlimited" : Number(charLimit),
+      disableFilter: Boolean(disableFilter),
+      filteredWords: customWords,
+    };
+    if (onSave) {
+      onSave(payload);
+    }
   };
 
   return (

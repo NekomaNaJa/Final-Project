@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (3 Suites, 51 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (3 Suites, 65 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 98%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (20 Suites, 142 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 155 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -98,7 +98,7 @@ server/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── controllers/
 │   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
-│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment)
+│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage)
 ├── middleware/
 │   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
 │   ├── errorHandler.js          → Error Handler กลาง จัดการ error รูปแบบ { message, data } และ Mongoose errors
@@ -107,10 +107,10 @@ server/
 │   └── User.js                  → Central User Schema
 ├── routes/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
-│   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment พร้อม protect)
+│   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page พร้อม protect)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (12 tests)
-│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware และ Users Route (19 tests)
+│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware และ Users Route (35 tests)
 │   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (20 tests)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
