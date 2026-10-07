@@ -64,12 +64,12 @@ set CI=true&& npm run build
 
 ### 3.1 Server (`server/.env`)
 
-| ตัวแปร | รายละเอียด | ค่าเริ่มต้น (Default) |
-| :--- | :--- | :--- |
-| `PORT` | พอร์ตสำหรับเซิร์ฟเวอร์ Express API | `5000` |
+| ตัวแปร        | รายละเอียด                                         | ค่าเริ่มต้น (Default)             |
+| :------------ | :------------------------------------------------- | :-------------------------------- |
+| `PORT`        | พอร์ตสำหรับเซิร์ฟเวอร์ Express API                 | `5000`                            |
 | `MONGODB_URI` | Connection String สำหรับเชื่อมต่อฐานข้อมูล MongoDB | `mongodb://localhost:27017/donix` |
-| `CLIENT_URL` | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS | `http://localhost:3000` |
-| `JWT_SECRET` | คีย์ลับสำหรับเซ็นและตรวจสอบ JWT Token | กำหนดใน `.env` ฝั่ง Server |
+| `CLIENT_URL`  | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS             | `http://localhost:3000`           |
+| `JWT_SECRET`  | คีย์ลับสำหรับเซ็นและตรวจสอบ JWT Token              | กำหนดใน `.env` ฝั่ง Server        |
 
 ### 3.2 Client
 
@@ -153,11 +153,12 @@ const safeEmail = String(email);
 const user = await User.findOne({ email: { $eq: safeEmail } });
 ```
 
-*หมายเหตุ: ไม่ส่งข้อความ Error ภายใน (`err.message`) กลับไปยัง Client ให้บันทึกด้วย `console.error` ฝั่ง Server และส่งข้อความภาษาไทยทั่วไปกลับไปแทน*
+_หมายเหตุ: ไม่ส่งข้อความ Error ภายใน (`err.message`) กลับไปยัง Client ให้บันทึกด้วย `console.error` ฝั่ง Server และส่งข้อความภาษาไทยทั่วไปกลับไปแทน_
 
 ### 4.5 รูปแบบมาตรฐานของ API Response (Uniform Response Format)
 
 ทุก endpoint ของเซิร์ฟเวอร์ต้องมีโครงสร้างการตอบกลับที่เป็นมาตรฐานเดียวกัน:
+
 - **กรณีสำเร็จ (Success)**: `{ "message": "...", "data": ... }`
   - หมายเหตุ: สำหรับ Auth endpoints (`register`, `login`) จะแนบ `token` และ `user` ไว้ที่ root ควบคู่กันเพื่อรักษาความเข้ากันได้กับ Client: `{ "message": "...", "token": "...", "user": {...}, "data": { "token": "...", "user": {...} } }`
 - **กรณีล้มเหลว (Error)**: `{ "message": "...", "data": null }` พร้อม HTTP Status Code ที่เหมาะสม (400, 401, 404, 500)
@@ -180,42 +181,46 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 
 ### 5.2 เส้นทาง URL และหน้าระบบทั้งหมด (12 หน้า + 404)
 
-| เส้นทาง (Route) | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง | คำอธิบาย |
-| :--- | :--- | :--- | :--- |
-| `/` | `MainPage` | สาธารณะ | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer |
-| `/discover` | `Discover` | สาธารณะ | หน้าค้นพบสตรีมเมอร์ จัดกลุ่มตามหมวด (กำลังไลฟ์, หมวดเกม, แนะนำ) |
-| `/how-it-works` | `HowToUse` | สาธารณะ | หน้าคู่มือและขั้นตอนการเริ่มต้นใช้งานระบบสำหรับสตรีมเมอร์และผู้สนับสนุน |
-| `/login` | `Login` | สาธารณะ | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) รองรับ JWT Token |
-| `/register` | `Register` | สาธารณะ | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ |
-| `/dashboard` | `Dashboard` | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟสถิติ, กิจกรรมล่าสุด) |
-| `/payment` | `PaymentPage` | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, TrueMoney, Bank, Coming Soon) |
-| `/donate-page` | `DonatePage` | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, โซเชียล |
-| `/account` | `Account` | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
-| `/history` | `HistoryPage` | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ |
-| `/widget` | `WidgetPage` | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Live Preview |
-| `/:username` หรือ `/donor/:username` | `DonorPage` | สาธารณะ | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน |
-| `*` | `NotFound` | สาธารณะ | หน้าแจ้งเตือน 404 Not Found เมื่อไม่พบเส้นทาง URL |
+| เส้นทาง (Route)                      | คอมโพเนนต์หน้า | สิทธิ์เข้าถึง      | คำอธิบาย                                                                    |
+| :----------------------------------- | :------------- | :----------------- | :-------------------------------------------------------------------------- |
+| `/`                                  | `MainPage`     | สาธารณะ            | หน้าแรก (Landing Page), Hero, ฟีเจอร์, รายชื่อสตรีมเมอร์, Footer            |
+| `/discover`                          | `Discover`     | สาธารณะ            | หน้าค้นพบสตรีมเมอร์ จัดกลุ่มตามหมวด (กำลังไลฟ์, หมวดเกม, แนะนำ)             |
+| `/how-it-works`                      | `HowToUse`     | สาธารณะ            | หน้าคู่มือและขั้นตอนการเริ่มต้นใช้งานระบบสำหรับสตรีมเมอร์และผู้สนับสนุน     |
+| `/login`                             | `Login`        | สาธารณะ            | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) รองรับ JWT Token              |
+| `/register`                          | `Register`     | สาธารณะ            | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ              |
+| `/dashboard`                         | `Dashboard`    | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟสถิติ, กิจกรรมล่าสุด)    |
+| `/payment`                           | `PaymentPage`  | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, TrueMoney, Bank, Coming Soon)         |
+| `/donate-page`                       | `DonatePage`   | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, โซเชียล        |
+| `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
+| `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ                    |
+| `/widget`                            | `WidgetPage`   | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Live Preview   |
+| `/:username` หรือ `/donor/:username` | `DonorPage`    | สาธารณะ            | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน             |
+| `*`                                  | `NotFound`     | สาธารณะ            | หน้าแจ้งเตือน 404 Not Found เมื่อไม่พบเส้นทาง URL                           |
 
 ---
 
 ### 5.3 รายละเอียดของแต่ละหน้าระบบหลัก
 
 #### 1) หน้าแรก (MainPage) & หน้าสาธารณะ
+
 - **MainPage (`/`)**: Navbar, Hero Section, Features Showcase, Streamer Showcase, CTA Section, Footer
 - **Discover (`/discover`)**: จัดหมวดหมู่สตรีมเมอร์ที่กำลังไลฟ์, หมวดเกมยอดนิยม, ค้นหาและแนะนำสตรีมเมอร์
 - **HowToUse (`/how-it-works`)**: ขั้นตอนการใช้งาน 4 ขั้นตอน พร้อมจุดเด่นและคำแนะนำสำหรับสตรีมเมอร์มือใหม่
 
 #### 2) หน้าเข้าสู่ระบบและสมัครสมาชิก (Auth)
+
 - **Login (`/login`)**: รองรับการล็อกอินด้วย Email และรหัสผ่าน หรือ Google OAuth พร้อมแจ้งเตือนข้อผิดพลาด
 - **Register (`/register`)**: ระบบสมัครสมาชิก พร้อม `PasswordChecklist` ตรวจสอบความปลอดภัยแบบเรียลไทม์ 5 ข้อ (ความยาว, ตัวพิมพ์เล็ก, ตัวพิมพ์ใหญ่, ตัวเลข, อักขระพิเศษ)
 
 #### 3) หน้าแดชบอร์ด (Dashboard) — `/dashboard`
+
 - การ์ดสถิติ (StatCards): ยอดการรับเงินรวม (บาท), จำนวนครั้งที่โดเนท, จำนวนผู้ชม/ผู้สนับสนุน
 - กราฟสถิติโดเนท (DonationChart): แสดงสถิติโดเนทแบบแท่ง/เส้นด้วย Recharts รองรับรายสัปดาห์และรายเดือน
 - ฟีดกิจกรรมล่าสุด (RealtimeFeed) และภาพรวมช่องทางรับเงิน (PaymentChannels)
 - ใช้เลย์เอาต์ร่วม **Sticky Sidebar** ด้านซ้าย และ **Sticky Topbar** ด้านบน
 
 #### 4) หน้าบัญชีรับเงิน (PaymentPage) — `/payment`
+
 - แผงการ์ด 4 ช่องทางการเงิน (2x2 Grid):
   - **PromptPayCard**: เปิด/ปิดการรับเงิน, เมนูจัดการ, สลับเบอร์โทรศัพท์/บัตร ปชช., บันทึกข้อมูล
   - **TrueMoneyCard**: เปิด/ปิดการรับเงิน, ฟอร์มเบอร์โทรศัพท์ TrueMoney Wallet
@@ -223,12 +228,14 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
   - **ComingSoonCard**: ช่องทางใหม่ในอนาคต (เช่น บัตรเครดิต/เดบิต, Crypto)
 
 #### 5) หน้าตกแต่งหน้ารับเงิน (DonatePage) — `/donate-page`
+
 - **DonatePageLink**: ลิงก์ส่วนตัว `donix.app/{username}`, ปุ่มคัดลอกลิงก์, ปุ่มแชร์, ปุ่มเปิดหน้า Donor Page
 - **DecorateSection**: แก้ไขข้อความต้อนรับ, ข้อความขอบคุณ, กำหนดยอดโดเนทขั้นต่ำ, อัปโหลดรูปภาพหน้าปกและพื้นหลัง
 - **MessageFilterSection**: กำหนดความยาวตัวอักษรสูงสุด, สวิตช์เปิด/ปิดตัวกรองคำหยาบ, ระบบแท็กคำที่ต้องการบล็อก
 - **SocialMediaSection**: เชื่อมต่อและแสดงผลลิงก์โซเชียลมีเดีย 6 แพลตฟอร์ม
 
 #### 6) หน้ารับเงินจริงสำหรับผู้สนับสนุน (DonorPage) — `/:username` หรือ `/donor/:username`
+
 - รองรับ **5 สถานะการแสดงผล** ตามแบบ Figma:
   1. **Offline**: เมื่อสตรีมเมอร์ปิดระบบ Avatar จะขึ้นป้าย `ออฟไลน์` พร้อมการ์ด "ขณะนี้ปิดรับโดเนทชั่วคราว"
   2. **Online - PromptPay**: Avatar เรืองแสงสีแดงพร้อมป้าย `🔴 LIVE`, ข้อความต้อนรับ, แท็บเลือกช่องทาง, ฟอร์มชื่อและข้อความโดเนท, ระบุจำนวนเงิน, **PromptPay QR Code อัตโนมัติตามยอดเงิน**, อัปโหลดสลิป, ปุ่มยืนยัน
@@ -238,6 +245,7 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 - **Floating Test Controls**: เครื่องมือจำลองสลับสถานะ Online/Offline และเปิด/ปิดช่องทางรับเงินเพื่อทดสอบ UI ทันที
 
 #### 7) หน้าตั้งค่าวิดเจ็ต OBS (WidgetPage) — `/widget`
+
 - รองรับการตั้งค่าวิดเจ็ต 4 รูปแบบใน Layout 2 คอลัมน์ (ฟอร์มตั้งค่า + Real-time Preview เสมือนจริง):
   1. **Donate Alert**:
      - _พื้นฐาน_: ยอดขั้นต่ำที่แจ้งเตือน (บาท), อัปโหลดรูปภาพแสดงผล (JPG/PNG/GIF)
@@ -250,6 +258,7 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 - **BrowserSourceCard**: แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, ปุ่มคัดลอก URL, และปุ่มทดสอบ Alert พร้อมจำลอง Web Audio API เสียงจริง
 
 #### 8) หน้าจัดการบัญชี (Account) — `/account`
+
 - `AccountProfileCard`: แสดงรูปโปรไฟล์ Avatar, ชื่อผู้ใช้, อีเมล, สถานะการยืนยันตัวตน
 - `AccountTabs`: แท็บสลับ 3 หมวดหมู่:
   - **UserInfoTab**: จัดการข้อมูลส่วนตัว, ชื่อแสดงผล, ข้อมูลติดต่อ
@@ -257,6 +266,7 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
   - **SocialMediaTab**: เชื่อมต่อลิงก์โซเชียลมีเดียทั้ง 6 แพลตฟอร์ม
 
 #### 9) หน้าประวัติการรับเงิน (HistoryPage) — `/history`
+
 - แสดงสถิติสรุปยอดโดเนททั้งหมด, จำนวนรายการที่สำเร็จ
 - ตารางประวัติการรับเงิน `DonationHistoryTable` แสดงวันเวลา, ผู้สนับสนุน, จำนวนเงิน, ช่องทางที่ใช้, และสถานะ
 
@@ -320,17 +330,17 @@ client/src/
 
 ## 8. สถานะของระบบ (Current Project Status)
 
-| ส่วนงาน | สถานะ | รายละเอียด |
-| :--- | :--- | :--- |
-| **Backend Foundation** | สมบูรณ์ | สถาปัตยกรรมแยก `app.js`/`index.js`, Helmet, Rate Limiter, Error Handler กลาง, Response `{ message, data }` |
-| **Auth System** | สมบูรณ์ | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting |
-| **Frontend Pages (12 หน้า)** | สมบูรณ์ | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI |
-| **Widget System** | สมบูรณ์ | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL |
-| **Test Suites** | สมบูรณ์ | Client: 17 Suites (116 Tests ผ่าน 100%), Server: 3 Suites (24 Tests ผ่าน 100%, Coverage > 99%) |
-| **CI / CD Pipeline** | สมบูรณ์ | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง |
-| **SonarCloud Quality Gate** | ผ่าน | 0 Security Issues, 0 Vulnerabilities, New Code Coverage > 88% |
-| **Database Models** | อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase ถัดไป |
-| **OCR Slip Verification** | ตามแผนงาน | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ) |
+| ส่วนงาน                      | สถานะ            | รายละเอียด                                                                                                 |
+| :--------------------------- | :--------------- | :--------------------------------------------------------------------------------------------------------- |
+| **Backend Foundation**       | สมบูรณ์          | สถาปัตยกรรมแยก `app.js`/`index.js`, Helmet, Rate Limiter, Error Handler กลาง, Response `{ message, data }` |
+| **Auth System**              | สมบูรณ์          | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting                |
+| **Frontend Pages (12 หน้า)** | สมบูรณ์          | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI                                         |
+| **Widget System**            | สมบูรณ์          | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
+| **Test Suites**              | สมบูรณ์          | Client: 17 Suites (116 Tests ผ่าน 100%), Server: 3 Suites (24 Tests ผ่าน 100%, Coverage > 99%)             |
+| **CI / CD Pipeline**         | สมบูรณ์          | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
+| **SonarCloud Quality Gate**  | ผ่าน             | 0 Security Issues, 0 Vulnerabilities, New Code Coverage > 88%                                              |
+| **Database Models**          | อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase ถัดไป                   |
+| **OCR Slip Verification**    | ตามแผนงาน        | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---
 
@@ -338,17 +348,19 @@ client/src/
 
 ไฟล์ CI: `.github/workflows/ci.yml` รันอัตโนมัติเมื่อ push เข้า `main` หรือเปิด Pull Request เข้า `main`:
 
-| Job | สภาพแวดล้อม | ขั้นตอนการทำงาน |
-| :--- | :--- | :--- |
-| `client` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm test -- --coverage --watchAll=false` → `npm run build` → Upload coverage artifact (`client-coverage`) |
-| `server` | Ubuntu, Node 22, npm 11 | `npm ci` → `npm run test:coverage` → Upload coverage artifact (`server-coverage`) |
-| `sonar` | Ubuntu (หลัง client และ server ผ่าน) | Download `client-coverage` และ `server-coverage` → SonarQube Scan Action |
+| Job      | สภาพแวดล้อม                          | ขั้นตอนการทำงาน                                                                                                       |
+| :------- | :----------------------------------- | :-------------------------------------------------------------------------------------------------------------------- |
+| `client` | Ubuntu, Node 22, npm 11              | `npm ci` → `npm test -- --coverage --watchAll=false` → `npm run build` → Upload coverage artifact (`client-coverage`) |
+| `server` | Ubuntu, Node 22, npm 11              | `npm ci` → `npm run test:coverage` → Upload coverage artifact (`server-coverage`)                                     |
+| `sonar`  | Ubuntu (หลัง client และ server ผ่าน) | Download `client-coverage` และ `server-coverage` → SonarQube Scan Action                                              |
 
 ### Branch Protection บน `main`
+
 - ล็อกห้าม Push ตรงเข้า `main` ทุกกรณี ต้องเปิด Pull Request เท่านั้น
 - ทุก Checks (`CI / client`, `CI / server`, `CI / sonar`, `SonarCloud Code Analysis`) ต้องผ่าน (เครื่องหมายถูกสีเขียว) ก่อน Merge
 
 ### ข้อกำหนด SonarCloud Quality Gate
+
 - **Coverage on New Code**: ต้องไม่ต่ำกว่า **80%** (ปัจจุบันทำได้ > 88%)
 - **Duplication on New Code**: ต้องไม่เกิน **3%**
 - **Security Hotspots & Bugs**: ต้องเป็น **0**
@@ -370,11 +382,32 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-- **Phase 6: Donation REST API & Database Schema**
-  - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`)
-  - สร้าง API Endpoints: `POST /api/donations` (สร้างรายการโดเนท), `GET /api/donations/history` (ดึงประวัติ)
-- **Phase 7: Widget API & Real-time Alerts**
-  - สร้าง `server/Models/Widget.js` สำหรับบันทึกการตั้งค่าวิดเจ็ตของแต่ละสตรีมเมอร์ลง MongoDB
-  - เชื่อมต่อ Socket.IO เมื่อมีรายการบริจาคใหม่ ให้ emit Event `donation-alert` ไปยัง Browser Source ของ OBS แบบ Real-time
-- **Phase 8: OCR Slip Verification**
-  - เชื่อมต่อระบบตรวจสอบความถูกต้องของสลิปโอนเงิน (สลิปธนาคาร / พร้อมเพย์) แบบอัตโนมัติ
+- **Phase 4: ย้ายข้อมูลรอบแรก — ส่วนที่ User Schema รองรับอยู่แล้ว (ขนาดกลาง)**
+  - ย้ายข้อมูลจาก `localStorage` มาเชื่อมต่อ MongoDB ผ่าน REST API กลาง (`client/src/utils/api.js`)
+  - พัฒนา Endpoints & Controller:
+    - Account: `GET /api/users/me` และ `PUT /api/users/me` (ข้อมูลโปรไฟล์และโซเชียล)
+    - Payment: `PUT /api/users/payment` (ตั้งค่า PromptPay, TrueMoney, Bank)
+    - DonatePage: `PUT /api/users/donation-page` (ข้อความต้อนรับ, ขั้นต่ำ, คำกรอง)
+  - แบ่งทำทีละหน้าแยก Branch สั้นๆ: `feature/account`, `feature/payment`, `feature/donate-page`
+
+- **Phase 5: Deploy ก่อนที่ระบบจะซับซ้อน (ขนาดเล็กถึงกลาง)**
+  - Server ขึ้น **Render**, Client ขึ้น **Vercel**, และใช้ **MongoDB Atlas**
+  - ตรวจสอบปัญหา CORS, Linux Case-sensitive Paths (เช่น `Models/`), และ Environment Variables (`MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL`)
+  - ปรับ Base URL ของ Client ให้อ่านจาก `process.env.REACT_APP_API_URL` แทน localhost:5000
+
+- **Phase 6: แกนหลัก Donation REST API & Database Schema (ขนาดใหญ่)**
+  - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`) ทำ index ที่ `streamerId + createdAt`
+  - Public Endpoint: `GET /api/public/:username` (ข้อมูลสำหรับ Donor Page ปิดบังข้อมูลส่วนตัว)
+  - `POST /api/donations` (สร้างรายการโดเนท พร้อมอัปโหลดสลิปผ่าน Cloudinary/Object Storage)
+  - `GET /api/donations` (ดึงประวัติและสถิติด้วย Mongo Aggregation สำหรับ Dashboard และ History)
+  - `PATCH /api/donations/:id` (อนุมัติ/ปฏิเสธสลิป)
+
+- **Phase 7: Real-time Alert + Widget OBS (ขนาดใหญ่)**
+  - สร้าง `server/Models/Widget.js` (บันทึก Config และ Token สำหรับ Browser Source OBS)
+  - Socket.IO Real-time: เมื่ออนุมัติโดเนท ให้ emit `donation-alert` เข้าห้องสตรีมเมอร์
+  - พัฒนาหน้า Browser Source โหลด Config ด้วย Token แล้วแสดง Alert แบบ Real-time
+  - ปรับปรุง Leaderboard, Goal, Mission ให้อ่านจาก Donation Aggregation
+
+- **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
+  - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน
+  - ป้องกันสลิปซ้ำด้วย unique index ของ Transaction Reference
