@@ -165,3 +165,161 @@ export const updateMe = async (req, res, next) => {
   }
 };
 
+export const updatePayment = async (req, res, next) => {
+  try {
+    const safeUserId = String(req.user?.userId || "");
+    const user = await User.findById(safeUserId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบผู้ใช้",
+        data: null,
+      });
+    }
+
+    const { promptpay, bank, truemoney } = req.body;
+
+    if (!user.payment) {
+      user.payment = {
+        promptpay: { enabled: false, type: null, number: "" },
+        bank: { enabled: false, bankName: null, accountNumber: "", accountName: "" },
+        truemoney: { enabled: false, phone: "" },
+      };
+    }
+
+    // 1. Validate & update PromptPay
+    if (promptpay !== undefined) {
+      if (typeof promptpay !== "object" || promptpay === null || Array.isArray(promptpay)) {
+        return res.status(400).json({
+          message: "ข้อมูลพร้อมเพย์ไม่ถูกต้อง",
+          data: null,
+        });
+      }
+
+      const allowedTypes = [
+        null,
+        "เบอร์โทรศัพท์",
+        "เลขบัตรประจำตัวประชาชน",
+        "e-Wallet ID",
+        "K-Shop",
+        "SCB แม่มณี",
+        "BBL Merchant Pro",
+        "ร้านค้าถุงเงิน",
+      ];
+
+      if (promptpay.type !== undefined) {
+        if (promptpay.type !== null && !allowedTypes.includes(promptpay.type)) {
+          return res.status(400).json({
+            message: "ประเภทพร้อมเพย์ไม่ถูกต้อง",
+            data: null,
+          });
+        }
+        user.payment.promptpay.type = promptpay.type;
+      }
+
+      if (promptpay.enabled !== undefined) {
+        user.payment.promptpay.enabled = Boolean(promptpay.enabled);
+      }
+
+      if (promptpay.number !== undefined) {
+        if (typeof promptpay.number !== "string") {
+          return res.status(400).json({
+            message: "หมายเลขพร้อมเพย์ต้องเป็นข้อความ",
+            data: null,
+          });
+        }
+        user.payment.promptpay.number = String(promptpay.number).trim();
+      }
+    }
+
+    // 2. Validate & update Bank
+    if (bank !== undefined) {
+      if (typeof bank !== "object" || bank === null || Array.isArray(bank)) {
+        return res.status(400).json({
+          message: "ข้อมูลธนาคารไม่ถูกต้อง",
+          data: null,
+        });
+      }
+
+      const allowedBanks = [
+        null,
+        "",
+        "ธนาคารไทยพาณิชย์ (SCB)",
+        "ธนาคารกสิกรไทย(KBANK)",
+        "ธนาคารกรุงไทย (KTB)",
+        "ธนาคารกรุงเทพ (BBL)",
+        "ธนาคารกรุงศรี (BAY)",
+        "ธนาคารทหารไทยธนชาต (TTB)",
+        "ธนาคารออมสิน (GSB)",
+      ];
+
+      if (bank.bankName !== undefined) {
+        if (bank.bankName !== null && !allowedBanks.includes(bank.bankName)) {
+          return res.status(400).json({
+            message: "ชื่อธนาคารไม่ถูกต้อง",
+            data: null,
+          });
+        }
+        user.payment.bank.bankName = bank.bankName || null;
+      }
+
+      if (bank.enabled !== undefined) {
+        user.payment.bank.enabled = Boolean(bank.enabled);
+      }
+
+      if (bank.accountNumber !== undefined) {
+        if (typeof bank.accountNumber !== "string") {
+          return res.status(400).json({
+            message: "เลขบัญชีธนาคารต้องเป็นข้อความ",
+            data: null,
+          });
+        }
+        user.payment.bank.accountNumber = String(bank.accountNumber).trim();
+      }
+
+      if (bank.accountName !== undefined) {
+        if (typeof bank.accountName !== "string") {
+          return res.status(400).json({
+            message: "ชื่อบัญชีธนาคารต้องเป็นข้อความ",
+            data: null,
+          });
+        }
+        user.payment.bank.accountName = String(bank.accountName).trim();
+      }
+    }
+
+    // 3. Validate & update TrueMoney
+    if (truemoney !== undefined) {
+      if (typeof truemoney !== "object" || truemoney === null || Array.isArray(truemoney)) {
+        return res.status(400).json({
+          message: "ข้อมูลทรูมันนี่ไม่ถูกต้อง",
+          data: null,
+        });
+      }
+
+      if (truemoney.enabled !== undefined) {
+        user.payment.truemoney.enabled = Boolean(truemoney.enabled);
+      }
+
+      if (truemoney.phone !== undefined) {
+        if (typeof truemoney.phone !== "string") {
+          return res.status(400).json({
+            message: "เบอร์โทรศัพท์ทรูมันนี่ต้องเป็นข้อความ",
+            data: null,
+          });
+        }
+        user.payment.truemoney.phone = String(truemoney.phone).trim();
+      }
+    }
+
+    await user.save();
+
+    return res.json({
+      message: "อัปเดตช่องทางรับเงินสำเร็จ",
+      data: user.payment,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

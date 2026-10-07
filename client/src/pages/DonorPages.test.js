@@ -1,10 +1,32 @@
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import DonorPage from "./DonorPage";
 import Account from "./Account";
 import PaymentPage from "./PaymentPage";
 import NotFound from "./NotFound";
+
+jest.mock("../utils/api", () => {
+  const original = jest.requireActual("../utils/api");
+  return {
+    ...original,
+    fetchCurrentUser: jest.fn().mockResolvedValue({
+      payment: {
+        promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "" },
+        bank: { enabled: true, bankName: "ธนาคารไทยพาณิชย์ (SCB)", accountNumber: "", accountName: "" },
+        truemoney: { enabled: true, phone: "" },
+      },
+    }),
+    updatePaymentSettings: jest.fn((payload) =>
+      Promise.resolve({
+        promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "" },
+        truemoney: { enabled: true, phone: "" },
+        bank: { enabled: true, bankName: "ธนาคารไทยพาณิชย์ (SCB)", accountNumber: "", accountName: "" },
+        ...payload,
+      })
+    ),
+  };
+});
 
 describe("Donor, Account, Payment, and NotFound Pages", () => {
   beforeEach(() => {
@@ -140,7 +162,8 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
   });
 
   describe("PaymentPage", () => {
-    test("renders PaymentPage and handles saving config for all cards", () => {
+    test("renders PaymentPage and handles saving config for all cards", async () => {
+      jest.useRealTimers();
       const payload = btoa(JSON.stringify({ username: "StreamerPay", email: "pay@test.com" }));
       localStorage.setItem("token", `header.${payload}.signature`);
 
@@ -164,11 +187,13 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       submitButtons.forEach((btn) => fireEvent.click(btn));
 
       // Verify localStorage was updated
-      const saved = JSON.parse(localStorage.getItem("donix_payment_config"));
-      expect(saved).toBeDefined();
-      expect(saved.promptpay).toBeDefined();
-      expect(saved.truemoney).toBeDefined();
-      expect(saved.bank).toBeDefined();
+      await waitFor(() => {
+        const saved = JSON.parse(localStorage.getItem("donix_payment_config"));
+        expect(saved).toBeDefined();
+        expect(saved.promptpay).toBeDefined();
+        expect(saved.truemoney).toBeDefined();
+        expect(saved.bank).toBeDefined();
+      });
 
       // Test logout on payment page
       const logoutBtn = screen.getByRole("button", { name: /ออกจากระบบ/i });

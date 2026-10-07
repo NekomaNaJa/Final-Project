@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Check, Landmark } from "lucide-react";
 
 const bankList = [
@@ -24,6 +24,15 @@ const BankCard = ({ initialData, onSave }) => {
   );
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.enabled !== undefined) setEnabled(initialData.enabled);
+      if (initialData.bankName !== undefined) setBankName(initialData.bankName || "ธนาคารไทยพาณิชย์ (SCB)");
+      if (initialData.accountNumber !== undefined) setAccountNumber(initialData.accountNumber || "");
+      if (initialData.accountName !== undefined) setAccountName(initialData.accountName || "");
+    }
+  }, [initialData]);
 
   const handleSave = (e) => {
     e?.preventDefault();

@@ -5,6 +5,7 @@ import {
   getAuthHeaders,
   fetchCurrentUser,
   updateCurrentUser,
+  updatePaymentSettings,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -17,6 +18,7 @@ describe("API utility functions", () => {
     expect(API.login).toBe(`${API_URL}/auth/login`);
     expect(API.register).toBe(`${API_URL}/auth/register`);
     expect(API.usersMe).toBe(`${API_URL}/users/me`);
+    expect(API.usersPayment).toBe(`${API_URL}/users/payment`);
   });
 
   test("getAuthToken returns token or empty string", () => {
@@ -114,5 +116,46 @@ describe("API utility functions", () => {
     });
 
     await expect(updateCurrentUser({})).rejects.toThrow("ไม่สามารถอัปเดตข้อมูลผู้ใช้ได้");
+  });
+
+  test("updatePaymentSettings sends PUT to API.usersPayment and returns updated data", async () => {
+    const payload = { promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "0812345678" } };
+    const mockPaymentData = { promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "0812345678" } };
+
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "อัปเดตช่องทางรับเงินสำเร็จ", data: mockPaymentData }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await updatePaymentSettings(payload);
+
+    expect(result).toEqual(mockPaymentData);
+    expect(global.fetch).toHaveBeenCalledWith(API.usersPayment, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("updatePaymentSettings throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "ข้อมูลพร้อมเพย์ไม่ถูกต้อง" }),
+    });
+
+    await expect(updatePaymentSettings({ promptpay: "invalid" })).rejects.toThrow("ข้อมูลพร้อมเพย์ไม่ถูกต้อง");
+  });
+
+  test("updatePaymentSettings throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(updatePaymentSettings({})).rejects.toThrow("ไม่สามารถอัปเดตช่องทางรับเงินได้");
   });
 });

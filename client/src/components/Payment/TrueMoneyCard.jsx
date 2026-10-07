@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Check } from "lucide-react";
 
 const TrueMoneyCard = ({ initialData, onSave }) => {
@@ -6,6 +6,13 @@ const TrueMoneyCard = ({ initialData, onSave }) => {
   const [phone, setPhone] = useState(initialData?.phone || "");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.enabled !== undefined) setEnabled(initialData.enabled);
+      if (initialData.phone !== undefined) setPhone(initialData.phone || "");
+    }
+  }, [initialData]);
 
   const handleSave = (e) => {
     e?.preventDefault();
