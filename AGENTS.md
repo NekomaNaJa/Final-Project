@@ -29,8 +29,10 @@ Donix/
 ```bash
 cd server
 npm install
-npm run dev      # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
-npm start        # รันในโหมด Production
+npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
+npm start             # รันในโหมด Production
+npm test              # รัน Jest + Supertest (3 Suites, 24 Tests ผ่าน 100%)
+npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 99%)
 ```
 
 ### 2.2 ฝั่ง Client (Frontend)
@@ -46,7 +48,11 @@ npm run build                    # Build สำหรับ Production (รอ�
 ### 2.3 คำสั่งทดสอบและตรวจสอบ CI สำหรับ Local Environment
 
 ```bash
-# ทดสอบ Test Suite และ Build บน Client ให้เหมือนบน GitHub Actions (CI=true จะเปลี่ยน Warning เป็น Fatal Error)
+# ทดสอบฝั่ง Server (Integration Tests + Coverage)
+cd server
+npm run test:coverage
+
+# ทดสอบฝั่ง Client (Unit Tests + Production Build)
 cd client
 set CI=true&& npm test -- --coverage --watchAll=false
 set CI=true&& npm run build
@@ -79,8 +85,10 @@ set CI=true&& npm run build
 
 - **ES Modules**: กำหนด `"type": "module"` ใน `package.json` ใช้คำสั่ง `import` / `export` ทั้งหมด
 - **Express 5**: เวอร์ชัน `^5.2.1` รองรับ Async/Await และ Promise-returning route handlers
+- **Security & Protection**: ติดตั้ง `helmet` ป้องกัน Web Security Headers และ `express-rate-limit` ป้องกัน Brute-force บน Auth endpoints
 - **Socket.IO**: เชื่อมต่อแบบเรียลไทม์ (Attached กับ `req.io`) สำหรับส่ง Event แจ้งเตือน: `join-stream`, `disconnect`, `donation-alert`
 - **Mongoose & MongoDB**: จัดการ Database Schema และเชื่อมต่อ MongoDB
+- **Testing**: ทดสอบแบบ Integration ด้วย `Jest` + `Supertest` (ESM mode ผ่าน `--experimental-vm-modules`) รันผ่าน CI พร้อม Coverage Report
 
 ### 4.2 โครงสร้างไฟล์ Server
 
@@ -88,13 +96,27 @@ set CI=true&& npm run build
 server/
 ├── config/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
+├── controllers/
+│   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
+│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe)
+├── middleware/
+│   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
+│   ├── errorHandler.js          → Error Handler กลาง จัดการ error รูปแบบ { message, data } และ Mongoose errors
+│   └── rateLimiter.js           → จำกัดอัตราการเรียก API (authLimiter, apiLimiter)
 ├── Models/
 │   └── User.js                  → Central User Schema
 ├── routes/
-│   └── auth.js                  → เส้นทาง /api/auth (register, login)
+│   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
+│   └── users.js                 → เส้นทาง /api/users (GET /me พร้อม protect)
+├── tests/
+│   ├── auth.test.js             → ชุดทดสอบ Authentication (12 tests)
+│   ├── protect.test.js          → ชุดทดสอบ JWT Middleware และ Users Route (6 tests)
+│   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (6 tests)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
-├── index.js                     → Entry Point ของเซิร์ฟเวอร์ Express + Socket.IO
+├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler)
+├── index.js                     → Entry Point ของเซิร์ฟเวอร์ Express + Socket.IO (Port 5000)
+├── jest.config.js               → การตั้งค่า Jest สำหรับ Node.js ESM และ Coverage
 └── package.json
 ```
 
@@ -132,6 +154,13 @@ const user = await User.findOne({ email: { $eq: safeEmail } });
 ```
 
 *หมายเหตุ: ไม่ส่งข้อความ Error ภายใน (`err.message`) กลับไปยัง Client ให้บันทึกด้วย `console.error` ฝั่ง Server และส่งข้อความภาษาไทยทั่วไปกลับไปแทน*
+
+### 4.5 รูปแบบมาตรฐานของ API Response (Uniform Response Format)
+
+ทุก endpoint ของเซิร์ฟเวอร์ต้องมีโครงสร้างการตอบกลับที่เป็นมาตรฐานเดียวกัน:
+- **กรณีสำเร็จ (Success)**: `{ "message": "...", "data": ... }`
+  - หมายเหตุ: สำหรับ Auth endpoints (`register`, `login`) จะแนบ `token` และ `user` ไว้ที่ root ควบคู่กันเพื่อรักษาความเข้ากันได้กับ Client: `{ "message": "...", "token": "...", "user": {...}, "data": { "token": "...", "user": {...} } }`
+- **กรณีล้มเหลว (Error)**: `{ "message": "...", "data": null }` พร้อม HTTP Status Code ที่เหมาะสม (400, 401, 404, 500)
 
 ---
 
@@ -293,11 +322,12 @@ client/src/
 
 | ส่วนงาน | สถานะ | รายละเอียด |
 | :--- | :--- | :--- |
-| **Auth System** | สมบูรณ์ | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection |
+| **Backend Foundation** | สมบูรณ์ | สถาปัตยกรรมแยก `app.js`/`index.js`, Helmet, Rate Limiter, Error Handler กลาง, Response `{ message, data }` |
+| **Auth System** | สมบูรณ์ | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting |
 | **Frontend Pages (12 หน้า)** | สมบูรณ์ | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI |
 | **Widget System** | สมบูรณ์ | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL |
-| **Test Suites** | สมบูรณ์ | 17 Test Suites ผ่านครบ 100% (116 Tests), Coverage เฉลี่ยเกิน 88% |
-| **CI / CD Pipeline** | สมบูรณ์ | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check |
+| **Test Suites** | สมบูรณ์ | Client: 17 Suites (116 Tests ผ่าน 100%), Server: 3 Suites (24 Tests ผ่าน 100%, Coverage > 99%) |
+| **CI / CD Pipeline** | สมบูรณ์ | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง |
 | **SonarCloud Quality Gate** | ผ่าน | 0 Security Issues, 0 Vulnerabilities, New Code Coverage > 88% |
 | **Database Models** | อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase ถัดไป |
 | **OCR Slip Verification** | ตามแผนงาน | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ) |
