@@ -161,7 +161,7 @@ const DonorPage = () => {
       }
     };
 
-    loadPublicStreamer();
+    void loadPublicStreamer();
 
     return () => {
       isMounted = false;
