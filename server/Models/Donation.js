@@ -58,6 +58,7 @@ const donationSchema = new mongoose.Schema(
 
 // Compound index for querying streamer donations ordered by newest first
 donationSchema.index({ streamerId: 1, createdAt: -1 });
+donationSchema.index({ streamerId: 1, status: 1 });
 
 const Donation = mongoose.model("Donation", donationSchema);
 

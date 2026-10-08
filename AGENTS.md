@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (5 Suites, 94 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (6 Suites, 107 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 172 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 185 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -104,7 +104,8 @@ server/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── controllers/
 │   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
-│   ├── donationController.js    → Logic การจัดการรายการบริจาค (getDonations, getDonationStats, updateDonationStatus)
+│   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, updateDonationStatus)
+│   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page (getPublicStreamer)
 │   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
 ├── middleware/
 │   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
@@ -115,13 +116,15 @@ server/
 │   └── User.js                  → Central User Schema
 ├── routes/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
-│   ├── donations.js             → เส้นทาง /api/donations (GET /, GET /stats, PATCH /:id พร้อม protect)
+│   ├── donations.js             → เส้นทาง /api/donations (POST /, GET /, GET /stats, PATCH /:id)
+│   ├── public.js                → เส้นทาง /api/public (GET /:username)
 │   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
-│   ├── donations.test.js        → ชุดทดสอบ Donations Route (11 tests: GET /, GET /stats, PATCH /:id, Socket.IO)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route (24 tests: POST /, GET /, GET /stats, PATCH /:id, Socket.IO)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
+│   ├── public.test.js           → ชุดทดสอบ Public Route (5 tests)
 │   └── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)

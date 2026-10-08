@@ -7,6 +7,10 @@ import {
   updateCurrentUser,
   updatePaymentSettings,
   updateDonationPageSettings,
+  changePassword,
+  fetchDonationHistory,
+  fetchDonationStats,
+  updateDonationStatus,
   fetchPublicStreamer,
   createDonation,
 } from "./api";
@@ -23,8 +27,11 @@ describe("API utility functions", () => {
     expect(API.usersMe).toBe(`${API_URL}/users/me`);
     expect(API.usersPayment).toBe(`${API_URL}/users/payment`);
     expect(API.usersDonationPage).toBe(`${API_URL}/users/donation-page`);
+    expect(API.changePassword).toBe(`${API_URL}/users/change-password`);
     expect(API.publicStreamer("streamer1")).toBe(`${API_URL}/public/streamer1`);
     expect(API.donations).toBe(`${API_URL}/donations`);
+    expect(API.donationsStats).toBe(`${API_URL}/donations/stats`);
+    expect(API.donationDetail("don123")).toBe(`${API_URL}/donations/don123`);
   });
 
   test("getAuthToken returns token or empty string", () => {
@@ -216,6 +223,202 @@ describe("API utility functions", () => {
     );
   });
 
+  test("changePassword sends PUT to API.changePassword and returns data", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "เปลี่ยนรหัสผ่านสำเร็จ", data: null }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await changePassword({
+      currentPassword: "OldPass1!",
+      newPassword: "NewPass1!",
+    });
+
+    expect(result).toBeNull();
+    expect(global.fetch).toHaveBeenCalledWith(API.changePassword, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify({
+        currentPassword: "OldPass1!",
+        newPassword: "NewPass1!",
+      }),
+    });
+  });
+
+  test("changePassword throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" }),
+    });
+
+    await expect(
+      changePassword({ currentPassword: "wrong", newPassword: "new" })
+    ).rejects.toThrow("รหัสผ่านปัจจุบันไม่ถูกต้อง");
+  });
+
+  test("changePassword throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(
+      changePassword({ currentPassword: "wrong", newPassword: "new" })
+    ).rejects.toThrow("ไม่สามารถเปลี่ยนรหัสผ่านได้");
+  });
+
+  test("fetchDonationHistory sends GET with default parameters", async () => {
+    const mockData = { donations: [], pagination: { total: 0 } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockData }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await fetchDonationHistory();
+
+    expect(result).toEqual(mockData);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${API.donations}?page=1&limit=10`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer valid-token",
+        },
+      }
+    );
+  });
+
+  test("fetchDonationHistory sends GET with query parameters", async () => {
+    const mockData = { donations: [], pagination: { total: 0 } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockData }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await fetchDonationHistory({
+      page: 2,
+      limit: 5,
+      status: "pending",
+      search: "Alice",
+    });
+
+    expect(result).toEqual(mockData);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${API.donations}?page=2&limit=5&status=pending&search=Alice`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer valid-token",
+        },
+      }
+    );
+  });
+
+  test("fetchDonationHistory throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "ดึงประวัติไม่สำเร็จ" }),
+    });
+
+    await expect(fetchDonationHistory()).rejects.toThrow("ดึงประวัติไม่สำเร็จ");
+  });
+
+  test("fetchDonationHistory throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(fetchDonationHistory()).rejects.toThrow("ไม่สามารถดึงประวัติการรับเงินได้");
+  });
+
+  test("fetchDonationStats sends GET to API.donationsStats", async () => {
+    const mockStats = { totalAmount: 1000, totalDonations: 5 };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockStats }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await fetchDonationStats();
+
+    expect(result).toEqual(mockStats);
+    expect(global.fetch).toHaveBeenCalledWith(API.donationsStats, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+    });
+  });
+
+  test("fetchDonationStats throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "ดึงสถิติไม่สำเร็จ" }),
+    });
+
+    await expect(fetchDonationStats()).rejects.toThrow("ดึงสถิติไม่สำเร็จ");
+  });
+
+  test("fetchDonationStats throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(fetchDonationStats()).rejects.toThrow("ไม่สามารถดึงข้อมูลสถิติได้");
+  });
+
+  test("updateDonationStatus sends PATCH with new status", async () => {
+    const mockDonation = { _id: "don123", status: "approved" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "อนุมัติสำเร็จ", data: mockDonation }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await updateDonationStatus("don123", "approved");
+
+    expect(result).toEqual(mockDonation);
+    expect(global.fetch).toHaveBeenCalledWith(API.donationDetail("don123"), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify({ status: "approved" }),
+    });
+  });
+
+  test("updateDonationStatus throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "อัปเดตสถานะไม่สำเร็จ" }),
+    });
+
+    await expect(updateDonationStatus("don123", "approved")).rejects.toThrow("อัปเดตสถานะไม่สำเร็จ");
+  });
+
+  test("updateDonationStatus throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(updateDonationStatus("don123", "approved")).rejects.toThrow(
+      "ไม่สามารถเปลี่ยนสถานะรายการบริจาคได้"
+    );
+  });
+
   test("fetchPublicStreamer fetches public streamer data successfully", async () => {
     const mockPublicData = { username: "streamer_one", isLive: true };
     global.fetch = jest.fn().mockResolvedValueOnce({
@@ -294,4 +497,3 @@ describe("API utility functions", () => {
     );
   });
 });
-
