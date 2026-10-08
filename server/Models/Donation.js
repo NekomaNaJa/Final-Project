@@ -10,23 +10,25 @@ const donationSchema = new mongoose.Schema(
     },
     donorName: {
       type: String,
-      default: "ผู้ไม่ประสงค์ออกนาม",
       trim: true,
+      default: "Anonymous",
+      maxlength: 50,
     },
     amount: {
       type: Number,
       required: true,
-      min: 1,
+      min: [1, "ยอดเงินบริจาคต้องไม่ต่ำกว่า 1 บาท"],
     },
     message: {
       type: String,
       default: "",
+      maxlength: 500,
       trim: true,
     },
     paymentMethod: {
       type: String,
-      enum: ["promptpay", "bank", "truemoney"],
       required: true,
+      enum: ["promptpay", "bank", "truemoney"],
     },
     status: {
       type: String,
@@ -43,15 +45,19 @@ const donationSchema = new mongoose.Schema(
       ref: "Mission",
       default: null,
     },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Compound indexes for fast querying and aggregation
+// Compound index for querying streamer donations ordered by newest first
 donationSchema.index({ streamerId: 1, createdAt: -1 });
-donationSchema.index({ streamerId: 1, status: 1 });
 
 const Donation = mongoose.model("Donation", donationSchema);
 

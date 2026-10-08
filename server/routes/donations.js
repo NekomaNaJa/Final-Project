@@ -1,15 +1,9 @@
 import express from "express";
-import protect from "../middleware/protect.js";
-import {
-  getDonations,
-  getDonationStats,
-  updateDonationStatus,
-} from "../controllers/donationController.js";
+import { createDonation } from "../controllers/donationController.js";
 
 const router = express.Router();
 
-router.get("/", protect, getDonations);
-router.get("/stats", protect, getDonationStats);
-router.patch("/:id", protect, updateDonationStatus);
+// Public: Donor สร้างรายการโดเนท
+router.post("/", createDonation);
 
 export default router;

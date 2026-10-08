@@ -125,7 +125,7 @@ server/
 │   └── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
-├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler)
+├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler, 10MB payload limit)
 ├── index.js                     → Entry Point ของเซิร์ฟเวอร์ Express + Socket.IO (Port 5000)
 ├── jest.config.js               → การตั้งค่า Jest สำหรับ Node.js ESM และ Coverage
 └── package.json
@@ -332,8 +332,8 @@ client/src/
    - **ห้ามใส่ `overflow-x: hidden`** บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้คุณสมบัติ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
 4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกันเสมอ
 5. **การจัดการ State และ Storage**:
-   - หน้า **Account**, **Payment**, **DonatePage** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — ห้ามอ่าน/เขียนข้อมูลหลักลง `localStorage` โดยตรงในหน้าเหล่านี้
-   - หน้า **Donor** และ **Widget** ยังอ่านและบันทึกข้อมูลผ่านไฟล์กลาง `widgetStorage.js` และ `sanitizeStorage.js` (เตรียมสำหรับการย้ายขึ้น REST API ใน Phase ถัดไป)
+   - หน้า **Account**, **Payment**, **DonatePage**, และ **DonorPage** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — ห้ามอ่าน/เขียนข้อมูลหลักลง `localStorage` โดยตรงในหน้าเหล่านี้
+   - หน้า **Widget** ยังอ่านและบันทึกข้อมูลผ่านไฟล์กลาง `widgetStorage.js` และ `sanitizeStorage.js` (เตรียมสำหรับการย้ายขึ้น REST API ใน Phase 7)
    - ห้ามเรียก `localStorage` ตรงๆ ในทุกกรณี ให้ใช้ผ่าน `safeGetItem`/`safeSetItem` ใน `sanitizeStorage.js` เสมอ
 6. **Zero Warning Policy บน CI**: ตัวแปร `CI=true` บน GitHub Actions จะเปลี่ยน warning ทุกตัวเป็น fatal error ดังนั้นห้ามทิ้ง unused variables หรือ unused imports
 7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่รับค่าจาก client ต้องทำตามกฎ 3 ขั้นตอนในหัวข้อ 4.4 อย่างเคร่งครัด
@@ -351,10 +351,11 @@ client/src/
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (155 Tests ผ่าน 100%), Server: 4 Suites (70 Tests ผ่าน 100%, Coverage > 98%)             |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (162 Tests ผ่าน 100%), Server: 6 Suites (84 Tests ผ่าน 100%, Coverage > 98%)             |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
-| **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase 6                      |
+| **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | มี `User` และ `Donation` Model แล้ว (Phase 6), เตรียมเพิ่ม `Widget`, `Mission` ใน Phase 7                   |
+| **Donation Pipeline**        | ✅ สมบูรณ์       | Public API (`GET /api/public/:username`), Donation Submission (`POST /api/donations`), Slip Upload Base64   |
 | **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---
@@ -405,12 +406,16 @@ client/src/
   - Database เชื่อมต่อ **MongoDB Atlas**
   - ผลการทดสอบ: เชื่อมต่อ REST API (`/api/users/me`) ตอบสนอง 401 Unauthorized ตามข้อกำหนด
 
-- **Phase 6: แกนหลัก Donation REST API & Database Schema (ขนาดใหญ่ — ถัดไป)**
-  - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`) ทำ index ที่ `streamerId + createdAt`
-  - Public Endpoint: `GET /api/public/:username` (ข้อมูลสำหรับ Donor Page ปิดบังข้อมูลส่วนตัว)
-  - `POST /api/donations` (สร้างรายการโดเนท พร้อมอัปโหลดสลิปผ่าน Cloudinary/Object Storage)
-  - `GET /api/donations` (ดึงประวัติและสถิติด้วย Mongo Aggregation สำหรับ Dashboard และ History)
-  - `PATCH /api/donations/:id` (อนุมัติ/ปฏิเสธสลิป)
+- **Phase 6: แกนหลัก Donation REST API & Database Schema (อยู่ระหว่างพัฒนา 🔄)**
+  - **ส่วนที่ 1: Donation Model, Public API & Donor Pipeline (เสร็จสมบูรณ์ ✅ — Branch `feature-donation-pipeline`)**
+    - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`) ทำ Compound Index `{ streamerId: 1, createdAt: -1 }`
+    - Public Endpoint: `GET /api/public/:username` (ข้อมูลสำหรับ Donor Page ปิดบังข้อมูลส่วนตัว พร้อม NoSQL guard)
+    - `POST /api/donations` (สร้างรายการโดเนท พร้อมอัปโหลดสลิป Base64, ตรวจสอบยอดขั้นต่ำ, กรองคำหยาบ และ Socket Alert)
+    - ปรับปรุง `DonorPage.jsx` เชื่อมต่อ REST API เซิร์ฟเวอร์จริงแทน `localStorage`
+  - **ส่วนที่ 2: Dashboard Analytics & History Backoffice (ถัดไป — ฝั่งเพื่อน)**
+    - `GET /api/donations` (ดึงประวัติการโดเนท พร้อม Pagination และตัวกรองสถานะสำหรับ `HistoryPage`)
+    - `GET /api/donations/stats` (ดึงสถิติรวม ยอดเงิน กราฟ และ Top Donors ด้วย Mongo Aggregation สำหรับ `Dashboard`)
+    - `PATCH /api/donations/:id` (อนุมัติ/ปฏิเสธสลิป)
 
 - **Phase 7: Real-time Alert + Widget OBS (ขนาดใหญ่)**
   - สร้าง `server/Models/Widget.js` (บันทึก Config และ Token สำหรับ Browser Source OBS)

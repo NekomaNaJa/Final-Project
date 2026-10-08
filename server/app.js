@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
+import publicRoutes from "./routes/public.js";
 import donationRoutes from "./routes/donations.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
@@ -25,7 +26,7 @@ app.use(
     origin: CLIENT_URL,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // Forward Socket.IO instance to req.io if available
 app.use((req, _, next) => {
@@ -41,6 +42,7 @@ app.use("/api", apiLimiter);
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/public", publicRoutes);
 app.use("/api/donations", donationRoutes);
 
 // Central error handler
