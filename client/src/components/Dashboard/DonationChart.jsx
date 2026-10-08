@@ -44,7 +44,7 @@ const DonationChart = ({ data }) => {
   const [range, setRange] = useState("7D");
 
   const activeData =
-    data && data[range] && data[range].length > 0
+    data?.[range]?.length > 0
       ? data[range]
       : defaultEmptyData[range];
 

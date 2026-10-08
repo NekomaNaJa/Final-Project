@@ -195,8 +195,8 @@ export const getDonations = async (req, res, next) => {
 
     const streamerObjectId = new mongoose.Types.ObjectId(String(rawUserId));
 
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 10));
     const { status, search } = req.query;
 
     const query = {
@@ -211,7 +211,9 @@ export const getDonations = async (req, res, next) => {
     }
 
     if (search && typeof search === "string" && search.trim() !== "") {
-      const safeSearch = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const safeSearch = String(search)
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
       query.$or = [
         { donorName: { $regex: safeSearch, $options: "i" } },
         { message: { $regex: safeSearch, $options: "i" } },

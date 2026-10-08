@@ -20,9 +20,7 @@ const AccountProfileCard = ({ user, onSave }) => {
   };
 
   const handleToggleLive = () => {
-    if (onSave) {
-      onSave({ isLive: !isLive });
-    }
+    onSave?.({ isLive: !isLive });
   };
 
   const formattedJoinedDate =

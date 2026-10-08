@@ -44,7 +44,7 @@ const Dashboard = () => {
       }
     };
 
-    loadStats();
+    void loadStats();
 
     return () => {
       isMounted = false;

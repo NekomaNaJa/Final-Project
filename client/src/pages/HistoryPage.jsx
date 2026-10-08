@@ -34,7 +34,7 @@ const HistoryPage = () => {
         status: statusFilter,
         search: searchQuery,
       });
-      if (res && res.donations) {
+      if (res?.donations) {
         setDonations(res.donations);
         setTotalPages(res.pagination?.totalPages || 1);
       } else if (Array.isArray(res)) {
@@ -54,7 +54,7 @@ const HistoryPage = () => {
   }, [page, statusFilter, searchQuery]);
 
   useEffect(() => {
-    loadDonations();
+    void loadDonations();
   }, [loadDonations]);
 
   const handleStatusChange = (newStatus) => {
