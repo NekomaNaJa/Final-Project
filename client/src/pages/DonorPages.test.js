@@ -6,6 +6,8 @@ import Account from "./Account";
 import PaymentPage from "./PaymentPage";
 import NotFound from "./NotFound";
 
+import { fetchPublicStreamer, createDonation } from "../utils/api";
+
 jest.mock("../utils/api", () => {
   const original = jest.requireActual("../utils/api");
   return {
@@ -17,6 +19,8 @@ jest.mock("../utils/api", () => {
         truemoney: { enabled: true, phone: "" },
       },
     }),
+    fetchPublicStreamer: jest.fn().mockRejectedValue(new Error("API offline")),
+    createDonation: jest.fn().mockResolvedValue({ id: "don123", status: "pending" }),
     updatePaymentSettings: jest.fn((payload) =>
       Promise.resolve({
         promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "" },
@@ -33,6 +37,8 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
     localStorage.clear();
     jest.clearAllMocks();
     jest.useFakeTimers();
+    fetchPublicStreamer.mockImplementation(() => Promise.reject(new Error("offline")));
+    createDonation.mockImplementation(() => Promise.resolve({ id: "don123" }));
   });
 
   afterEach(() => {
@@ -127,6 +133,36 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       const closeBtn = screen.getByRole("button", { name: "ปิดหน้านี้" });
       fireEvent.click(closeBtn);
       expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();
+    });
+
+    test("loads streamer data from fetchPublicStreamer and updates state", async () => {
+      fetchPublicStreamer.mockResolvedValueOnce({
+        username: "ApiStreamer",
+        isLive: true,
+        donationPage: {
+          welcomeMessage: "ข้อความจาก API เซิร์ฟเวอร์",
+          thankYouMessage: "ขอบคุณจากใจจริง",
+          minAmount: 25,
+          charLimit: 120,
+        },
+        payment: {
+          promptpay: { enabled: true, number: "0999999999" },
+          bank: { enabled: true, bankName: "ธนาคารไทยพาณิชย์ (SCB)", accountNumber: "999", accountName: "Owner" },
+          truemoney: { enabled: false },
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/ApiStreamer"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("ข้อความจาก API เซิร์ฟเวอร์")).toBeInTheDocument();
+      });
     });
   });
 

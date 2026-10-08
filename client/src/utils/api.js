@@ -7,6 +7,8 @@ export const API = {
   usersMe: `${API_URL}/users/me`,
   usersPayment: `${API_URL}/users/payment`,
   usersDonationPage: `${API_URL}/users/donation-page`,
+  publicStreamer: (username) => `${API_URL}/public/${encodeURIComponent(username)}`,
+  donations: `${API_URL}/donations`,
 };
 
 export const getAuthToken = () => {
@@ -83,3 +85,35 @@ export const updateDonationPageSettings = async (payload) => {
   }
   return json.data;
 };
+
+/**
+ * ดึงข้อมูลสาธารณะของสตรีมเมอร์สำหรับหน้า Donor Page (GET /api/public/:username)
+ */
+export const fetchPublicStreamer = async (username) => {
+  const res = await fetch(API.publicStreamer(username), {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถดึงข้อมูลสตรีมเมอร์ได้");
+  }
+  return json.data;
+};
+
+/**
+ * สร้างรายการบริจาคใหม่สำหรับหน้า Donor (POST /api/donations)
+ */
+export const createDonation = async (payload) => {
+  const res = await fetch(API.donations, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถสร้างรายการบริจาคได้");
+  }
+  return json.data;
+};
+
