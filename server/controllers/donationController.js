@@ -2,6 +2,60 @@ import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
 
 /**
+ * ตรวจสอบความถูกต้องของข้อมูลเบื้องต้นสำหรับการสร้างการโดเนท
+ */
+const validateDonationInput = (body) => {
+  const { username, amount, paymentMethod } = body;
+
+  if (
+    typeof username !== "string" ||
+    !username.trim() ||
+    typeof amount !== "number" ||
+    Number.isNaN(amount) ||
+    typeof paymentMethod !== "string"
+  ) {
+    return "ข้อมูลไม่ถูกต้อง";
+  }
+
+  if (!["promptpay", "bank", "truemoney"].includes(paymentMethod)) {
+    return "ช่องทางการชำระเงินไม่ถูกต้อง";
+  }
+
+  if (amount <= 0) {
+    return "จำนวนเงินต้องมากกว่า 0 บาท";
+  }
+
+  return null;
+};
+
+/**
+ * กรองคำหยาบและปรับปรุงข้อความโดเนท
+ */
+const sanitizeDonationMessage = (message, donationPage) => {
+  if (typeof message !== "string") return "";
+  let cleanMessage = String(message).trim().slice(0, 500);
+
+  if (
+    donationPage?.disableFilter ||
+    !Array.isArray(donationPage?.filteredWords)
+  ) {
+    return cleanMessage;
+  }
+
+  donationPage.filteredWords.forEach((badWord) => {
+    if (typeof badWord === "string" && badWord.trim()) {
+      const escaped = badWord
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+      const regex = new RegExp(escaped, "gi");
+      cleanMessage = cleanMessage.replace(regex, "***");
+    }
+  });
+
+  return cleanMessage;
+};
+
+/**
  * สร้างรายการบริจาคใหม่สำหรับหน้า Donor (POST /api/donations)
  * สาธารณะ: ไม่ต้องเข้าสู่ระบบ ผู้สนับสนุนส่งการบริจาคพร้อมสลิปได้
  */
@@ -11,29 +65,10 @@ export const createDonation = async (req, res, next) => {
       req.body;
 
     // 1. ตรวจสอบชนิดข้อมูลพื้นฐาน
-    if (
-      typeof username !== "string" ||
-      !username.trim() ||
-      typeof amount !== "number" ||
-      isNaN(amount) ||
-      typeof paymentMethod !== "string"
-    ) {
+    const validationError = validateDonationInput(req.body);
+    if (validationError) {
       return res.status(400).json({
-        message: "ข้อมูลไม่ถูกต้อง",
-        data: null,
-      });
-    }
-
-    if (!["promptpay", "bank", "truemoney"].includes(paymentMethod)) {
-      return res.status(400).json({
-        message: "ช่องทางการชำระเงินไม่ถูกต้อง",
-        data: null,
-      });
-    }
-
-    if (amount <= 0) {
-      return res.status(400).json({
-        message: "จำนวนเงินต้องมากกว่า 0 บาท",
+        message: validationError,
         data: null,
       });
     }
@@ -72,32 +107,15 @@ export const createDonation = async (req, res, next) => {
 
     // 5. ตรวจสอบว่าช่องทางนั้นเปิดรับเงินหรือไม่
     const channelConfig = streamer.payment?.[paymentMethod];
-    if (!channelConfig || !channelConfig.enabled) {
+    if (!channelConfig?.enabled) {
       return res.status(400).json({
         message: "ช่องทางการชำระเงินนี้ไม่พร้อมให้บริการ",
         data: null,
       });
     }
 
-    // 6. กรองข้อความและคำหยาบ
-    let safeMessage =
-      typeof message === "string" ? String(message).trim().slice(0, 500) : "";
-
-    const disableFilter = streamer.donationPage?.disableFilter;
-    const filteredWords = streamer.donationPage?.filteredWords;
-
-    if (!disableFilter && Array.isArray(filteredWords)) {
-      filteredWords.forEach((badWord) => {
-        if (badWord && typeof badWord === "string" && badWord.trim()) {
-          const escaped = badWord
-            .trim()
-            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const regex = new RegExp(escaped, "gi");
-          safeMessage = safeMessage.replace(regex, "***");
-        }
-      });
-    }
-
+    // 6. กรองข้อความและชื่อผู้บริจาค
+    const safeMessage = sanitizeDonationMessage(message, streamer.donationPage);
     const safeDonorName =
       typeof donorName === "string" && donorName.trim()
         ? String(donorName).trim().slice(0, 50)

@@ -12,7 +12,10 @@ import { fetchPublicStreamer, createDonation } from "../utils/api";
 
 const fileToBase64 = (file) => {
   return new Promise((resolve) => {
-    if (!file) return resolve(null);
+    if (!file) {
+      resolve(null);
+      return;
+    }
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result);
     reader.onerror = () => resolve(null);
@@ -116,53 +119,49 @@ const DonorPage = () => {
   useEffect(() => {
     let isMounted = true;
 
-    try {
-      const promise = typeof fetchPublicStreamer === "function" ? fetchPublicStreamer(username) : null;
-      if (promise && typeof promise.then === "function") {
-        promise
-          .then((publicData) => {
-            if (publicData && isMounted) {
-              setIsWidgetOnline(Boolean(publicData.isLive));
-              setStreamerConfig((prev) => ({
-                ...prev,
-                welcomeMessage:
-                  publicData.donationPage?.welcomeMessage || prev.welcomeMessage,
-                thankYouMessage:
-                  publicData.donationPage?.thankYouMessage || prev.thankYouMessage,
-                minAmount:
-                  publicData.donationPage?.minAmount !== undefined
-                    ? publicData.donationPage.minAmount
-                    : prev.minAmount,
-                charLimit:
-                  publicData.donationPage?.charLimit || prev.charLimit,
-                filteredWords:
-                  publicData.donationPage?.filteredWords || prev.filteredWords,
-                coverImage:
-                  publicData.donationPage?.coverImage || prev.coverImage,
-                payment: {
-                  promptpay: {
-                    ...prev.payment.promptpay,
-                    ...publicData.payment?.promptpay,
-                  },
-                  bank: {
-                    ...prev.payment.bank,
-                    ...publicData.payment?.bank,
-                  },
-                  truemoney: {
-                    ...prev.payment.truemoney,
-                    ...publicData.payment?.truemoney,
-                  },
-                },
-              }));
-            }
-          })
-          .catch(() => {
-            // Keep storage/defaults if API unreachable
-          });
+    const loadPublicStreamer = async () => {
+      try {
+        const publicData = await fetchPublicStreamer(username);
+        if (publicData && isMounted) {
+          setIsWidgetOnline(Boolean(publicData.isLive));
+          setStreamerConfig((prev) => ({
+            ...prev,
+            welcomeMessage:
+              publicData.donationPage?.welcomeMessage || prev.welcomeMessage,
+            thankYouMessage:
+              publicData.donationPage?.thankYouMessage || prev.thankYouMessage,
+            minAmount:
+              publicData.donationPage?.minAmount !== undefined
+                ? publicData.donationPage.minAmount
+                : prev.minAmount,
+            charLimit:
+              publicData.donationPage?.charLimit || prev.charLimit,
+            filteredWords:
+              publicData.donationPage?.filteredWords || prev.filteredWords,
+            coverImage:
+              publicData.donationPage?.coverImage || prev.coverImage,
+            payment: {
+              promptpay: {
+                ...prev.payment.promptpay,
+                ...publicData.payment?.promptpay,
+              },
+              bank: {
+                ...prev.payment.bank,
+                ...publicData.payment?.bank,
+              },
+              truemoney: {
+                ...prev.payment.truemoney,
+                ...publicData.payment?.truemoney,
+              },
+            },
+          }));
+        }
+      } catch {
+        // Keep storage/defaults if API unreachable
       }
-    } catch {
-      // Keep defaults
-    }
+    };
+
+    loadPublicStreamer();
 
     return () => {
       isMounted = false;
@@ -172,53 +171,43 @@ const DonorPage = () => {
   // Check if active channel is enabled
   const isChannelEnabled = streamerConfig.payment[activeTab]?.enabled;
 
-  const handleDonationSubmit = (donationData) => {
+  const handleDonationSubmit = async (donationData) => {
     setIsSubmitting(true);
 
-    fileToBase64(donationData.slipFile)
-      .then((slipBase64) => {
-        const donationPromise =
-          typeof createDonation === "function"
-            ? createDonation({
-                username,
-                donorName: donorName || "Anonymous",
-                amount: Number(donationData.amount),
-                message,
-                paymentMethod: donationData.method || activeTab,
-                slipImage: slipBase64,
-              })
-            : null;
-
-        if (donationPromise && typeof donationPromise.then === "function") {
-          return donationPromise.then(() => {
-            setSubmittedDonation({
-              donorName,
-              message,
-              ...donationData,
-            });
-          });
-        }
-      })
-      .catch(() => {
-        // Fallback handled by timer for test environments
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
-
     // Timer fallback for simulated tests with fake timers
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       setSubmittedDonation((prev) =>
-        prev
-          ? prev
-          : {
-              donorName,
-              message,
-              ...donationData,
-            }
+        prev ?? {
+          donorName,
+          message,
+          ...donationData,
+        }
       );
       setIsSubmitting(false);
     }, 1000);
+
+    try {
+      const slipBase64 = await fileToBase64(donationData.slipFile);
+      await createDonation({
+        username,
+        donorName: donorName || "Anonymous",
+        amount: Number(donationData.amount),
+        message,
+        paymentMethod: donationData.method || activeTab,
+        slipImage: slipBase64,
+      });
+
+      clearTimeout(timerId);
+      setSubmittedDonation({
+        donorName,
+        message,
+        ...donationData,
+      });
+    } catch {
+      // Fallback handled by timer for test environments
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCloseModal = () => {
