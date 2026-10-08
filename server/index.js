@@ -1,13 +1,11 @@
+// ต้องเป็น import แรกสุด เพื่อให้ .env ถูกโหลดก่อนที่ app.js จะอ่าน process.env
+import "dotenv/config";
 import http from "http";
 import { Server } from "socket.io";
-import dotenv from "dotenv";
 import connectDB from "./config/db.js";
-import app from "./app.js";
-
-dotenv.config();
+import app, { CLIENT_URL } from "./app.js";
 
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
 const httpServer = http.createServer(app);
 
