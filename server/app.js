@@ -7,7 +7,16 @@ import errorHandler from "./middleware/errorHandler.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+
+// CORS เทียบ origin แบบตรงตัว จึงตัด "/" ท้าย URL ออกกันพิมพ์พลาด
+const rawClientUrl = process.env.CLIENT_URL || "http://localhost:3000";
+export const CLIENT_URL = rawClientUrl.endsWith("/")
+  ? rawClientUrl.slice(0, -1)
+  : rawClientUrl;
+
+// Render อยู่หลัง proxy 1 ชั้น ต้องตั้งก่อน rate limiter
+// ไม่งั้นผู้ใช้ทุกคนจะถูกนับเป็น IP เดียวกัน
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(
