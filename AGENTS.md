@@ -62,18 +62,24 @@ set CI=true&& npm run build
 
 ## 3. สภาพแวดล้อมและการตั้งค่า (Environment Variables)
 
-### 3.1 Server (`server/.env`)
+### 3.1 Server (`server/.env` และ Render)
 
-| ตัวแปร        | รายละเอียด                                         | ค่าเริ่มต้น (Default)             |
-| :------------ | :------------------------------------------------- | :-------------------------------- |
-| `PORT`        | พอร์ตสำหรับเซิร์ฟเวอร์ Express API                 | `5000`                            |
-| `MONGODB_URI` | Connection String สำหรับเชื่อมต่อฐานข้อมูล MongoDB | `mongodb://localhost:27017/donix` |
-| `CLIENT_URL`  | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS             | `http://localhost:3000`           |
-| `JWT_SECRET`  | คีย์ลับสำหรับเซ็นและตรวจสอบ JWT Token              | กำหนดใน `.env` ฝั่ง Server        |
+- **Production URL**: `https://final-project-xntd.onrender.com`
+- **API Base URL**: `https://final-project-xntd.onrender.com/api`
 
-### 3.2 Client
+| ตัวแปร         | รายละเอียด                                         | ค่าเริ่มต้น (Default / Local)      | ค่าบน Production (Render) |
+| :------------- | :------------------------------------------------- | :--------------------------------- | :------------------------ |
+| `PORT`         | พอร์ตสำหรับเซิร์ฟเวอร์ Express API                 | `5000`                             | Render กำหนดให้อัตโนมัติ  |
+| `MONGODB_URI`  | Connection String สำหรับเชื่อมต่อฐานข้อมูล MongoDB | `mongodb://localhost:27017/donix`  | MongoDB Atlas Cluster     |
+| `CLIENT_URL`   | URL ฝั่ง Client สำหรับกำหนดสิทธิ์ CORS             | `http://localhost:3000`            | `https://final-project-orpin-five.vercel.app` |
+| `JWT_SECRET`   | คีย์ลับสำหรับเซ็นและตรวจสอบ JWT Token              | กำหนดใน `.env` ฝั่ง Server         | สุ่มค่าคีย์ลับความปลอดภัยสูง |
+| `NODE_VERSION` | เวอร์ชัน Node.js ที่ใช้งาน                         | -                                  | `22`                      |
 
-- Base URL ของ API กำหนดไว้ที่ `http://localhost:5000`
+### 3.2 Client (Local และ Vercel)
+
+- **Production URL**: `https://final-project-orpin-five.vercel.app`
+- **Base URL ของ API**: กำหนดผ่าน `REACT_APP_API_URL` (Default ในเครื่อง: `http://localhost:5000/api`)
+- **Vercel Environment Variable**: `REACT_APP_API_URL=https://final-project-xntd.onrender.com/api`
 - การจัดการสิทธิ์และการสื่อสารข้ามโดเมนใช้ CORS จากฝั่ง Server
 - การอ่าน JWT Token บน Client มีการจัดการ base64url-safe string decoding ใน `useJwtUser.js`
 
@@ -340,6 +346,7 @@ client/src/
 | **Frontend Pages (12 หน้า)** | ✅ สมบูรณ์       | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI                                         |
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
+| **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (155 Tests ผ่าน 100%), Server: 4 Suites (70 Tests ผ่าน 100%, Coverage > 98%)             |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
@@ -386,14 +393,15 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-> **Phase 1–4 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, และการย้าย Account/Payment/DonatePage ขึ้น REST API + MongoDB
+> **Phase 1–5 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), และ Cloud Deployment (Render + Vercel + MongoDB Atlas)
 
-- **Phase 5: Deploy (ขนาดเล็กถึงกลาง)**
-  - Server ขึ้น **Render**, Client ขึ้น **Vercel**, และใช้ **MongoDB Atlas**
-  - ตรวจสอบปัญหา CORS, Linux Case-sensitive Paths (เช่น `Models/`), และ Environment Variables (`MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL`)
-  - ปรับ Base URL ของ Client ให้อ่านจาก `process.env.REACT_APP_API_URL` แทน `http://localhost:5000`
+- **Phase 5: Deploy (เสร็จสมบูรณ์ ✅)**
+  - Server ขึ้น **Render** (`https://final-project-xntd.onrender.com`) พร้อม Reverse Proxy (`trust proxy`), Dynamic Port และ CORS
+  - Client ขึ้น **Vercel** (`https://final-project-orpin-five.vercel.app`) ด้วย Create React App preset, Root Directory `client`, และต่อยอด API ผ่าน `REACT_APP_API_URL`
+  - Database เชื่อมต่อ **MongoDB Atlas**
+  - ผลการทดสอบ: เชื่อมต่อ REST API (`/api/users/me`) ตอบสนอง 401 Unauthorized ตามข้อกำหนด
 
-- **Phase 6: แกนหลัก Donation REST API & Database Schema (ขนาดใหญ่)**
+- **Phase 6: แกนหลัก Donation REST API & Database Schema (ขนาดใหญ่ — ถัดไป)**
   - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`) ทำ index ที่ `streamerId + createdAt`
   - Public Endpoint: `GET /api/public/:username` (ข้อมูลสำหรับ Donor Page ปิดบังข้อมูลส่วนตัว)
   - `POST /api/donations` (สร้างรายการโดเนท พร้อมอัปโหลดสลิปผ่าน Cloudinary/Object Storage)
