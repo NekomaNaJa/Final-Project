@@ -1,16 +1,27 @@
 import React from "react";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import HistoryPage from "./HistoryPage";
+import SlipModal from "../components/Histor/SlipModal";
+import * as api from "../utils/api";
+
+jest.mock("../utils/api", () => {
+  const original = jest.requireActual("../utils/api");
+  return {
+    ...original,
+    fetchDonationHistory: jest.fn(),
+    updateDonationStatus: jest.fn(),
+  };
+});
 
 describe("HistoryPage", () => {
+  const validPayload = btoa(JSON.stringify({ username: "streamer_pro" }));
+  const validToken = `header.${validPayload}.signature`;
+
   beforeEach(() => {
     localStorage.clear();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
+    jest.clearAllMocks();
+    api.fetchDonationHistory.mockResolvedValue({ donations: [], pagination: { total: 0 } });
   });
 
   test("redirects to login when no token", () => {
@@ -41,9 +52,7 @@ describe("HistoryPage", () => {
   });
 
   test("renders with valid token and shows empty state", async () => {
-    const payload = btoa(JSON.stringify({ username: "streamer_pro" }));
-    localStorage.setItem("token", `header.${payload}.signature`);
-    window.history.pushState({}, "", "/history");
+    localStorage.setItem("token", validToken);
 
     render(
       <MemoryRouter initialEntries={["/history"]}>
@@ -51,11 +60,6 @@ describe("HistoryPage", () => {
       </MemoryRouter>
     );
 
-    act(() => {
-      jest.runAllTimers();
-    });
-
-    // ชื่อผู้ใช้โชว์ทั้งใน Topbar และหัวข้อหน้า
     expect((await screen.findAllByText("streamer_pro")).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "ประวัติการรับเงินของ streamer_pro"
@@ -115,5 +119,160 @@ describe("HistoryPage", () => {
 
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.getAllByRole("button").length).toBe(2);
+  });
+
+  test("fetches donations from API and opens SlipModal on row click", async () => {
+    localStorage.setItem("token", validToken);
+
+    const mockDonations = [
+      {
+        _id: "don-001",
+        donorName: "Supporter One",
+        amount: 500,
+        message: "สู้ต่อไปนะ",
+        paymentMethod: "promptpay",
+        status: "pending",
+        slipImage: "https://example.com/slip.jpg",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    api.fetchDonationHistory.mockResolvedValue({
+      donations: mockDonations,
+      pagination: { total: 1, page: 1, totalPages: 1 },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/history"]}>
+        <HistoryPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Supporter One")).toBeInTheDocument();
+      expect(screen.getByText("฿500")).toBeInTheDocument();
+      expect(screen.getAllByText("รอตรวจสอบ").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Click row to open SlipModal
+    fireEvent.click(screen.getByText("Supporter One"));
+
+    expect(screen.getByText("หลักฐานและรายละเอียดการบริจาค")).toBeInTheDocument();
+    expect(screen.getByAltText("สลิปหลักฐานการโอน")).toBeInTheDocument();
+    expect(screen.getByText("อนุมัติรายการ")).toBeInTheDocument();
+    expect(screen.getByText("ปฏิเสธรายการ")).toBeInTheDocument();
+  });
+
+  test("approves donation from SlipModal", async () => {
+    localStorage.setItem("token", validToken);
+
+    const mockDonations = [
+      {
+        _id: "don-002",
+        donorName: "Supporter Two",
+        amount: 300,
+        message: "GG",
+        paymentMethod: "bank",
+        status: "pending",
+        slipImage: null,
+      },
+    ];
+
+    api.fetchDonationHistory.mockResolvedValue({
+      donations: mockDonations,
+      pagination: { total: 1, page: 1, totalPages: 1 },
+    });
+    api.updateDonationStatus.mockResolvedValueOnce({ _id: "don-002", status: "approved" });
+
+    render(
+      <MemoryRouter initialEntries={["/history"]}>
+        <HistoryPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Supporter Two")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Supporter Two"));
+
+    const approveBtn = screen.getByRole("button", { name: /อนุมัติรายการ/i });
+    fireEvent.click(approveBtn);
+
+    await waitFor(() => {
+      expect(api.updateDonationStatus).toHaveBeenCalledWith("don-002", "approved");
+      expect(screen.getByText("อนุมัติรายการบริจาคสำเร็จ")).toBeInTheDocument();
+    });
+  });
+
+  test("rejects donation from SlipModal", async () => {
+    localStorage.setItem("token", validToken);
+
+    const mockDonations = [
+      {
+        _id: "don-003",
+        donorName: "Supporter Three",
+        amount: 150,
+        message: "Hey",
+        paymentMethod: "truemoney",
+        status: "pending",
+      },
+    ];
+
+    api.fetchDonationHistory.mockResolvedValue({
+      donations: mockDonations,
+      pagination: { total: 1, page: 1, totalPages: 1 },
+    });
+    api.updateDonationStatus.mockResolvedValueOnce({ _id: "don-003", status: "rejected" });
+
+    render(
+      <MemoryRouter initialEntries={["/history"]}>
+        <HistoryPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Supporter Three")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Supporter Three"));
+
+    const rejectBtn = screen.getByRole("button", { name: /ปฏิเสธรายการ/i });
+    fireEvent.click(rejectBtn);
+
+    await waitFor(() => {
+      expect(api.updateDonationStatus).toHaveBeenCalledWith("don-003", "rejected");
+      expect(screen.getByText("ปฏิเสธรายการบริจาคสำเร็จ")).toBeInTheDocument();
+    });
+  });
+
+  test("filters donations by status tab", async () => {
+    localStorage.setItem("token", validToken);
+
+    render(
+      <MemoryRouter initialEntries={["/history"]}>
+        <HistoryPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(api.fetchDonationHistory).toHaveBeenCalled();
+    });
+
+    const pendingTab = screen.getByRole("button", { name: "รอตรวจสอบ" });
+    fireEvent.click(pendingTab);
+
+    await waitFor(() => {
+      expect(api.fetchDonationHistory).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "pending" })
+      );
+    });
+  });
+
+  test("renders SlipModal null when not open", () => {
+    const { container } = render(
+      <SlipModal isOpen={false} donation={null} onClose={jest.fn()} />
+    );
+    expect(container.firstChild).toBeNull();
   });
 });

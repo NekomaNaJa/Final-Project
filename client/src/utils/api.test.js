@@ -7,6 +7,12 @@ import {
   updateCurrentUser,
   updatePaymentSettings,
   updateDonationPageSettings,
+  changePassword,
+  fetchDonationHistory,
+  fetchDonationStats,
+  updateDonationStatus,
+  fetchPublicStreamer,
+  createDonation,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -210,5 +216,149 @@ describe("API utility functions", () => {
     await expect(updateDonationPageSettings({})).rejects.toThrow(
       "ไม่สามารถอัปเดตการตั้งค่าหน้ารับเงินได้"
     );
+  });
+
+  test("changePassword sends PUT to API.changePassword and returns data", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "เปลี่ยนรหัสผ่านสำเร็จ", data: null }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await changePassword({
+      currentPassword: "OldPass1!",
+      newPassword: "NewPass1!",
+    });
+
+    expect(result).toBeNull();
+    expect(global.fetch).toHaveBeenCalledWith(API.changePassword, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify({
+        currentPassword: "OldPass1!",
+        newPassword: "NewPass1!",
+      }),
+    });
+  });
+
+  test("changePassword throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" }),
+    });
+
+    await expect(
+      changePassword({ currentPassword: "wrong", newPassword: "new" })
+    ).rejects.toThrow("รหัสผ่านปัจจุบันไม่ถูกต้อง");
+  });
+
+  test("fetchDonationHistory sends GET with query parameters", async () => {
+    const mockData = { donations: [], pagination: { total: 0 } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockData }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await fetchDonationHistory({
+      page: 2,
+      limit: 5,
+      status: "pending",
+      search: "Alice",
+    });
+
+    expect(result).toEqual(mockData);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${API.donations}?page=2&limit=5&status=pending&search=Alice`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer valid-token",
+        },
+      }
+    );
+  });
+
+  test("fetchDonationStats sends GET to API.donationsStats", async () => {
+    const mockStats = { totalAmount: 1000, totalDonations: 5 };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockStats }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await fetchDonationStats();
+
+    expect(result).toEqual(mockStats);
+    expect(global.fetch).toHaveBeenCalledWith(API.donationsStats, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+    });
+  });
+
+  test("updateDonationStatus sends PATCH with new status", async () => {
+    const mockDonation = { _id: "don123", status: "approved" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "อนุมัติสำเร็จ", data: mockDonation }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const result = await updateDonationStatus("don123", "approved");
+
+    expect(result).toEqual(mockDonation);
+    expect(global.fetch).toHaveBeenCalledWith(API.donationDetail("don123"), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify({ status: "approved" }),
+    });
+  });
+
+  test("fetchPublicStreamer fetches public data without auth header", async () => {
+    const mockStreamer = { username: "streamer_alpha" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockStreamer }),
+    });
+
+    const result = await fetchPublicStreamer("streamer_alpha");
+
+    expect(result).toEqual(mockStreamer);
+    expect(global.fetch).toHaveBeenCalledWith(
+      API.publicStreamer("streamer_alpha"),
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  });
+
+  test("createDonation sends POST to API.donations", async () => {
+    const payload = { donorName: "Bob", amount: 100, paymentMethod: "promptpay" };
+    const mockCreated = { ...payload, _id: "don999" };
+
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockCreated }),
+    });
+
+    const result = await createDonation(payload);
+
+    expect(result).toEqual(mockCreated);
+    expect(global.fetch).toHaveBeenCalledWith(API.donations, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
   });
 });

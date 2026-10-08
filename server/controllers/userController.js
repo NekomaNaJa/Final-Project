@@ -48,9 +48,20 @@ export const updateMe = async (req, res, next) => {
       birthDate,
       phone,
       social,
+      isLive,
       currentPassword,
       newPassword,
     } = req.body;
+
+    if (isLive !== undefined) {
+      if (typeof isLive !== "boolean") {
+        return res.status(400).json({
+          message: "ข้อมูลสถานะเปิดรับเงินไม่ถูกต้อง",
+          data: null,
+        });
+      }
+      user.isLive = Boolean(isLive);
+    }
 
     const stringFields = { nickname, fullName, firstName, lastName, avatar, bio, phone };
     for (const [key, value] of Object.entries(stringFields)) {
@@ -470,6 +481,64 @@ export const updateDonationPage = async (req, res, next) => {
     return res.json({
       message: "อัปเดตการตั้งค่าหน้ารับเงินสำเร็จ",
       data: user.donationPage,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const changePassword = async (req, res, next) => {
+  try {
+    const safeUserId = String(req.user?.userId || "");
+    const user = await User.findById(safeUserId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบผู้ใช้",
+        data: null,
+      });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (
+      typeof currentPassword !== "string" ||
+      typeof newPassword !== "string"
+    ) {
+      return res.status(400).json({
+        message: "ข้อมูลรหัสผ่านไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    if (user.password) {
+      const isMatch = await bcrypt.compare(
+        String(currentPassword),
+        user.password
+      );
+      if (!isMatch) {
+        return res.status(400).json({
+          message: "รหัสผ่านปัจจุบันไม่ถูกต้อง",
+          data: null,
+        });
+      }
+    }
+
+    const safeNewPassword = String(newPassword);
+    if (!isPasswordValid(safeNewPassword)) {
+      return res.status(400).json({
+        message:
+          getPasswordError(safeNewPassword) || "รหัสผ่านใหม่ไม่ปลอดภัย",
+        data: null,
+      });
+    }
+
+    user.password = await bcrypt.hash(safeNewPassword, 10);
+    await user.save();
+
+    return res.json({
+      message: "เปลี่ยนรหัสผ่านสำเร็จ",
+      data: null,
     });
   } catch (err) {
     next(err);

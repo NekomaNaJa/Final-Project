@@ -31,8 +31,8 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (4 Suites, 70 Tests ผ่าน 100%)
-npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 98%)
+npm test              # รัน Jest + Supertest (5 Suites, 94 Tests ผ่าน 100%)
+npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
 ### 2.2 ฝั่ง Client (Frontend)
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 155 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 172 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -104,21 +104,25 @@ server/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── controllers/
 │   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
-│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage)
+│   ├── donationController.js    → Logic การจัดการรายการบริจาค (getDonations, getDonationStats, updateDonationStatus)
+│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
 ├── middleware/
 │   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
 │   ├── errorHandler.js          → Error Handler กลาง จัดการ error รูปแบบ { message, data } และ Mongoose errors
 │   └── rateLimiter.js           → จำกัดอัตราการเรียก API (authLimiter, apiLimiter)
 ├── Models/
+│   ├── Donation.js              → Central Donation Schema & Indexes
 │   └── User.js                  → Central User Schema
 ├── routes/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
-│   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page พร้อม protect)
+│   ├── donations.js             → เส้นทาง /api/donations (GET /, GET /stats, PATCH /:id พร้อม protect)
+│   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route (11 tests: GET /, GET /stats, PATCH /:id, Socket.IO)
+│   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
-│   ├── users.test.js            → ชุดทดสอบ Users Route (47 tests: GET /me, PUT /me, PUT /payment, PUT /donation-page)
-│   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
+│   └── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 ├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler)
@@ -291,7 +295,7 @@ client/src/
 │   ├── Discover/              → CategorySection, StreamerCard
 │   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection
 │   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorTrueMoneyForm
-│   ├── Histor/                → DonationHistoryTable (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
+│   ├── Histor/                → DonationHistoryTable, SlipModal (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
 │   ├── HowToUse/              → BenefitsSection, StepsSection
 │   ├── MainPage/              → CTASection, Features, Footer, Hero, Navbar, StreamerList
 │   ├── Payment/               → BankCard, ComingSoonCard, PaymentHeader, PromptPayCard, TrueMoneyCard
@@ -305,7 +309,7 @@ client/src/
 │   └── useJwtUser.js          → Custom hook ดึงข้อมูล user จาก JWT ใน localStorage
 ├── pages/                     → หน้าหลักทั้ง 12 หน้า และ NotFound
 ├── utils/
-│   ├── api.js                 → ฟังก์ชัน fetch กลาง (fetchCurrentUser, updateCurrentUser, updatePaymentSettings, updateDonationPageSettings) + API Endpoint Constants
+│   ├── api.js                 → ฟังก์ชัน fetch กลาง (fetchCurrentUser, updateCurrentUser, updatePaymentSettings, updateDonationPageSettings, changePassword, fetchDonationHistory, fetchDonationStats, updateDonationStatus) + API Endpoint Constants
 │   ├── passwordValidation.js  → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน
 │   ├── passwordValidation.test.js
 │   ├── sanitizeStorage.js     → ฟังก์ชันกรองและจัดเก็บข้อมูล localStorage ให้ปลอดภัย

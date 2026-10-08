@@ -10,6 +10,7 @@ jest.mock("../utils/api", () => {
     ...original,
     fetchCurrentUser: jest.fn(),
     updateCurrentUser: jest.fn(),
+    changePassword: jest.fn(),
   };
 });
 
@@ -161,5 +162,73 @@ describe("Account Page Integration", () => {
 
     expect(localStorage.getItem("token")).toBeNull();
     expect(screen.getByText("เข้าสู่ระบบสำเร็จ")).toBeInTheDocument();
+  });
+
+  test("toggles isLive status when clicking switch", async () => {
+    localStorage.setItem("token", validToken);
+    api.fetchCurrentUser.mockResolvedValueOnce({
+      username: "streamer_alpha",
+      isLive: false,
+    });
+    api.updateCurrentUser.mockResolvedValueOnce({
+      username: "streamer_alpha",
+      isLive: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <Account />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("ปิดรับโดเนท (OFFLINE)")).toBeInTheDocument();
+    });
+
+    const toggleBtn = screen.getByRole("switch");
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(api.updateCurrentUser).toHaveBeenCalledWith({ isLive: true });
+    });
+  });
+
+  test("changes password successfully from SecurityTab", async () => {
+    localStorage.setItem("token", validToken);
+    api.fetchCurrentUser.mockResolvedValueOnce({
+      username: "streamer_alpha",
+    });
+    api.changePassword.mockResolvedValueOnce(null);
+
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <Account />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("My Account")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "ความปลอดภัย" }));
+
+    const currentPassInput = screen.getByLabelText("รหัสผ่านปัจจุบัน");
+    const newPassInput = screen.getByLabelText("รหัสผ่านใหม่");
+    const confirmPassInput = screen.getByLabelText("ยืนยันรหัสผ่าน");
+
+    fireEvent.change(currentPassInput, { target: { value: "OldPassword1!" } });
+    fireEvent.change(newPassInput, { target: { value: "NewPassword1!" } });
+    fireEvent.change(confirmPassInput, { target: { value: "NewPassword1!" } });
+
+    const saveBtns = screen.getAllByRole("button", { name: /บันทึก/i });
+    fireEvent.click(saveBtns[0]);
+
+    await waitFor(() => {
+      expect(api.changePassword).toHaveBeenCalledWith({
+        currentPassword: "OldPassword1!",
+        newPassword: "NewPassword1!",
+      });
+      expect(screen.getByText("เปลี่ยนรหัสผ่านสำเร็จ")).toBeInTheDocument();
+    });
   });
 });

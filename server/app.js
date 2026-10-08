@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
+import donationRoutes from "./routes/donations.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
@@ -40,6 +41,7 @@ app.use("/api", apiLimiter);
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/donations", donationRoutes);
 
 // Central error handler
 app.use(errorHandler);

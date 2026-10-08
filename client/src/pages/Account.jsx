@@ -6,7 +6,7 @@ import Topbar from "../components/Topbar";
 import AccountProfileCard from "../components/Account/AccountProfileCard";
 import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
-import { fetchCurrentUser, updateCurrentUser } from "../utils/api";
+import { fetchCurrentUser, updateCurrentUser, changePassword } from "../utils/api";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -58,6 +58,13 @@ const Account = () => {
   const handleSaveProfile = async (payload) => {
     try {
       setFeedback(null);
+      if (payload.currentPassword && payload.newPassword) {
+        await changePassword(payload);
+        setFeedback({ type: "success", message: "เปลี่ยนรหัสผ่านสำเร็จ" });
+        setTimeout(() => setFeedback(null), 4000);
+        return { success: true };
+      }
+
       const updated = await updateCurrentUser(payload);
       setUser((prev) => ({ ...prev, ...updated }));
       setFeedback({ type: "success", message: "บันทึกข้อมูลเรียบร้อยแล้ว" });
@@ -148,7 +155,7 @@ const Account = () => {
 
             {/* Profile Overview */}
             <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-              <AccountProfileCard user={user} />
+              <AccountProfileCard user={user} onSave={handleSaveProfile} />
               <ManageAccountCard user={user} />
             </div>
 

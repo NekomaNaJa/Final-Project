@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import useJwtUser from "../hooks/useJwtUser";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -6,10 +7,49 @@ import DonationChart from "../components/Dashboard/DonationChart";
 import TopDonors from "../components/Dashboard/TopDonors";
 import RealtimeFeed from "../components/Dashboard/RealtimeFeed";
 import PaymentChannels from "../components/Dashboard/PaymentChannels";
-import { Sword, Coins, Gem, Eye } from "lucide-react";
+import { Sword, Coins, Gem, Clock } from "lucide-react";
+import { fetchDonationStats } from "../utils/api";
 
 const Dashboard = () => {
   const user = useJwtUser();
+
+  const [stats, setStats] = useState({
+    totalAmount: 0,
+    totalDonations: 0,
+    pendingCount: 0,
+    topDonors: [],
+    chartData: null,
+    recentDonations: [],
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStats = async () => {
+      if (!localStorage.getItem("token")) return;
+      try {
+        const data = await fetchDonationStats();
+        if (isMounted && data) {
+          setStats({
+            totalAmount: data.totalAmount || 0,
+            totalDonations: data.totalDonations || 0,
+            pendingCount: data.pendingCount || 0,
+            topDonors: data.topDonors || [],
+            chartData: data.chartData || null,
+            recentDonations: data.recentDonations || [],
+          });
+        }
+      } catch {
+        // Silently catch errors in background dashboard fetch
+      }
+    };
+
+    loadStats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0A0B12] bg-[radial-gradient(ellipse_at_top_left,rgba(124,58,237,0.15),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(220,38,38,0.08),transparent_60%)]">
@@ -35,7 +75,10 @@ const Dashboard = () => {
                   ภาพรวมการรับโดเนทของคุณวันนี้
                 </p>
               </div>
-              <button className="hidden md:inline-flex items-center gap-2 rounded-lg border border-purple-500/40 bg-purple-600/10 px-4 py-2.5 text-xs uppercase tracking-[0.2em] text-purple-400 hover:bg-purple-600 hover:text-white transition-all">
+              <button
+                type="button"
+                className="hidden md:inline-flex items-center gap-2 rounded-lg border border-purple-500/40 bg-purple-600/10 px-4 py-2.5 text-xs uppercase tracking-[0.2em] text-purple-400 hover:bg-purple-600 hover:text-white transition-all"
+              >
                 <Sword size={14} />
                 แชร์ลิงก์โดเนท
               </button>
@@ -46,7 +89,7 @@ const Dashboard = () => {
               <StatsCard
                 icon={Coins}
                 label="ยอดการรับเงิน"
-                value={0}
+                value={stats.totalAmount}
                 unit="บาท"
                 percent={0}
                 percentLabel="เทียบกับสัปดาห์ที่แล้ว"
@@ -55,19 +98,19 @@ const Dashboard = () => {
               <StatsCard
                 icon={Gem}
                 label="จำนวนโดเนท"
-                value={0}
+                value={stats.totalDonations}
                 unit="ครั้ง"
                 percent={0}
                 percentLabel="เทียบกับสัปดาห์ที่แล้ว"
                 accent="gold"
               />
               <StatsCard
-                icon={Eye}
-                label="จำนวนผู้ชม"
-                value={0}
-                unit="คน"
+                icon={Clock}
+                label="รายการรอตรวจ"
+                value={stats.pendingCount}
+                unit="รายการ"
                 percent={0}
-                percentLabel="เทียบกับสัปดาห์ที่แล้ว"
+                percentLabel="สถานะรอดำเนินการ"
                 accent="crimson"
               />
             </div>
@@ -75,15 +118,15 @@ const Dashboard = () => {
             {/* Chart + Top Donors */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
               <div className="lg:col-span-2">
-                <DonationChart />
+                <DonationChart data={stats.chartData} />
               </div>
-              <TopDonors />
+              <TopDonors donors={stats.topDonors} />
             </div>
 
             {/* Feed + Payment */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
-                <RealtimeFeed />
+                <RealtimeFeed feed={stats.recentDonations} />
               </div>
               <PaymentChannels />
             </div>
