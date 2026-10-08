@@ -347,10 +347,11 @@ client/src/
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (155 Tests ผ่าน 100%), Server: 4 Suites (70 Tests ผ่าน 100%, Coverage > 98%)             |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (162 Tests ผ่าน 100%), Server: 6 Suites (84 Tests ผ่าน 100%, Coverage > 98%)             |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
-| **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | ปัจจุบันมี `User` Model แล้ว, เตรียมเพิ่ม `Donation`, `Widget`, `Mission` ใน Phase 6                      |
+| **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | มี `User` และ `Donation` Model แล้ว (Phase 6), เตรียมเพิ่ม `Widget`, `Mission` ใน Phase 7                   |
+| **Donation Pipeline**        | ✅ สมบูรณ์       | Public API (`GET /api/public/:username`), Donation Submission (`POST /api/donations`), Slip Upload Base64   |
 | **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---

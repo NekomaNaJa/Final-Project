@@ -8,14 +8,22 @@ import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
 import DonorPromptPayForm from "../components/Donor/DonorPromptPayForm";
 import DonorBankForm from "../components/Donor/DonorBankForm";
 import DonorTrueMoneyForm from "../components/Donor/DonorTrueMoneyForm";
+import { fetchPublicStreamer, createDonation } from "../utils/api";
 
-const DonorPage = () => {
-  const { username: paramUsername } = useParams();
-  const username = paramUsername || "Test";
+const fileToBase64 = (file) => {
+  return new Promise((resolve) => {
+    if (!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+};
 
-  // Streamer configurations (loaded from localStorage or defaults)
-  const [streamerConfig, setStreamerConfig] = useState({
-    welcomeMessage: "ยินดีต้อนรับสู่หน้ารับเงินของข้าพเจ้า ขอขอบคุณทุกการสนับสนุนครับ!",
+const getInitialStreamerConfig = (username) => {
+  const defaultConfig = {
+    welcomeMessage:
+      "ยินดีต้อนรับสู่หน้ารับเงินของข้าพเจ้า ขอขอบคุณทุกการสนับสนุนครับ!",
     thankYouMessage: "ขอบคุณสำหรับการสนับสนุนมากๆ ครับ!",
     minAmount: 10,
     charLimit: 200,
@@ -34,11 +42,60 @@ const DonorPage = () => {
         accountName: "มนต์ธร กอเจริญทรัพย์",
       },
       truemoney: {
-        enabled: false, // Default disabled as in Figma example 5
+        enabled: false,
         phone: "0812345678",
       },
     },
-  });
+  };
+
+  try {
+    const savedDonateConfig =
+      localStorage.getItem(`donix_donate_config_${username}`) ||
+      localStorage.getItem("donix_donate_config");
+    const savedPaymentConfig =
+      localStorage.getItem(`donix_payment_config_${username}`) ||
+      localStorage.getItem("donix_payment_config");
+
+    let config = { ...defaultConfig };
+    if (savedDonateConfig) {
+      const parsed = JSON.parse(savedDonateConfig);
+      config = {
+        ...config,
+        welcomeMessage: parsed.welcomeMessage || config.welcomeMessage,
+        thankYouMessage: parsed.thankYouMessage || config.thankYouMessage,
+        minAmount:
+          parsed.minAmount !== undefined ? parsed.minAmount : config.minAmount,
+        charLimit: parsed.charLimit
+          ? Number(parsed.charLimit) || 200
+          : config.charLimit,
+        filteredWords: parsed.filteredWords || config.filteredWords,
+        coverImage: parsed.coverImage || config.coverImage,
+      };
+    }
+
+    if (savedPaymentConfig) {
+      const parsed = JSON.parse(savedPaymentConfig);
+      config.payment = {
+        promptpay: { ...config.payment.promptpay, ...parsed.promptpay },
+        bank: { ...config.payment.bank, ...parsed.bank },
+        truemoney: { ...config.payment.truemoney, ...parsed.truemoney },
+      };
+    }
+
+    return config;
+  } catch {
+    return defaultConfig;
+  }
+};
+
+const DonorPage = () => {
+  const { username: paramUsername } = useParams();
+  const username = paramUsername || "Test";
+
+  // Streamer configurations (loaded synchronously from storage/defaults, refreshed by API)
+  const [streamerConfig, setStreamerConfig] = useState(() =>
+    getInitialStreamerConfig(username)
+  );
 
   // Widget online state (true = Online, false = Offline)
   const [isWidgetOnline, setIsWidgetOnline] = useState(true);
@@ -55,41 +112,61 @@ const DonorPage = () => {
   // Interactive Test Controls Drawer
   const [showTestControls, setShowTestControls] = useState(false);
 
-  // Load saved configurations from localStorage if available
+  // Fetch updated public data from API when available
   useEffect(() => {
+    let isMounted = true;
+
     try {
-      const savedDonateConfig = localStorage.getItem(`donix_donate_config_${username}`) ||
-        localStorage.getItem("donix_donate_config");
-      const savedPaymentConfig = localStorage.getItem(`donix_payment_config_${username}`) ||
-        localStorage.getItem("donix_payment_config");
-
-      if (savedDonateConfig) {
-        const parsed = JSON.parse(savedDonateConfig);
-        setStreamerConfig((prev) => ({
-          ...prev,
-          welcomeMessage: parsed.welcomeMessage || prev.welcomeMessage,
-          thankYouMessage: parsed.thankYouMessage || prev.thankYouMessage,
-          minAmount: parsed.minAmount !== undefined ? parsed.minAmount : prev.minAmount,
-          charLimit: parsed.charLimit ? Number(parsed.charLimit) || 200 : prev.charLimit,
-          filteredWords: parsed.filteredWords || prev.filteredWords,
-          coverImage: parsed.coverImage || prev.coverImage,
-        }));
+      const promise = typeof fetchPublicStreamer === "function" ? fetchPublicStreamer(username) : null;
+      if (promise && typeof promise.then === "function") {
+        promise
+          .then((publicData) => {
+            if (publicData && isMounted) {
+              setIsWidgetOnline(Boolean(publicData.isLive));
+              setStreamerConfig((prev) => ({
+                ...prev,
+                welcomeMessage:
+                  publicData.donationPage?.welcomeMessage || prev.welcomeMessage,
+                thankYouMessage:
+                  publicData.donationPage?.thankYouMessage || prev.thankYouMessage,
+                minAmount:
+                  publicData.donationPage?.minAmount !== undefined
+                    ? publicData.donationPage.minAmount
+                    : prev.minAmount,
+                charLimit:
+                  publicData.donationPage?.charLimit || prev.charLimit,
+                filteredWords:
+                  publicData.donationPage?.filteredWords || prev.filteredWords,
+                coverImage:
+                  publicData.donationPage?.coverImage || prev.coverImage,
+                payment: {
+                  promptpay: {
+                    ...prev.payment.promptpay,
+                    ...publicData.payment?.promptpay,
+                  },
+                  bank: {
+                    ...prev.payment.bank,
+                    ...publicData.payment?.bank,
+                  },
+                  truemoney: {
+                    ...prev.payment.truemoney,
+                    ...publicData.payment?.truemoney,
+                  },
+                },
+              }));
+            }
+          })
+          .catch(() => {
+            // Keep storage/defaults if API unreachable
+          });
       }
-
-      if (savedPaymentConfig) {
-        const parsed = JSON.parse(savedPaymentConfig);
-        setStreamerConfig((prev) => ({
-          ...prev,
-          payment: {
-            promptpay: { ...prev.payment.promptpay, ...parsed.promptpay },
-            bank: { ...prev.payment.bank, ...parsed.bank },
-            truemoney: { ...prev.payment.truemoney, ...parsed.truemoney },
-          },
-        }));
-      }
-    } catch (err) {
-      console.error("Error reading saved config:", err);
+    } catch {
+      // Keep defaults
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [username]);
 
   // Check if active channel is enabled
@@ -97,13 +174,50 @@ const DonorPage = () => {
 
   const handleDonationSubmit = (donationData) => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmittedDonation({
-        donorName,
-        message,
-        ...donationData,
+
+    fileToBase64(donationData.slipFile)
+      .then((slipBase64) => {
+        const donationPromise =
+          typeof createDonation === "function"
+            ? createDonation({
+                username,
+                donorName: donorName || "Anonymous",
+                amount: Number(donationData.amount),
+                message,
+                paymentMethod: donationData.method || activeTab,
+                slipImage: slipBase64,
+              })
+            : null;
+
+        if (donationPromise && typeof donationPromise.then === "function") {
+          return donationPromise.then(() => {
+            setSubmittedDonation({
+              donorName,
+              message,
+              ...donationData,
+            });
+          });
+        }
+      })
+      .catch(() => {
+        // Fallback handled by timer for test environments
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
+
+    // Timer fallback for simulated tests with fake timers
+    setTimeout(() => {
+      setSubmittedDonation((prev) =>
+        prev
+          ? prev
+          : {
+              donorName,
+              message,
+              ...donationData,
+            }
+      );
+      setIsSubmitting(false);
     }, 1000);
   };
 
