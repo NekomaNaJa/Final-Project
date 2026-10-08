@@ -31,8 +31,8 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (6 Suites, 84 Tests ผ่าน 100%)
-npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 98%)
+npm test              # รัน Jest + Supertest (6 Suites, 107 Tests ผ่าน 100%)
+npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
 ### 2.2 ฝั่ง Client (Frontend)
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 162 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 185 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -104,28 +104,28 @@ server/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── controllers/
 │   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
-│   ├── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage)
-│   ├── publicController.js      → Logic ดึงข้อมูลสาธารณะของสตรีมเมอร์สำหรับ Donor Page (getPublicStreamer)
-│   └── donationController.js    → Logic สร้างรายการบริจาค ตรวจสอบยอดขั้นต่ำ กรองคำหยาบ และ Socket Alert (createDonation)
+│   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, updateDonationStatus)
+│   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page (getPublicStreamer)
+│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
 ├── middleware/
 │   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
 │   ├── errorHandler.js          → Error Handler กลาง จัดการ error รูปแบบ { message, data } และ Mongoose errors
 │   └── rateLimiter.js           → จำกัดอัตราการเรียก API (authLimiter, apiLimiter)
 ├── Models/
-│   ├── User.js                  → Central User Schema
-│   └── Donation.js              → Central Donation Schema (streamerId, donorName, amount, message, paymentMethod, status, slipImage)
+│   ├── Donation.js              → Central Donation Schema & Indexes
+│   └── User.js                  → Central User Schema
 ├── routes/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
-│   ├── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page พร้อม protect)
-│   ├── public.js                → เส้นทาง /api/public (GET /:username ดึงข้อมูลสตรีมเมอร์แบบ Sanitized)
-│   └── donations.js             → เส้นทาง /api/donations (POST / สร้างรายการโดเนทและรับสลิป)
+│   ├── donations.js             → เส้นทาง /api/donations (POST /, GET /, GET /stats, PATCH /:id)
+│   ├── public.js                → เส้นทาง /api/public (GET /:username)
+│   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route (24 tests: POST /, GET /, GET /stats, PATCH /:id, Socket.IO)
+│   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
-│   ├── users.test.js            → ชุดทดสอบ Users Route (47 tests: GET /me, PUT /me, PUT /payment, PUT /donation-page)
-│   ├── public.test.js           → ชุดทดสอบ Public Route (5 tests: GET /:username, NoSQL injection guard, sensitive data masking)
-│   ├── donations.test.js        → ชุดทดสอบ Donation Route (9 tests: POST /, amount validation, channel check, bad word filter, socket alert)
-│   └── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
+│   ├── public.test.js           → ชุดทดสอบ Public Route (5 tests)
+│   └── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 ├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler, 10MB payload limit)
@@ -298,7 +298,7 @@ client/src/
 │   ├── Discover/              → CategorySection, StreamerCard
 │   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection
 │   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorTrueMoneyForm
-│   ├── Histor/                → DonationHistoryTable (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
+│   ├── Histor/                → DonationHistoryTable, SlipModal (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
 │   ├── HowToUse/              → BenefitsSection, StepsSection
 │   ├── MainPage/              → CTASection, Features, Footer, Hero, Navbar, StreamerList
 │   ├── Payment/               → BankCard, ComingSoonCard, PaymentHeader, PromptPayCard, TrueMoneyCard
@@ -312,7 +312,7 @@ client/src/
 │   └── useJwtUser.js          → Custom hook ดึงข้อมูล user จาก JWT ใน localStorage
 ├── pages/                     → หน้าหลักทั้ง 12 หน้า และ NotFound
 ├── utils/
-│   ├── api.js                 → ฟังก์ชัน fetch กลาง (fetchCurrentUser, updateCurrentUser, updatePaymentSettings, updateDonationPageSettings, fetchPublicStreamer, createDonation) + API Endpoint Constants
+│   ├── api.js                 → ฟังก์ชัน fetch กลาง (fetchCurrentUser, updateCurrentUser, updatePaymentSettings, updateDonationPageSettings, changePassword, fetchDonationHistory, fetchDonationStats, updateDonationStatus) + API Endpoint Constants
 │   ├── passwordValidation.js  → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน
 │   ├── passwordValidation.test.js
 │   ├── sanitizeStorage.js     → ฟังก์ชันกรองและจัดเก็บข้อมูล localStorage ให้ปลอดภัย

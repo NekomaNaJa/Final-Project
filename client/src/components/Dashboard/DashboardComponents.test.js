@@ -97,6 +97,15 @@ describe('Dashboard Components', () => {
       expect(screen.getByText('MYTHIC')).toBeInTheDocument();
       expect(screen.getByText('ARCANE')).toBeInTheDocument();
     });
+
+    it('renders top donors with dynamic donor data', () => {
+      const mockDonors = [
+        { rank: 1, name: 'ProGamer', totalAmount: 5000, badge: 'MYTHIC' },
+      ];
+      render(<TopDonors donors={mockDonors} />);
+      expect(screen.getByText('ProGamer')).toBeInTheDocument();
+      expect(screen.getByText('฿5,000')).toBeInTheDocument();
+    });
   });
 
   describe('RealtimeFeed', () => {
@@ -104,6 +113,16 @@ describe('Dashboard Components', () => {
       render(<RealtimeFeed />);
       expect(screen.getByText('โดเนทล่าสุด')).toBeInTheDocument();
       expect(screen.getAllByText('ยังไม่มีข้อมูล').length).toBeGreaterThan(0);
+    });
+
+    it('renders dynamic donation feed items', () => {
+      const mockFeed = [
+        { _id: 'd1', donorName: 'Alice', amount: 200, message: 'Keep fighting!' },
+      ];
+      render(<RealtimeFeed feed={mockFeed} />);
+      expect(screen.getByText('Alice')).toBeInTheDocument();
+      expect(screen.getByText('+฿200')).toBeInTheDocument();
+      expect(screen.getByText('Keep fighting!')).toBeInTheDocument();
     });
   });
 
@@ -119,6 +138,16 @@ describe('Dashboard Components', () => {
       const btnAll = screen.getByText('ALL');
       fireEvent.click(btnAll);
       expect(btnAll).toHaveClass('bg-purple-600');
+    });
+
+    it('renders with custom chart data', () => {
+      const customData = {
+        '7D': [{ d: 'จ', amount: 100 }],
+        '30D': [{ d: '1', amount: 200 }],
+        ALL: [{ d: 'ม.ค.', amount: 500 }],
+      };
+      render(<DonationChart data={customData} />);
+      expect(screen.getByText('7 วันที่ผ่านมา')).toBeInTheDocument();
     });
   });
 

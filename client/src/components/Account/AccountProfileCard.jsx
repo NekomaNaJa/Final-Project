@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Pencil, Copy, Check } from "lucide-react";
 
-const AccountProfileCard = ({ user }) => {
+const AccountProfileCard = ({ user, onSave }) => {
   const [copied, setCopied] = useState(false);
   const username = user?.username || "Test";
   const donixUrl = `donix.app/${username}`;
+  const isLive = Boolean(user?.isLive);
 
   const handleCopy = async () => {
     try {
@@ -16,6 +17,10 @@ const AccountProfileCard = ({ user }) => {
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleLive = () => {
+    onSave?.({ isLive: !isLive });
   };
 
   const formattedJoinedDate =
@@ -70,8 +75,42 @@ const AccountProfileCard = ({ user }) => {
         )}
       </button>
 
+      {/* Live Status Toggle */}
+      <div className="mt-4 w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5">
+        <div className="flex items-center gap-2 text-left">
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full ${
+              isLive
+                ? "bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                : "bg-gray-500"
+            }`}
+          />
+          <div>
+            <p className="text-[11px] font-semibold text-white">
+              {isLive ? "เปิดรับโดเนท (LIVE)" : "ปิดรับโดเนท (OFFLINE)"}
+            </p>
+            <p className="text-[9px] text-gray-400">
+              {isLive ? "ผู้สนับสนุนสามารถโอนเงินได้" : "หน้ารับเงินจะแสดงสถานะออฟไลน์"}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isLive}
+          onClick={handleToggleLive}
+          className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-all ${
+            isLive
+              ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
+              : "bg-purple-600 text-white hover:bg-purple-500 shadow-[0_0_12px_rgba(147,51,234,0.3)]"
+          }`}
+        >
+          {isLive ? "ปิดรับเงิน" : "เปิดรับเงิน"}
+        </button>
+      </div>
+
       {/* Stats */}
-      <div className="mt-6 grid w-full grid-cols-3 divide-x divide-[#2b2542] border-t border-[#2b2542] pt-4">
+      <div className="mt-4 grid w-full grid-cols-3 divide-x divide-[#2b2542] border-t border-[#2b2542] pt-4">
         <div>
           <p className="text-[10px] uppercase tracking-[0.12em] text-[#7e778d]">
             เข้าร่วมเมื่อ

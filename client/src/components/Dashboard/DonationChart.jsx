@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   AreaChart,
   Area,
@@ -11,7 +11,7 @@ import {
 import { TrendingUp } from "lucide-react";
 import { Card, CardHeader } from "./CardWrapper";
 
-const emptyData = {
+const defaultEmptyData = {
   "7D": [
     { d: "จ", amount: 0 },
     { d: "อ", amount: 0 },
@@ -40,15 +40,26 @@ const emptyData = {
   ],
 };
 
-const DonationChart = () => {
+const DonationChart = ({ data }) => {
   const [range, setRange] = useState("7D");
+
+  const activeData =
+    data?.[range]?.length > 0
+      ? data[range]
+      : defaultEmptyData[range];
+
+  const getSubtitle = () => {
+    if (range === "7D") return "7 วันที่ผ่านมา";
+    if (range === "30D") return "30 วันที่ผ่านมา";
+    return "รายเดือนทั้งหมด";
+  };
 
   return (
     <Card>
       <CardHeader
         icon={TrendingUp}
         title="โดเนทล่าสุด"
-        subtitle="7 วันที่ผ่านมา"
+        subtitle={getSubtitle()}
         subtitleClass="font-sans"
         right={
           <div className="flex gap-1 rounded-lg border border-white/8 bg-white/5 p-0.5 text-[10px] uppercase tracking-[0.18em]">
@@ -71,7 +82,7 @@ const DonationChart = () => {
       <div className="h-64 px-2 pb-4 pt-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            data={emptyData[range]}
+            data={activeData}
             margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
           >
             <defs>

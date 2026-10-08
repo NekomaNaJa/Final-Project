@@ -751,6 +751,123 @@ describe("Users Route", () => {
       expect(res.body.message).toBe("เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่");
     });
   });
+
+  describe("PUT /api/users/me (isLive field)", () => {
+    it("should return 400 when isLive is not a boolean", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = { isLive: false, save: jest.fn() };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+
+      const res = await request(app)
+        .put("/api/users/me")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ isLive: "true" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อมูลสถานะเปิดรับเงินไม่ถูกต้อง");
+    });
+
+    it("should update isLive successfully", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = { isLive: false, save: jest.fn().mockResolvedValue(true) };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+
+      const res = await request(app)
+        .put("/api/users/me")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ isLive: true });
+
+      expect(res.status).toBe(200);
+      expect(mockDoc.isLive).toBe(true);
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+  });
+
+  describe("PUT /api/users/change-password", () => {
+    it("should return 401 when Authorization header is missing", async () => {
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .send({ currentPassword: "OldPassword1!", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("should return 400 when password fields are invalid types", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = { password: "hashed", save: jest.fn() };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: 123, newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ข้อมูลรหัสผ่านไม่ถูกต้อง");
+    });
+
+    it("should return 400 when current password is wrong", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = { password: "hashedPassword", save: jest.fn() };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+      jest.spyOn(bcrypt, "compare").mockResolvedValueOnce(false);
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "WrongPassword1!", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("รหัสผ่านปัจจุบันไม่ถูกต้อง");
+    });
+
+    it("should return 400 when new password is weak", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = { password: "hashedPassword", save: jest.fn() };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+      jest.spyOn(bcrypt, "compare").mockResolvedValueOnce(true);
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "CorrectPassword1!", newPassword: "weak" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("รหัสผ่าน");
+    });
+
+    it("should return 200 and hash new password when valid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = { password: "hashedPassword", save: jest.fn().mockResolvedValue(true) };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+      jest.spyOn(bcrypt, "compare").mockResolvedValueOnce(true);
+      jest.spyOn(bcrypt, "hash").mockResolvedValueOnce("newHashedPassword");
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "OldPassword1!", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("เปลี่ยนรหัสผ่านสำเร็จ");
+      expect(mockDoc.password).toBe("newHashedPassword");
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("should return 404 when user not found in database", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "OldPassword1!", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("ไม่พบผู้ใช้");
+    });
+  });
 });
+
 
 
