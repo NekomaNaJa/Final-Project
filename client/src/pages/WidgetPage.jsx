@@ -50,6 +50,7 @@ const WidgetPage = () => {
 
   const handleTest = () => {
     setPlaying(true);
+    const donorName = user?.nickname || user?.username || "สตรีมเมอร์";
     if (activeTab === "alert") {
       playAlertSound({
         preset: config.alert?.soundPreset,
@@ -60,7 +61,7 @@ const WidgetPage = () => {
       if (config.alert?.ttsEnabled) {
         window.setTimeout(() => {
           speakAlertText({
-            text: "แฟนคลับเบอร์หนึ่ง โดเนท 500 บาท ข้อความ ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!",
+            text: `${donorName} โดเนท 500 บาท ข้อความ ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!`,
             voice: config.alert?.ttsVoice,
             volume: config.alert?.ttsVolume,
             speed: config.alert?.ttsSpeed,
@@ -153,6 +154,7 @@ const WidgetPage = () => {
                 type={activeTab}
                 config={config[activeTab]}
                 playing={playing}
+                username={user?.nickname || user?.username}
               />
               <BrowserSourceCard
                 type={activeTab}

@@ -15,8 +15,8 @@ const SAMPLE_DONORS = [
   { name: "StarGazer", amount: 100, avatar: "🌟" },
 ];
 
-const AlertPreview = ({ config, playing }) => {
-  const userName = "Shadow King";
+const AlertPreview = ({ config, playing, username }) => {
+  const userName = username || "Shadow King";
   const amount = 500;
 
   // Render template with customized colors
@@ -293,7 +293,7 @@ const MissionPreview = ({ config }) => {
   );
 };
 
-const WidgetPreview = ({ type, config, playing }) => {
+const WidgetPreview = ({ type, config, playing, username }) => {
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 p-5 backdrop-blur-md shadow-xl">
       <div className="flex items-center justify-between mb-3">
@@ -302,7 +302,9 @@ const WidgetPreview = ({ type, config, playing }) => {
         </p>
       </div>
       <div className="rounded-2xl border border-[#2e2648] bg-[#0c0a18] p-3 shadow-inner">
-        {type === "alert" && <AlertPreview config={config} playing={playing} />}
+        {type === "alert" && (
+          <AlertPreview config={config} playing={playing} username={username} />
+        )}
         {type === "goal" && <GoalPreview config={config} />}
         {type === "leaderboard" && <LeaderboardPreview config={config} />}
         {type === "mission" && <MissionPreview config={config} />}
