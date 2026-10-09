@@ -193,17 +193,16 @@ const SlipModal = ({
 
       {/* Lightbox / Enlarged Slip Modal */}
       {isZoomed && raw.slipImage && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="รูปสลิปขนาดใหญ่"
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setIsZoomed(false)}
-        >
-          <div
-            className="relative flex flex-col items-center max-w-[95vw] max-h-[95vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          {/* Backdrop button for closing on click */}
+          <button
+            type="button"
+            aria-label="ปิดรูปขนาดใหญ่"
+            onClick={() => setIsZoomed(false)}
+            className="absolute inset-0 h-full w-full bg-transparent cursor-default border-0"
+          />
+
+          <div className="relative z-10 flex flex-col items-center max-w-[95vw] max-h-[95vh]">
             {/* Top Toolbar */}
             <div className="w-full flex items-center justify-between pb-3 text-white">
               <div className="flex items-center gap-2 text-xs text-gray-300">

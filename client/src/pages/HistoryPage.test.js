@@ -299,27 +299,26 @@ describe("HistoryPage", () => {
     // Initial state: thumbnail image is rendered, zoom dialog is not
     const slipThumbnail = screen.getByAltText("สลิปหลักฐานการโอน");
     expect(slipThumbnail).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
 
     // Click to enlarge
     fireEvent.click(slipThumbnail);
 
     // Zoom modal should now be visible
-    expect(screen.getByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).toBeInTheDocument();
     expect(screen.getByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).toBeInTheDocument();
     expect(screen.getByText("สลิปโอนเงิน (ขนาดเต็ม)")).toBeInTheDocument();
 
     // Close via close button in zoom modal
     const closeZoomBtn = screen.getByRole("button", { name: "ปิดรูปภาพ" });
     fireEvent.click(closeZoomBtn);
-    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
 
     // Reopen and test close via Escape key
     fireEvent.click(slipThumbnail);
-    expect(screen.getByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).toBeInTheDocument();
+    expect(screen.getByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
     // Verify onClose was not called when closing zoom dialog
     expect(onClose).not.toHaveBeenCalled();
 
@@ -327,10 +326,10 @@ describe("HistoryPage", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
 
-    // Reopen and test close via clicking backdrop
+    // Reopen and test close via clicking backdrop button
     fireEvent.click(slipThumbnail);
-    const zoomDialog = screen.getByRole("dialog", { name: "รูปสลิปขนาดใหญ่" });
-    fireEvent.click(zoomDialog);
-    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+    const backdropBtn = screen.getByRole("button", { name: "ปิดรูปขนาดใหญ่" });
+    fireEvent.click(backdropBtn);
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
   });
 });
