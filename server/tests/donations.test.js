@@ -78,11 +78,12 @@ describe("Donation Route (POST /api/donations)", () => {
     expect(res.body.message).toBe("ไม่พบสตรีมเมอร์นี้");
   });
 
-  it("should return 400 if streamer is offline (isLive = false)", async () => {
+  it("should accept donation even if streamer isLive is false (always open)", async () => {
     jest.spyOn(User, "findOne").mockResolvedValueOnce({
       ...validStreamer,
       isLive: false,
     });
+    jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
 
     const res = await request(app)
       .post("/api/donations")
@@ -92,8 +93,9 @@ describe("Donation Route (POST /api/donations)", () => {
         paymentMethod: "promptpay",
       });
 
-    expect(res.status).toBe(400);
-    expect(res.body.message).toBe("ขณะนี้สตรีมเมอร์ปิดรับโดเนทชั่วคราว");
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe("สร้างรายการโดเนทสำเร็จ");
+    expect(res.body.data.status).toBe("pending");
   });
 
   it("should return 400 if amount is less than minAmount", async () => {
