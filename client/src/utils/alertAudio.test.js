@@ -157,19 +157,19 @@ describe("alertAudio Utility", () => {
       expect(mockUtteranceInstance.rate).toBe(1.25);
       expect(mockUtteranceInstance.volume).toBe(0.8);
       expect(mockUtteranceInstance.lang).toBe("th-TH");
-      expect(mockUtteranceInstance.pitch).toBe(1.15);
+      expect(mockUtteranceInstance.pitch).toBe(1.25);
     });
 
-    test("speaks text with english male voice preset", async () => {
+    test("speaks text with thai male voice preset", async () => {
       await speakAlertText({
-        text: "User donated $50",
-        voice: "en-male",
+        text: "ผู้สนับสนุน โดเนท 50 บาท",
+        voice: "th-male",
         volume: 100,
         speed: "1.0x",
       });
 
-      expect(mockUtteranceInstance.lang).toBe("en-US");
-      expect(mockUtteranceInstance.pitch).toBe(0.85);
+      expect(mockUtteranceInstance.lang).toBe("th-TH");
+      expect(mockUtteranceInstance.pitch).toBe(0.72);
     });
 
     test("falls back to Google TTS audio element when no Thai voice exists in browser", async () => {

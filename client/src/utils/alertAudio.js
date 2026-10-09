@@ -157,10 +157,12 @@ const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = ""
     }
 
     if (voicePreset.includes("male") && !voicePreset.includes("female")) {
-      utterance.pitch = 0.85;
+      utterance.pitch = 0.72; // เสียงทุ้มต่ำแบบผู้ชาย (สมชาย)
     } else {
-      utterance.pitch = 1.15;
+      utterance.pitch = 1.25; // เสียงหวานใสแบบผู้หญิง (สิริพร)
     }
+
+    utterance.rate = Math.max(0.5, Math.min(2.0, speed));
 
     window.speechSynthesis.speak(utterance);
   } catch {
@@ -234,6 +236,7 @@ export const speakAlertText = async ({
       `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`,
     ];
 
+    const isMale = voice === "th-male";
     for (const url of streamUrls) {
       try {
         const audio =
@@ -243,7 +246,19 @@ export const speakAlertText = async ({
         audio.referrerPolicy = "no-referrer";
         audio.src = url;
         audio.volume = normalizedVolume;
-        audio.playbackRate = Math.max(0.75, Math.min(1.5, parsedSpeed));
+
+        if (isMale) {
+          audio.preservesPitch = false;
+          audio.mozPreservesPitch = false;
+          audio.webkitPreservesPitch = false;
+          audio.playbackRate = Math.max(0.65, Math.min(1.3, parsedSpeed * 0.8));
+        } else {
+          audio.preservesPitch = true;
+          audio.mozPreservesPitch = true;
+          audio.webkitPreservesPitch = true;
+          audio.playbackRate = Math.max(0.75, Math.min(1.5, parsedSpeed * 1.02));
+        }
+
         activeTtsAudio = audio;
 
         const playPromise = audio.play();
