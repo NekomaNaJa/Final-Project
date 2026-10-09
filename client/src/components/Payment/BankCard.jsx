@@ -34,6 +34,14 @@ const BankCard = ({ initialData, onSave }) => {
     }
   }, [initialData]);
 
+  const handleToggle = () => {
+    const nextEnabled = !enabled;
+    setEnabled(nextEnabled);
+    if (onSave) {
+      onSave({ enabled: nextEnabled, bankName, accountNumber, accountName });
+    }
+  };
+
   const handleSave = (e) => {
     e?.preventDefault();
     if (onSave) {
@@ -74,7 +82,7 @@ const BankCard = ({ initialData, onSave }) => {
               type="button"
               role="switch"
               aria-checked={enabled}
-              onClick={() => setEnabled(!enabled)}
+              onClick={handleToggle}
               className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                 enabled ? "bg-purple-600 shadow-[0_0_12px_rgba(147,51,234,0.4)]" : "bg-[#2b2444]"
               }`}
