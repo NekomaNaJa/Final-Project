@@ -127,3 +127,4 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data).toBeNull();
   });
 });
+

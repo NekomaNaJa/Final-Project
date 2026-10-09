@@ -50,4 +50,10 @@ describe("App routing for new pages", () => {
       "ประวัติการรับเงินของ streamer_pro"
     );
   });
+
+  test("/overlay/alert/:token renders OverlayAlertPage", () => {
+    window.history.pushState({}, "", "/overlay/alert/streamer_token");
+    render(<App />);
+    expect(screen.getByTestId("overlay-alert-container")).toBeInTheDocument();
+  });
 });

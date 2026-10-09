@@ -13,6 +13,7 @@ import HowToUse from "./pages/HowToUse";
 import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 import Widget from "./pages/WidgetPage";
+import OverlayAlertPage from "./pages/OverlayAlertPage";
 
 const App = () => {
   return (
@@ -73,6 +74,8 @@ const App = () => {
         />
         <Route path="/donor/:username" element={<DonorPage />} />
         <Route path="/:username" element={<DonorPage />} />
+        <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        <Route path="/overlay/alert" element={<OverlayAlertPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

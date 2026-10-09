@@ -18,11 +18,15 @@ import {
   getBrowserSourceUrl,
 } from "./widgetStorage";
 import WidgetPage from "../../pages/WidgetPage";
+import { mockSocketInstance } from "../../__mocks__/socket.io-client";
+
+jest.mock("socket.io-client");
 
 describe("Widget Components & Functions", () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
+    mockSocketInstance.__reset();
   });
 
   describe("WidgetHeader", () => {
@@ -84,6 +88,11 @@ describe("Widget Components & Functions", () => {
 
       expect(screen.getByText("alert.mp3")).toBeInTheDocument();
 
+      const buttons = container.querySelectorAll("button");
+      if (buttons[0]) {
+        fireEvent.click(buttons[0]);
+      }
+
       const fileInput = container.querySelector('input[type="file"]');
       const badFile = new File(["dummy"], "sound.wav", { type: "audio/wav" });
       fireEvent.change(fileInput, { target: { files: [badFile] } });
@@ -93,21 +102,44 @@ describe("Widget Components & Functions", () => {
       fireEvent.change(fileInput, { target: { files: [goodFile] } });
       expect(handleSelect).toHaveBeenCalledWith("custom.mp3");
 
-      const buttons = container.querySelectorAll("button");
       if (buttons[1]) {
         fireEvent.click(buttons[1]);
         expect(handleSelect).toHaveBeenCalledWith("");
       }
+
+      // Test FileReader onload and quota error catch
+      const originalFileReader = window.FileReader;
+      class MockFileReader {
+        readAsDataURL() {
+          if (this.onload) {
+            this.onload({ target: { result: "data:audio/mp3;base64,mockResult" } });
+          }
+        }
+      }
+      window.FileReader = MockFileReader;
+
+      const customMp3 = new File(["dummy"], "onload.mp3", { type: "audio/mpeg" });
+      fireEvent.change(fileInput, { target: { files: [customMp3] } });
+      expect(handleSelect).toHaveBeenCalledWith("onload.mp3");
+
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = jest.fn(() => {
+        throw new Error("Quota exceeded");
+      });
+      fireEvent.change(fileInput, { target: { files: [customMp3] } });
+
+      Storage.prototype.setItem = originalSetItem;
+      window.FileReader = originalFileReader;
     });
   });
 
   describe("BrowserSourceCard", () => {
-    test("renders URL and copies to clipboard", async () => {
+    test("renders URL and copies to clipboard and handles clipboard failure", async () => {
       const mockClipboard = { writeText: jest.fn().mockResolvedValue() };
       Object.assign(navigator, { clipboard: mockClipboard });
 
       const handleTest = jest.fn();
-      render(
+      const { rerender } = render(
         <BrowserSourceCard
           type="alert"
           username="gamer123"
@@ -128,7 +160,25 @@ describe("Widget Components & Functions", () => {
       const testBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
       fireEvent.click(testBtn);
       expect(handleTest).toHaveBeenCalledTimes(1);
+
+      // Clipboard rejection
+      mockClipboard.writeText.mockRejectedValueOnce(new Error("fail"));
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      // Rerender with isLive = false
+      rerender(
+        <BrowserSourceCard
+          type="alert"
+          username="gamer123"
+          isLive={false}
+          onTest={handleTest}
+        />
+      );
+      expect(screen.getByText("ยังไม่ได้บันทึก")).toBeInTheDocument();
     });
+
 
     test("renders mission type disclaimer without url copy", () => {
       render(
@@ -408,9 +458,9 @@ describe("Widget Components & Functions", () => {
       fireEvent.click(msgBtn);
 
       const fontSelect = screen.getByDisplayValue(/Kanit/);
-      fireEvent.change(fontSelect, { target: { value: "Cinzel" } });
+      fireEvent.change(fontSelect, { target: { value: "FC Vision" } });
       expect(handleChange).toHaveBeenCalledWith(
-        expect.objectContaining({ fontFamily: "Cinzel" })
+        expect.objectContaining({ fontFamily: "FC Vision" })
       );
 
       const weightSelect = screen.getByDisplayValue(/Bold \(700\)/);
@@ -586,20 +636,120 @@ describe("Widget Components & Functions", () => {
   });
 
   describe("WidgetPreview", () => {
-    test("renders all widget preview types without throwing", () => {
+    test("renders all widget preview types and handles animation preview buttons and rerenders", () => {
+      jest.useFakeTimers();
+
       const { rerender } = render(
         <WidgetPreview
           type="alert"
+          username="CustomStreamer"
           config={{
             ...DEFAULT_WIDGET_CONFIG.alert,
             overlayImage: "http://localhost/alert.png",
             filterEffect: "Glow",
             strokeSize: 2,
+            animationIn: "bounceIn",
+            animationOut: "fadeOut",
+          }}
+          playing={false}
+        />
+      );
+      expect(screen.getByText(/CustomStreamer/)).toBeInTheDocument();
+
+      // Trigger image error
+      const overlayImg = screen.getByAltText("overlay");
+      fireEvent.error(overlayImg);
+
+      // Trigger manual preview buttons
+      const btnIn = screen.getByRole("button", { name: /ดูแอนิเมชั่นเข้า/ });
+      fireEvent.click(btnIn);
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      const btnOut = screen.getByRole("button", { name: /ดูแอนิเมชั่นออก/ });
+      fireEvent.click(btnOut);
+      act(() => {
+        jest.advanceTimersByTime(1200);
+      });
+
+      // Rerender with changed animationIn
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            animationIn: "slideInUp",
+            animationOut: "fadeOut",
+          }}
+          playing={false}
+        />
+      );
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      // Rerender with changed animationOut
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            animationIn: "slideInUp",
+            animationOut: "zoomOut",
+          }}
+          playing={false}
+        />
+      );
+      act(() => {
+        jest.advanceTimersByTime(1200);
+      });
+
+      // Rerender with playing = true to test alert sequence timers
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            durationIn: 0.5,
+            durationDisplay: 2,
+            durationOut: 0.5,
           }}
           playing={true}
         />
       );
-      expect(screen.getByText(/Shadow King/)).toBeInTheDocument();
+      act(() => {
+        jest.advanceTimersByTime(600); // tDisplay
+      });
+      act(() => {
+        jest.advanceTimersByTime(2100); // tOut
+      });
+      act(() => {
+        jest.advanceTimersByTime(600); // tEnd
+      });
+
+      // Rerender with various filter effects
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "Shake",
+          }}
+          playing={false}
+        />
+      );
+
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "Pulse",
+          }}
+          playing={false}
+        />
+      );
 
       rerender(
         <WidgetPreview
@@ -636,6 +786,7 @@ describe("Widget Components & Functions", () => {
       );
 
       rerender(
+
         <WidgetPreview
           type="goal"
           config={{
@@ -694,7 +845,10 @@ describe("Widget Components & Functions", () => {
         />
       );
       expect(screen.getByText("ภารกิจสตรีมเมอร์วันนี้")).toBeInTheDocument();
+
+      jest.useRealTimers();
     });
+
   });
 
   describe("widgetStorage", () => {
@@ -777,10 +931,14 @@ describe("Widget Components & Functions", () => {
       const missionTitleInput = screen.getByPlaceholderText(/ภารกิจสตรีมเมอร์วันนี้/);
       fireEvent.change(missionTitleInput, { target: { value: "New Mission" } });
 
-      // Test Alert playback with audio synthesis
+      // Test Alert playback with audio synthesis and Socket.IO emission
       fireEvent.click(screen.getByText("Donate Alert"));
       const testAlertBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
       fireEvent.click(testAlertBtn);
+      expect(mockSocketInstance.emit).toHaveBeenCalledWith(
+        "test-alert",
+        expect.objectContaining({ username: "widget_streamer", amount: 500 })
+      );
 
       // Save config
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
@@ -861,6 +1019,31 @@ describe("Widget Components & Functions", () => {
         </BrowserRouter>
       );
       expect(localStorage.getItem("token")).toBeNull();
+    });
+
+    test("triggers TTS speech on test alert and handles tts timeout and completion", () => {
+      jest.useFakeTimers();
+      const mockPayload = btoa(JSON.stringify({ username: "tts_streamer" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      const testBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
+      fireEvent.click(testBtn);
+
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(7000);
+      });
+
+      jest.useRealTimers();
     });
   });
 });

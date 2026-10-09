@@ -1,5 +1,14 @@
-import React from "react";
-import { Bell, Trophy, Target, Sparkles, Crown, Medal, Flag } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Bell,
+  Trophy,
+  Target,
+  Sparkles,
+  Crown,
+  Medal,
+  Flag,
+  Play,
+} from "lucide-react";
 import { GOAL_THEMES } from "./widgetStorage";
 
 const SAMPLE_DONORS = [
@@ -15,9 +24,156 @@ const SAMPLE_DONORS = [
   { name: "StarGazer", amount: 100, avatar: "🌟" },
 ];
 
-const AlertPreview = ({ config, playing }) => {
-  const userName = "Shadow King";
+const AlertPreview = ({ config, playing, username }) => {
+  const userName = username || "Shadow King";
   const amount = 500;
+
+  const [animState, setAnimState] = useState({
+    activeClass: "",
+    duration: 0.8,
+    label: "",
+  });
+  const [animKey, setAnimKey] = useState(0);
+
+  const prevAnimInRef = useRef(config.animationIn);
+  const prevAnimOutRef = useRef(config.animationOut);
+  const isFirstMount = useRef(true);
+
+  // Trigger preview when Animation In dropdown changes
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (playing) return;
+
+    if (config.animationIn !== prevAnimInRef.current) {
+      prevAnimInRef.current = config.animationIn;
+      const dur = Number(config.durationIn) || 0.8;
+      setAnimState({
+        activeClass: `anim-${config.animationIn || "bounceIn"}`,
+        duration: dur,
+        label: `แอนิเมชั่นเข้า (${config.animationIn})`,
+      });
+      setAnimKey((k) => k + 1);
+
+      const timer = window.setTimeout(() => {
+        setAnimState({ activeClass: "", duration: 0.8, label: "" });
+      }, dur * 1000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [config.animationIn, config.durationIn, playing]);
+
+  // Trigger preview when Animation Out dropdown changes
+  useEffect(() => {
+    if (isFirstMount.current) {
+      return;
+    }
+    if (playing) return;
+
+    if (config.animationOut !== prevAnimOutRef.current) {
+      prevAnimOutRef.current = config.animationOut;
+      const dur = Number(config.durationOut) || 0.8;
+      setAnimState({
+        activeClass: `anim-${config.animationOut || "fadeOut"}`,
+        duration: dur,
+        label: `แอนิเมชั่นออก (${config.animationOut})`,
+      });
+      setAnimKey((k) => k + 1);
+
+      const timer = window.setTimeout(() => {
+        setAnimState({ activeClass: "", duration: 0.8, label: "" });
+        setAnimKey((k) => k + 1);
+      }, (dur + 0.3) * 1000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [config.animationOut, config.durationOut, playing]);
+
+  // Full alert sequence when testing (playing = true)
+  useEffect(() => {
+    if (!playing) return;
+
+    const durIn = Number(config.durationIn) || 0.8;
+    const durDisplay = Number(config.durationDisplay) || 5;
+    const durOut = Number(config.durationOut) || 0.8;
+
+    // Step 1: Animation In
+    setAnimState({
+      activeClass: `anim-${config.animationIn || "bounceIn"}`,
+      duration: durIn,
+      label: `แอนิเมชั่นเข้า (${config.animationIn || "bounceIn"})`,
+    });
+    setAnimKey((k) => k + 1);
+
+    // Step 2: Displaying
+    const tDisplay = window.setTimeout(() => {
+      setAnimState({
+        activeClass: "",
+        duration: 0.8,
+        label: "กำลังแสดงผลบนจอ...",
+      });
+    }, durIn * 1000);
+
+    // Step 3: Animation Out
+    const tOut = window.setTimeout(() => {
+      setAnimState({
+        activeClass: `anim-${config.animationOut || "fadeOut"}`,
+        duration: durOut,
+        label: `แอนิเมชั่นออก (${config.animationOut || "fadeOut"})`,
+      });
+      setAnimKey((k) => k + 1);
+    }, (durIn + durDisplay) * 1000);
+
+    // Step 4: Reset
+    const tEnd = window.setTimeout(() => {
+      setAnimState({
+        activeClass: "",
+        duration: 0.8,
+        label: "",
+      });
+      setAnimKey((k) => k + 1);
+    }, (durIn + durDisplay + durOut) * 1000);
+
+    return () => {
+      window.clearTimeout(tDisplay);
+      window.clearTimeout(tOut);
+      window.clearTimeout(tEnd);
+    };
+  }, [
+    playing,
+    config.animationIn,
+    config.animationOut,
+    config.durationIn,
+    config.durationDisplay,
+    config.durationOut,
+  ]);
+
+  const handlePreviewIn = () => {
+    const dur = Number(config.durationIn) || 0.8;
+    setAnimState({
+      activeClass: `anim-${config.animationIn || "bounceIn"}`,
+      duration: dur,
+      label: `แอนิเมชั่นเข้า (${config.animationIn || "bounceIn"})`,
+    });
+    setAnimKey((k) => k + 1);
+    window.setTimeout(() => {
+      setAnimState({ activeClass: "", duration: 0.8, label: "" });
+    }, dur * 1000);
+  };
+
+  const handlePreviewOut = () => {
+    const dur = Number(config.durationOut) || 0.8;
+    setAnimState({
+      activeClass: `anim-${config.animationOut || "fadeOut"}`,
+      duration: dur,
+      label: `แอนิเมชั่นออก (${config.animationOut || "fadeOut"})`,
+    });
+    setAnimKey((k) => k + 1);
+    window.setTimeout(() => {
+      setAnimState({ activeClass: "", duration: 0.8, label: "" });
+      setAnimKey((k) => k + 1);
+    }, (dur + 0.3) * 1000);
+  };
 
   // Render template with customized colors
   const template = config.template || "{user} โดเนท {amount} บาท";
@@ -48,77 +204,116 @@ const AlertPreview = ({ config, playing }) => {
     : {};
 
   return (
-    <div className="flex h-full min-h-[260px] flex-col items-center justify-center text-center p-4 relative overflow-hidden">
-      {/* Alert Icon & Image */}
+    <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center p-4 relative overflow-hidden select-none">
       <div
-        className={`flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-500/40 bg-purple-600/20 text-purple-300 transition-all ${
-          playing ? "scale-110 shadow-[0_0_30px_rgba(168,85,247,0.8)]" : ""
-        }`}
+        key={animKey}
+        className={`flex flex-col items-center justify-center transition-all ${animState.activeClass}`}
+        style={
+          animState.activeClass
+            ? { animationDuration: `${animState.duration}s` }
+            : {}
+        }
       >
-        <Bell size={28} className={playing ? "animate-bounce" : ""} />
+        {/* Alert Icon & Image */}
+        {config.overlayImage ? (
+          <img
+            src={config.overlayImage}
+            alt="overlay"
+            className="mb-2 max-h-24 max-w-24 rounded-2xl object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="mb-2.5 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-500/50 bg-[#16122a]/95 text-purple-300 shadow-[0_0_30px_rgba(168,85,247,0.5)] backdrop-blur-md">
+            <Bell size={32} className={playing ? "animate-bounce" : ""} />
+          </div>
+        )}
+
+        {/* Styled Message Text with Real-time Typography */}
+        <div
+          className={`mt-2 ${getFilterClass()} transition-all`}
+          style={{
+            fontFamily: config.fontFamily || "Kanit",
+            fontWeight: config.fontWeight || "700",
+            fontSize: `${Math.min(32, Math.max(16, (config.fontSize || 28) * 0.75))}px`,
+            color: config.textColor || "#ffffff",
+            ...strokeStyle,
+          }}
+        >
+          <p className="leading-snug">
+            {parts.map((part, idx) => {
+              if (part === "{user}") {
+                return (
+                  <span
+                    key={idx}
+                    style={{ color: config.userNameColor || "#c084fc" }}
+                    className="font-bold"
+                  >
+                    {userName}
+                  </span>
+                );
+              }
+              if (part === "{amount}") {
+                return (
+                  <span
+                    key={idx}
+                    style={{ color: config.amountColor || "#fbbf24" }}
+                    className="font-bold"
+                  >
+                    {amount.toLocaleString()}
+                  </span>
+                );
+              }
+              return <span key={idx}>{part}</span>;
+            })}
+          </p>
+        </div>
+
+        {/* Shine Effect Overlay */}
+        {config.shineEffect && (
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-extrabold text-amber-300 drop-shadow-md">
+            <Sparkles size={12} className="animate-spin" />
+            <span>✨ DONATION ALERT ✨</span>
+            <Sparkles size={12} className="animate-spin" />
+          </div>
+        )}
+
+        {/* กรอบข้อความโดเนทจากผู้สนับสนุน (ตรงกับ Overlay จริง) */}
+        <div className="mt-3 max-w-[280px] rounded-xl border border-white/10 bg-[#0f0d1b]/95 px-4 py-2 text-xs font-medium text-white/95 shadow-xl backdrop-blur-md">
+          <p className="break-words leading-relaxed text-gray-200">
+            "ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!"
+          </p>
+        </div>
       </div>
 
-      {config.overlayImage && (
-        <img
-          src={config.overlayImage}
-          alt="overlay"
-          className="mt-3 h-20 w-20 rounded-xl object-contain shadow-lg"
-        />
-      )}
-
-      {/* Styled Message Text with Real-time Typography */}
-      <div
-        className={`mt-4 ${getFilterClass()} transition-all`}
-        style={{
-          fontFamily: config.fontFamily || "Kanit",
-          fontWeight: config.fontWeight || "700",
-          fontSize: `${Math.min(32, Math.max(16, (config.fontSize || 28) * 0.75))}px`,
-          color: config.textColor || "#ffffff",
-          ...strokeStyle,
-        }}
-      >
-        <p className="leading-snug">
-          {parts.map((part, idx) => {
-            if (part === "{user}") {
-              return (
-                <span
-                  key={idx}
-                  style={{ color: config.userNameColor || "#c084fc" }}
-                  className="font-bold"
-                >
-                  {userName}
-                </span>
-              );
-            }
-            if (part === "{amount}") {
-              return (
-                <span
-                  key={idx}
-                  style={{ color: config.amountColor || "#fbbf24" }}
-                  className="font-bold"
-                >
-                  {amount.toLocaleString()}
-                </span>
-              );
-            }
-            return <span key={idx}>{part}</span>;
-          })}
-        </p>
-      </div>
-
-      {/* Shine Effect Overlay */}
-      {config.shineEffect && (
-        <div className="mt-1 flex items-center gap-1 text-[11px] font-bold text-amber-300">
-          <Sparkles size={12} className="animate-spin" />
-          <span>Shine Effect Active</span>
+      {/* Animation Status / Indicator */}
+      {animState.label && (
+        <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-[10px] font-bold text-purple-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
+          {animState.label} · {animState.duration}s
         </div>
       )}
 
-      {/* Playing simulation indicator */}
-      {playing && (
-        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-bold text-emerald-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-          กำลังเล่นแอนิเมชั่น · {config.durationDisplay || 5} วินาที
+      {/* Quick Preview Buttons for Animation In / Out */}
+      {!playing && !animState.activeClass && (
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={handlePreviewIn}
+            className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[10px] font-semibold text-purple-300 hover:bg-purple-500/20 transition-all flex items-center gap-1"
+          >
+            <Play size={10} />
+            <span>ดูแอนิเมชั่นเข้า</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePreviewOut}
+            className="rounded-lg border border-pink-500/30 bg-pink-500/10 px-2.5 py-1 text-[10px] font-semibold text-pink-300 hover:bg-pink-500/20 transition-all flex items-center gap-1"
+          >
+            <Play size={10} />
+            <span>ดูแอนิเมชั่นออก</span>
+          </button>
         </div>
       )}
     </div>
@@ -280,7 +475,7 @@ const MissionPreview = ({ config }) => {
   );
 };
 
-const WidgetPreview = ({ type, config, playing }) => {
+const WidgetPreview = ({ type, config, playing, username }) => {
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 p-5 backdrop-blur-md shadow-xl">
       <div className="flex items-center justify-between mb-3">
@@ -289,7 +484,9 @@ const WidgetPreview = ({ type, config, playing }) => {
         </p>
       </div>
       <div className="rounded-2xl border border-[#2e2648] bg-[#0c0a18] p-3 shadow-inner">
-        {type === "alert" && <AlertPreview config={config} playing={playing} />}
+        {type === "alert" && (
+          <AlertPreview config={config} playing={playing} username={username} />
+        )}
         {type === "goal" && <GoalPreview config={config} />}
         {type === "leaderboard" && <LeaderboardPreview config={config} />}
         {type === "mission" && <MissionPreview config={config} />}

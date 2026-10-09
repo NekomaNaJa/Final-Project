@@ -93,6 +93,25 @@ describe("Donor Components", () => {
       expect(handleSubmit).not.toHaveBeenCalled();
     });
 
+    test("handles blur validation when amount is less than minAmount or NaN", () => {
+      render(
+        <DonorPromptPayForm
+          minAmount={30}
+          promptpayNumber="0812345678"
+        />
+      );
+
+      const amountInput = screen.getByPlaceholderText("ขั้นต่ำ 30 บาท");
+      fireEvent.change(amountInput, { target: { value: "5" } });
+      fireEvent.blur(amountInput);
+      expect(amountInput.value).toBe("30");
+
+      fireEvent.change(amountInput, { target: { value: "invalid" } });
+      fireEvent.blur(amountInput);
+      expect(amountInput.value).toBe("30");
+    });
+
+
     test("handles valid submission with slip in PromptPay form", () => {
       const handleSubmit = jest.fn();
       render(

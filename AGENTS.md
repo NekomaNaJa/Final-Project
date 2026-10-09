@@ -208,6 +208,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 | `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
 | `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ                    |
 | `/widget`                            | `WidgetPage`   | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Live Preview   |
+| `/overlay/alert/:token`              | `OverlayAlertPage` | สาธารณะ        | หน้า Browser Source สำหรับ OBS Studio (พื้นหลังใส, FIFO Queue, Realtime Alert) |
 | `/:username` หรือ `/donor/:username` | `DonorPage`    | สาธารณะ            | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน             |
 | `*`                                  | `NotFound`     | สาธารณะ            | หน้าแจ้งเตือน 404 Not Found เมื่อไม่พบเส้นทาง URL                           |
 
@@ -265,12 +266,19 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
   1. **Donate Alert**:
      - _พื้นฐาน_: ยอดขั้นต่ำที่แจ้งเตือน (บาท), อัปโหลดรูปภาพแสดงผล (JPG/PNG/GIF)
      - _เสียง & TTS_: เสียงแจ้งเตือน Presets (Mythic Horn, Dragon Roar, Ancient Bell, เสียง MP3 ของฉัน, ปิดเสียง), ตัวปรับระดับเสียง, TTS อ่านข้อความโดเนท (ไทย/อังกฤษ, ชาย/หญิง, ความเร็ว 0.5x–2.0x)
-     - _ข้อความ_: Message Template `{user} {amount}`, Shine Effect, ฟอนต์ (Kanit, Cinzel, FC Vision ฯลฯ), ขนาดตัวอักษร, Palette สี (ข้อความ, ชื่อ, จำนวนเงิน, สีขอบตัวอักษร), ขนาดขอบตัวอักษร
+     - _ข้อความ_: Message Template `{user} {amount}`, Shine Effect, ฟอนต์ (Kanit, FC Vision), ขนาดตัวอักษร, Palette สี (ข้อความ, ชื่อ, จำนวนเงิน, สีขอบตัวอักษร), ขนาดขอบตัวอักษร
      - _เอฟเฟกต์ & Tiers_: แอนิเมชั่นเข้า/ออก, เวลาแสดงผล, ฟิลเตอร์ (Glow, Pulse, Shake, Glitch ฯลฯ), ระบบแสดงผลตามช่วงยอดเงิน (Amount Tiers) ปรับเสียงและเอฟเฟกต์แยกตามยอดเงิน
   2. **Donate Goal**: ชื่อเป้าหมาย, ธีมสี (Mana, Crimson, Gold), ยอดเริ่มต้น/ยอดเป้าหมาย, กำหนดช่วงวันที่, หลอดความคืบหน้า Progress Bar เรืองแสง
   3. **Leaderboard**: ชื่อหัวข้อ, สวิตช์แสดงยอดเงิน, กำหนดช่วงเวลา, ปรับจำนวนอันดับ 1–10 (Stepper +/-)
   4. **Mission Donate**: จัดการช่องภารกิจสูงสุด 12 ช่อง (ชื่อภารกิจ + ราคา ฿) สำหรับนำไปแสดงผลบน Donor Page
 - **BrowserSourceCard**: แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, ปุ่มคัดลอก URL, และปุ่มทดสอบ Alert พร้อมจำลอง Web Audio API เสียงจริง
+- **OverlayAlertPage (`/overlay/alert/:token`)**:
+  - พื้นหลังโปร่งใส 100% สำหรับใส่ใน OBS Browser Source
+  - ระบบ **FIFO Alert Queue**: รองรับกรณีมีโดเนทเข้ามาพร้อมกันหรือต่อเนื่อง จัดการแสดงผลทีละรายการตามลำดับพร้อมพัก Cooldown 400ms ป้องกันเสียงและแอนิเมชั่นทับซ้อน
+  - กรองยอดเงินขั้นต่ำ (`minAmount`) อัตโนมัติ รายการที่ต่ำกว่าเกณฑ์จะไม่ถูกนำเข้าคิว
+  - Animation Lifecycle ครบ 3 เฟส: เข้า (`entering`) -> แสดงผล (`visible`) -> เลือนออก (`exiting`) -> ว่าง (`idle`)
+  - รองรับ Amount Tiers, Web Audio API Sound Presets & Custom MP3, และ Responsive Thai TTS
+  - ควบคุมการทดสอบผ่าน Footer Toolbar: ปุ่มทดสอบแจ้งเตือน, ปุ่มข้าม (`skipAlert`), ปุ่มล้างคิว (`clearQueue`) พร้อมตัวนับจำนวนคิวรอ
 
 #### 8) หน้าจัดการบัญชี (Account) — `/account`
 
@@ -426,11 +434,13 @@ client/src/
     - เพิ่มคอมโพเนนต์ `SlipModal` ให้สตรีมเมอร์กดดูสลิปขยายใหญ่และกดอนุมัติ/ปฏิเสธได้ทันที
     - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 107 Tests, Client 185 Tests ผ่าน 100%) และผ่าน SonarCloud Quality Gate
 
-- **Phase 7: Real-time Alert + Widget OBS (ขนาดใหญ่)**
-  - สร้าง `server/Models/Widget.js` (บันทึก Config และ Token สำหรับ Browser Source OBS)
-  - Socket.IO Real-time: เมื่ออนุมัติโดเนท ให้ emit `donation-alert` เข้าห้องสตรีมเมอร์
-  - พัฒนาหน้า Browser Source โหลด Config ด้วย Token แล้วแสดง Alert แบบ Real-time
-  - ปรับปรุง Leaderboard, Goal, Mission ให้อ่านจาก Donation Aggregation
+- **Phase 7: Real-time Alert + Widget OBS (กำลังดำเนินการ - เสร็จสิ้น Step 1-5)**
+  - **Step 1: Preset & Visual Upgrades**: ปรับขนาดและรายการฟอนต์ให้เหลือ Kanit และ FC Vision, รองรับ Dynamic Template TTS `{user}` และ `{amount}`, เพิ่มปุ่มทดสอบแอนิเมชันและพรีวิวทันทีเมื่อเปลี่ยนตัวเลือก
+  - **Step 2: Persistent Uploads**: แปลงไฟล์รูปภาพแสดงผล (JPG/PNG/GIF) เป็น Base64 Data URL ผ่าน `FileReader.readAsDataURL` แทน `blob:` URL ชั่วคราว ป้องกันรูปหายเมื่อรีเฟรชหน้าเว็บ
+  - **Step 3: Minimum Donation Sync**: ซิงค์ค่ายอดโดเนทขั้นต่ำ (`minAmount`) ระหว่างการตั้งค่าวิดเจ็ตและหน้ารับเงิน (`DonorPage`), ล็อกไม่ให้ผู้สนับสนุนกรอกยอดต่ำกว่าขั้นต่ำพร้อมระบบแก้ไขเลขอัตโนมัติเมื่อหลุดโฟกัส
+  - **Step 4: FIFO Alert Queue & Sound Sync**: ระบบคิวการแจ้งเตือนแบบ FIFO (`alertQueue`) บน `OverlayAlertPage` พร้อมคูลดาวน์ 400ms, กรองยอดเงินที่ต่ำกว่า `minAmount`, ปุ่มข้ามแจ้งเตือนและล้างคิว
+  - **Step 5: Real-time Socket.IO Integration**: เชื่อมต่อ `socket.io-client` ทั้งฝั่ง Client และ Server (`client/src/utils/socket.js`), จัดการห้องสตรีมเมอร์ (`join-stream`, `leave-stream`), รับอีเวนต์ `donation-alert` แบบเรียลไทม์บน OBS Browser Source, และปุ่มส่ง `test-alert` จากหน้า `WidgetPage` ไปแสดงผลบน OBS Studio ทันที
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 110 Tests, Client 223 Tests รวม 333 Tests ผ่าน 100%) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 
 - **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
   - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน

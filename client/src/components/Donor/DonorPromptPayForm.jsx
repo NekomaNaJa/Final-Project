@@ -12,17 +12,36 @@ const DonorPromptPayForm = ({
   const [slipFile, setSlipFile] = useState(null);
   const [qrUrl, setQrUrl] = useState("");
 
+  // Sync amount with minAmount whenever minAmount changes
+  useEffect(() => {
+    setAmount((prev) => {
+      if (minAmount > 0 && (Number(prev) < minAmount || !prev)) {
+        return minAmount;
+      }
+      return prev;
+    });
+  }, [minAmount]);
+
   // Update PromptPay QR code whenever amount or promptpayNumber changes
   useEffect(() => {
-    const validAmount = Number(amount) > 0 ? Number(amount) : minAmount || 1;
+    const validAmount = Number(amount) >= minAmount ? Number(amount) : minAmount || 1;
     const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "") || "0812345678";
     setQrUrl(`https://promptpay.io/${cleanNumber}/${validAmount}.png`);
   }, [amount, promptpayNumber, minAmount]);
+
+  const handleBlur = () => {
+    const num = Number(amount);
+    if (Number.isNaN(num) || num < minAmount) {
+      setAmount(minAmount);
+    }
+  };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (Number(amount) < minAmount) {
       alert(`จำนวนเงินขั้นต่ำคือ ${minAmount} บาท`);
+      setAmount(minAmount);
       return;
     }
     if (!slipFile) {
@@ -55,10 +74,16 @@ const DonorPromptPayForm = ({
           step="1"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
+          onBlur={handleBlur}
           placeholder={`ขั้นต่ำ ${minAmount} บาท`}
           required
           className="w-full rounded-2xl border border-[#2e2648] bg-[#110d22] px-6 py-4 text-base sm:text-lg font-extrabold text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all shadow-inner"
         />
+        {Number(amount) < minAmount && amount !== "" && (
+          <p className="text-xs font-semibold text-amber-400">
+            ⚠️ ยอดเงินต้องไม่ต่ำกว่า {minAmount} บาท
+          </p>
+        )}
       </div>
 
       {/* QR Code & Slip Upload Grid */}

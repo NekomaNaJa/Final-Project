@@ -6,3 +6,4 @@ const router = express.Router();
 router.get("/:username", getPublicStreamer);
 
 export default router;
+

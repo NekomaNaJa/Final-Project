@@ -84,6 +84,17 @@ const getInitialStreamerConfig = (username) => {
       };
     }
 
+    const savedWidgetConfig = localStorage.getItem("donix_widget_config");
+    if (savedWidgetConfig) {
+      const parsedWidget = JSON.parse(savedWidgetConfig);
+      if (parsedWidget?.alert?.minAmount !== undefined) {
+        const wMin = Number(parsedWidget.alert.minAmount);
+        if (wMin > 0) {
+          config.minAmount = wMin;
+        }
+      }
+    }
+
     return config;
   } catch {
     return defaultConfig;
@@ -172,6 +183,13 @@ const DonorPage = () => {
   const handleDonationSubmit = async (donationData) => {
     setIsSubmitting(true);
     setErrorFeedback(null);
+
+    const min = Number(streamerConfig.minAmount) || 1;
+    if (Number(donationData.amount) < min) {
+      setErrorFeedback(`จำนวนเงินต้องไม่ต่ำกว่า ${min} บาท`);
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const slipBase64 = await fileToBase64(donationData.slipFile);

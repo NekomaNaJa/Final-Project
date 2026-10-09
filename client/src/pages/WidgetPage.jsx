@@ -11,6 +11,8 @@ import MissionDonatePanel from "../components/Widget/MissionDonatePanel";
 import WidgetPreview from "../components/Widget/WidgetPreview";
 import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
 import { getWidgetConfig, saveWidgetConfig } from "../components/Widget/widgetStorage";
+import { playAlertSound, speakAlertText } from "../utils/alertAudio";
+import { emitTestAlert } from "../utils/socket";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -47,54 +49,50 @@ const WidgetPage = () => {
     setSavedConfig(config);
   };
 
-  const playSimulationSound = (preset) => {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (preset === "dragon-roar") {
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(160, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 1.2);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.2);
-      } else if (preset === "ancient-bell") {
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        gain.gain.setValueAtTime(0.4, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
-        osc.start();
-        osc.stop(ctx.currentTime + 2.0);
-      } else if (preset !== "none") {
-        // Mythic Horn
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(392.0, ctx.currentTime);
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime + 0.15);
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.35);
-        gain.gain.setValueAtTime(0.35, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.5);
-      }
-    } catch {
-      // Ignore audio synthesis errors on autoplay policy
-    }
-  };
-
   const handleTest = () => {
     setPlaying(true);
+    const donorName = user?.nickname || user?.username || "สตรีมเมอร์";
     if (activeTab === "alert") {
-      playSimulationSound(config.alert?.soundPreset);
+      // ส่ง Real-time Test Alert ไปยัง OBS Studio Browser Source
+      if (user?.username) {
+        emitTestAlert({
+          username: user.username,
+          streamerId: user._id || user.id,
+          donorName,
+          amount: 500,
+          message: "ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!",
+        });
+      }
+
+      playAlertSound({
+        preset: config.alert?.soundPreset,
+        volume: config.alert?.volume,
+        customSoundFile: config.alert?.customSoundFile,
+      });
+
+      if (config.alert?.ttsEnabled) {
+        const rawTpl = config.alert?.template || "{user} โดเนท {amount} บาท";
+        const parsedHeadline = rawTpl
+          .replaceAll("{user}", donorName)
+          .replaceAll("{amount}", "500");
+        const donorMsg = " ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!";
+
+        window.setTimeout(() => {
+          void speakAlertText({
+            text: `${parsedHeadline}${donorMsg}`,
+            voice: config.alert?.ttsVoice,
+            volume: config.alert?.ttsVolume,
+            speed: config.alert?.ttsSpeed,
+          });
+        }, 400);
+
+      }
     }
-    const duration = (config.alert?.durationDisplay || 5) * 1000;
-    window.setTimeout(() => setPlaying(false), Math.min(6000, duration));
+    const durIn = Number(config.alert?.durationIn) || 0.8;
+    const durDisplay = Number(config.alert?.durationDisplay) || 5;
+    const durOut = Number(config.alert?.durationOut) || 0.8;
+    const totalDuration = (durIn + durDisplay + durOut) * 1000;
+    window.setTimeout(() => setPlaying(false), totalDuration);
   };
 
   const isLive =
@@ -178,6 +176,7 @@ const WidgetPage = () => {
                 type={activeTab}
                 config={config[activeTab]}
                 playing={playing}
+                username={user?.nickname || user?.username}
               />
               <BrowserSourceCard
                 type={activeTab}

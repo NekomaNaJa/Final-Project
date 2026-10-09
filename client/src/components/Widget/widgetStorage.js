@@ -34,8 +34,6 @@ export const SOUND_PRESETS = [
 export const TTS_VOICES = [
   { id: "th-female", label: "Thai หญิง (สิริพร)" },
   { id: "th-male", label: "Thai ชาย (สมชาย)" },
-  { id: "en-female", label: "EN Female (Emma)" },
-  { id: "en-male", label: "EN Male (James)" },
 ];
 
 export const TTS_SPEEDS = ["0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "2.0x"];
@@ -43,11 +41,6 @@ export const TTS_SPEEDS = ["0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "2.0x"];
 export const FONT_OPTIONS = [
   { id: "Kanit", label: "Kanit (มาตรฐาน)" },
   { id: "FC Vision", label: "FC Vision" },
-  { id: "Cinzel", label: "Cinzel (แฟนตาซี)" },
-  { id: "Inter", label: "Inter (สากล)" },
-  { id: "Bai Jamjuree", label: "Bai Jamjuree" },
-  { id: "Anuphan", label: "Anuphan" },
-  { id: "Sarabun", label: "Sarabun" },
 ];
 
 export const FONT_WEIGHTS = [
