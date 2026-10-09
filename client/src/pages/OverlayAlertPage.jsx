@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Bell, Sparkles } from "lucide-react";
 import { DEFAULT_WIDGET_CONFIG, getWidgetConfig } from "../components/Widget/widgetStorage";
 import { API_URL } from "../utils/api";
+import { getSocket, joinStreamRoom, leaveStreamRoom } from "../utils/socket";
 import {
   playAlertSound,
   speakAlertText,
@@ -267,6 +268,28 @@ const OverlayAlertPage = () => {
       isProcessingRef.current = false;
     }
   }, [clearTimers, processAlert]);
+
+  // เชื่อมต่อ Socket.IO สำหรับรับการแจ้งเตือนแบบเรียลไทม์ (OBS Studio Browser Source)
+  useEffect(() => {
+    const streamRoom = token ? String(token).trim() : "guest";
+    const socket = getSocket();
+
+    // 1. เข้าร่วมห้องสตรีมเมอร์
+    joinStreamRoom(streamRoom);
+
+    // 2. ฟังอีเวนต์การแจ้งเตือนโดเนท
+    const handleDonationAlert = (alertData) => {
+      if (!alertData) return;
+      enqueueAlert(alertData);
+    };
+
+    socket.on("donation-alert", handleDonationAlert);
+
+    return () => {
+      socket.off("donation-alert", handleDonationAlert);
+      leaveStreamRoom(streamRoom);
+    };
+  }, [token, enqueueAlert]);
 
   // ถ้าเปิดในโหมด demo ให้ยิงการแจ้งเตือนตัวอย่างอัตโนมัติ 1 ครั้ง
   useEffect(() => {

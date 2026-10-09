@@ -151,7 +151,7 @@ export const createDonation = async (req, res, next) => {
 
     // 8. Real-time Notification ผ่าน Socket.IO (เตรียมสำหรับ Phase 7)
     if (req.io) {
-      req.io.to(`streamer_${streamer._id}`).emit("donation-alert", {
+      const alertPayload = {
         id: donation._id,
         donorName: donation.donorName,
         amount: donation.amount,
@@ -159,7 +159,14 @@ export const createDonation = async (req, res, next) => {
         paymentMethod: donation.paymentMethod,
         status: donation.status,
         createdAt: donation.createdAt,
-      });
+      };
+
+      req.io.to(`streamer_${streamer._id}`).emit("donation-alert", alertPayload);
+      req.io.to(String(streamer._id)).emit("donation-alert", alertPayload);
+      if (streamer.username) {
+        req.io.to(`streamer_${streamer.username}`).emit("donation-alert", alertPayload);
+        req.io.to(String(streamer.username)).emit("donation-alert", alertPayload);
+      }
     }
 
     return res.status(201).json({

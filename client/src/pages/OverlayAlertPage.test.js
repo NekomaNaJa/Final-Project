@@ -2,11 +2,20 @@ import React from "react";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import OverlayAlertPage from "./OverlayAlertPage";
+import { mockSocketInstance } from "../__mocks__/socket.io-client";
+
+jest.mock("socket.io-client");
 
 describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    mockSocketInstance.__reset();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({}),
+    });
   });
 
   afterEach(() => {
@@ -300,4 +309,78 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
 
     expect(screen.queryByTestId("alert-display-card")).not.toBeInTheDocument();
   });
+
+  test("connects to socket, joins stream room, and displays real-time donation-alert event", () => {
+    mockSocketInstance.__clearListeners();
+    mockSocketInstance.emit.mockClear();
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // Verify room joins
+    expect(mockSocketInstance.emit).toHaveBeenCalledWith("join-stream", "streamer_boss");
+
+    // Trigger incoming real-time donation alert via socket
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "น้องปลา",
+        amount: 250,
+        message: "สู้ๆ นะคะ สตรีมเมอร์คนโปรด",
+      });
+    });
+
+    // Alert should appear
+    const card = screen.getByTestId("alert-display-card");
+    expect(card).toBeInTheDocument();
+    expect(screen.getByText("น้องปลา")).toBeInTheDocument();
+    expect(screen.getByText("250")).toBeInTheDocument();
+    expect(screen.getByText(/"สู้ๆ นะคะ สตรีมเมอร์คนโปรด"/)).toBeInTheDocument();
+
+    // Cleanup on unmount
+    unmount();
+    expect(mockSocketInstance.off).toHaveBeenCalledWith("donation-alert", expect.any(Function));
+    expect(mockSocketInstance.emit).toHaveBeenCalledWith("leave-stream", "streamer_boss");
+  });
+
+  test("ignores incoming socket alert below minAmount threshold", () => {
+    mockSocketInstance.__clearListeners();
+
+    // Set widget storage config minAmount to 300
+    const currentStorage = JSON.parse(localStorage.getItem("donix_widget_config") || "{}");
+    localStorage.setItem(
+      "donix_widget_config",
+      JSON.stringify({
+        ...currentStorage,
+        alert: { ...(currentStorage.alert || {}), minAmount: 300 },
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // Incoming alert is 50 (< 300)
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้สนับสนุนเล็กน้อย",
+        amount: 50,
+        message: "นิดๆ หน่อยๆ ครับ",
+      });
+    });
+
+    expect(screen.queryByTestId("alert-display-card")).not.toBeInTheDocument();
+
+    // Clean up local storage
+    localStorage.removeItem("donix_widget_config");
+  });
 });
+

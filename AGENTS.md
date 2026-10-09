@@ -434,11 +434,13 @@ client/src/
     - เพิ่มคอมโพเนนต์ `SlipModal` ให้สตรีมเมอร์กดดูสลิปขยายใหญ่และกดอนุมัติ/ปฏิเสธได้ทันที
     - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 107 Tests, Client 185 Tests ผ่าน 100%) และผ่าน SonarCloud Quality Gate
 
-- **Phase 7: Real-time Alert + Widget OBS (ขนาดใหญ่)**
-  - สร้าง `server/Models/Widget.js` (บันทึก Config และ Token สำหรับ Browser Source OBS)
-  - Socket.IO Real-time: เมื่ออนุมัติโดเนท ให้ emit `donation-alert` เข้าห้องสตรีมเมอร์
-  - พัฒนาหน้า Browser Source โหลด Config ด้วย Token แล้วแสดง Alert แบบ Real-time
-  - ปรับปรุง Leaderboard, Goal, Mission ให้อ่านจาก Donation Aggregation
+- **Phase 7: Real-time Alert + Widget OBS (กำลังดำเนินการ - เสร็จสิ้น Step 1-5)**
+  - **Step 1: Preset & Visual Upgrades**: ปรับขนาดและรายการฟอนต์ให้เหลือ Kanit และ FC Vision, รองรับ Dynamic Template TTS `{user}` และ `{amount}`, เพิ่มปุ่มทดสอบแอนิเมชันและพรีวิวทันทีเมื่อเปลี่ยนตัวเลือก
+  - **Step 2: Persistent Uploads**: แปลงไฟล์รูปภาพแสดงผล (JPG/PNG/GIF) เป็น Base64 Data URL ผ่าน `FileReader.readAsDataURL` แทน `blob:` URL ชั่วคราว ป้องกันรูปหายเมื่อรีเฟรชหน้าเว็บ
+  - **Step 3: Minimum Donation Sync**: ซิงค์ค่ายอดโดเนทขั้นต่ำ (`minAmount`) ระหว่างการตั้งค่าวิดเจ็ตและหน้ารับเงิน (`DonorPage`), ล็อกไม่ให้ผู้สนับสนุนกรอกยอดต่ำกว่าขั้นต่ำพร้อมระบบแก้ไขเลขอัตโนมัติเมื่อหลุดโฟกัส
+  - **Step 4: FIFO Alert Queue & Sound Sync**: ระบบคิวการแจ้งเตือนแบบ FIFO (`alertQueue`) บน `OverlayAlertPage` พร้อมคูลดาวน์ 400ms, กรองยอดเงินที่ต่ำกว่า `minAmount`, ปุ่มข้ามแจ้งเตือนและล้างคิว
+  - **Step 5: Real-time Socket.IO Integration**: เชื่อมต่อ `socket.io-client` ทั้งฝั่ง Client และ Server (`client/src/utils/socket.js`), จัดการห้องสตรีมเมอร์ (`join-stream`, `leave-stream`), รับอีเวนต์ `donation-alert` แบบเรียลไทม์บน OBS Browser Source, และปุ่มส่ง `test-alert` จากหน้า `WidgetPage` ไปแสดงผลบน OBS Studio ทันที
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 110 Tests, Client 223 Tests รวม 333 Tests ผ่าน 100%) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 
 - **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
   - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน

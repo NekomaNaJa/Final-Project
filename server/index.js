@@ -22,7 +22,40 @@ io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
 
   socket.on("join-stream", (streamerId) => {
-    socket.join(streamerId);
+    if (typeof streamerId === "string" && streamerId.trim()) {
+      const cleanId = String(streamerId).trim();
+      socket.join(cleanId);
+      if (!cleanId.startsWith("streamer_")) {
+        socket.join(`streamer_${cleanId}`);
+      }
+    }
+  });
+
+  socket.on("leave-stream", (streamerId) => {
+    if (typeof streamerId === "string" && streamerId.trim()) {
+      const cleanId = String(streamerId).trim();
+      socket.leave(cleanId);
+      if (!cleanId.startsWith("streamer_")) {
+        socket.leave(`streamer_${cleanId}`);
+      }
+    }
+  });
+
+  socket.on("test-alert", (data) => {
+    const target = data?.streamerId || data?.username;
+    if (typeof target === "string" && target.trim()) {
+      const cleanTarget = String(target).trim();
+      const payload = {
+        donorName: data.donorName || "ผู้สนับสนุนใจดี (ทดสอบ)",
+        amount: Number(data.amount) || 100,
+        message: data.message || "นี่คือข้อความทดสอบระบบแจ้งเตือน Donix Alert",
+        isTest: true,
+      };
+      io.to(cleanTarget).emit("donation-alert", payload);
+      if (!cleanTarget.startsWith("streamer_")) {
+        io.to(`streamer_${cleanTarget}`).emit("donation-alert", payload);
+      }
+    }
   });
 
   socket.on("disconnect", () => {

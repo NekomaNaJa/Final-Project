@@ -1,0 +1,74 @@
+import socketIOClient, { io as namedIo } from "socket.io-client";
+import { API_URL } from "./api";
+
+const io = typeof namedIo === "function" ? namedIo : socketIOClient;
+
+/**
+ * Socket.IO Server Base URL (ตัด /api ท้ายสตริงออกเพื่อให้เชื่อมต่อไปยัง Socket Server ได้ถูกต้อง)
+ */
+export const SOCKET_URL =
+  process.env.REACT_APP_SOCKET_URL ||
+  (API_URL ? API_URL.replace(/\/api\/?$/, "") : "http://localhost:5000");
+
+let socketInstance = null;
+
+/**
+ * รับ instance ของ Socket.IO client (Singleton pattern)
+ */
+export const getSocket = (options = {}) => {
+  if (!socketInstance) {
+    socketInstance = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      ...options,
+    });
+  }
+  return socketInstance;
+};
+
+/**
+ * ตัดการเชื่อมต่อและคืนค่า Socket.IO client
+ */
+export const disconnectSocket = () => {
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
+  }
+};
+
+/**
+ * เข้าร่วมห้องสตรีมเมอร์เพื่อรับอีเวนต์เรียลไทม์ (OBS Overlay & Streamer Dashboard)
+ */
+export const joinStreamRoom = (room) => {
+  if (!room) return;
+  const s = getSocket();
+  const cleanRoom = String(room).trim();
+  s.emit("join-stream", cleanRoom);
+  if (!cleanRoom.startsWith("streamer_")) {
+    s.emit("join-stream", `streamer_${cleanRoom}`);
+  }
+};
+
+/**
+ * ออกจากห้องสตรีมเมอร์
+ */
+export const leaveStreamRoom = (room) => {
+  if (!room) return;
+  const s = getSocket();
+  const cleanRoom = String(room).trim();
+  s.emit("leave-stream", cleanRoom);
+  if (!cleanRoom.startsWith("streamer_")) {
+    s.emit("leave-stream", `streamer_${cleanRoom}`);
+  }
+};
+
+/**
+ * ส่งคำขอทดสอบแจ้งเตือน (Test Alert) แบบเรียลไทม์
+ */
+export const emitTestAlert = (payload = {}) => {
+  const s = getSocket();
+  s.emit("test-alert", payload);
+};

@@ -18,11 +18,15 @@ import {
   getBrowserSourceUrl,
 } from "./widgetStorage";
 import WidgetPage from "../../pages/WidgetPage";
+import { mockSocketInstance } from "../../__mocks__/socket.io-client";
+
+jest.mock("socket.io-client");
 
 describe("Widget Components & Functions", () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
+    mockSocketInstance.__reset();
   });
 
   describe("WidgetHeader", () => {
@@ -777,10 +781,14 @@ describe("Widget Components & Functions", () => {
       const missionTitleInput = screen.getByPlaceholderText(/ภารกิจสตรีมเมอร์วันนี้/);
       fireEvent.change(missionTitleInput, { target: { value: "New Mission" } });
 
-      // Test Alert playback with audio synthesis
+      // Test Alert playback with audio synthesis and Socket.IO emission
       fireEvent.click(screen.getByText("Donate Alert"));
       const testAlertBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
       fireEvent.click(testAlertBtn);
+      expect(mockSocketInstance.emit).toHaveBeenCalledWith(
+        "test-alert",
+        expect.objectContaining({ username: "widget_streamer", amount: 500 })
+      );
 
       // Save config
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });

@@ -12,6 +12,7 @@ import WidgetPreview from "../components/Widget/WidgetPreview";
 import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
 import { getWidgetConfig, saveWidgetConfig } from "../components/Widget/widgetStorage";
 import { playAlertSound, speakAlertText } from "../utils/alertAudio";
+import { emitTestAlert } from "../utils/socket";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -52,6 +53,17 @@ const WidgetPage = () => {
     setPlaying(true);
     const donorName = user?.nickname || user?.username || "สตรีมเมอร์";
     if (activeTab === "alert") {
+      // ส่ง Real-time Test Alert ไปยัง OBS Studio Browser Source
+      if (user?.username) {
+        emitTestAlert({
+          username: user.username,
+          streamerId: user._id || user.id,
+          donorName,
+          amount: 500,
+          message: "ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!",
+        });
+      }
+
       playAlertSound({
         preset: config.alert?.soundPreset,
         volume: config.alert?.volume,
