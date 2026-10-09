@@ -102,15 +102,7 @@ export const createDonation = async (req, res, next) => {
       });
     }
 
-    // 3. ตรวจสอบสถานะการเปิดรับเงิน (isLive)
-    if (!streamer.isLive) {
-      return res.status(400).json({
-        message: "ขณะนี้สตรีมเมอร์ปิดรับโดเนทชั่วคราว",
-        data: null,
-      });
-    }
-
-    // 4. ตรวจสอบยอดเงินขั้นต่ำ
+    // 3. ตรวจสอบยอดเงินขั้นต่ำ
     const minAmount =
       typeof streamer.donationPage?.minAmount === "number"
         ? streamer.donationPage.minAmount

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Sliders, X, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
-import DonorOfflineCard from "../components/Donor/DonorOfflineCard";
 import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
 import DonorPromptPayForm from "../components/Donor/DonorPromptPayForm";
 import DonorBankForm from "../components/Donor/DonorBankForm";
@@ -100,9 +99,6 @@ const DonorPage = () => {
     getInitialStreamerConfig(username)
   );
 
-  // Widget online state (true = Online, false = Offline)
-  const [isWidgetOnline, setIsWidgetOnline] = useState(true);
-
   // Active payment channel tab
   const [activeTab, setActiveTab] = useState("promptpay");
 
@@ -114,9 +110,6 @@ const DonorPage = () => {
   const [errorFeedback, setErrorFeedback] = useState(null);
   const [streamerNotFound, setStreamerNotFound] = useState(false);
 
-  // Interactive Test Controls Drawer
-  const [showTestControls, setShowTestControls] = useState(false);
-
   // Fetch updated public data from API when available
   useEffect(() => {
     let isMounted = true;
@@ -126,7 +119,6 @@ const DonorPage = () => {
         setStreamerNotFound(false);
         const publicData = await fetchPublicStreamer(username);
         if (publicData && isMounted) {
-          setIsWidgetOnline(Boolean(publicData.isLive));
           setStreamerConfig((prev) => ({
             ...prev,
             welcomeMessage:
@@ -239,84 +231,6 @@ const DonorPage = () => {
         />
       </div>
 
-      {/* Floating Demo / Test Switcher Button */}
-      <div className="fixed top-4 right-4 z-50">
-        <button
-          type="button"
-          onClick={() => setShowTestControls(!showTestControls)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-purple-500/40 bg-[#1e1738]/90 backdrop-blur-md text-xs font-semibold text-purple-200 hover:bg-purple-600 hover:text-white shadow-lg transition-all"
-        >
-          <Sliders size={13} />
-          <span>จำลองสถานะ ({isWidgetOnline ? "ออนไลน์" : "ออฟไลน์"})</span>
-        </button>
-
-        {/* Test Controls Modal / Dropdown */}
-        {showTestControls && (
-          <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-[#3b2d5f] bg-[#16112d] p-4 shadow-2xl space-y-3.5 text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-[#2e2648]">
-              <span className="font-bold text-white">ทดสอบสถานะหน้า Donor</span>
-              <button
-                type="button"
-                onClick={() => setShowTestControls(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Widget Status Toggle */}
-            <div className="flex items-center justify-between">
-              <span className="text-gray-300">สถานะ Widget:</span>
-              <button
-                type="button"
-                onClick={() => setIsWidgetOnline(!isWidgetOnline)}
-                className={`px-3 py-1 rounded-full font-bold text-[11px] transition-all ${
-                  isWidgetOnline
-                    ? "bg-red-600 text-white shadow-sm"
-                    : "bg-gray-700 text-gray-300"
-                }`}
-              >
-                {isWidgetOnline ? "🔴 LIVE (Online)" : "⚪ ออฟไลน์"}
-              </button>
-            </div>
-
-            {/* Payment Methods Enabled Toggles */}
-            <div className="space-y-1.5 pt-1 border-t border-[#2e2648]">
-              <p className="text-[10px] text-gray-400 font-semibold">เปิด/ปิดช่องทางรับเงิน:</p>
-              {["promptpay", "bank", "truemoney"].map((channel) => (
-                <div key={channel} className="flex items-center justify-between">
-                  <span className="capitalize text-gray-300">
-                    {channel === "promptpay" ? "พร้อมเพย์" : channel === "bank" ? "ธนาคาร" : "ทรูมันนี่"}:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setStreamerConfig((prev) => ({
-                        ...prev,
-                        payment: {
-                          ...prev.payment,
-                          [channel]: {
-                            ...prev.payment[channel],
-                            enabled: !prev.payment[channel]?.enabled,
-                          },
-                        },
-                      }))
-                    }
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                      streamerConfig.payment[channel]?.enabled
-                        ? "bg-emerald-600/80 text-white"
-                        : "bg-red-900/50 text-red-300 border border-red-500/30"
-                    }`}
-                  >
-                    {streamerConfig.payment[channel]?.enabled ? "เปิดอยู่" : "ปิดอยู่ (ไม่พร้อมใช้)"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Main Donor Card Container */}
       <div className="relative z-10 w-full max-w-[720px] space-y-5">
         {/* Streamer Not Found Alert */}
@@ -333,18 +247,13 @@ const DonorPage = () => {
         {/* Streamer Header */}
         <DonorHeader
           username={username}
-          isOnline={isWidgetOnline}
+          isOnline={true}
           welcomeMessage={streamerConfig.welcomeMessage}
           coverImage={streamerConfig.coverImage}
         />
 
-        {/* Dynamic Body: Offline vs Online */}
-        {!isWidgetOnline ? (
-          /* State 1: Offline Card */
-          <DonorOfflineCard />
-        ) : (
-          /* Online States */
-          <div className="w-full rounded-2xl border border-[#2b2542] bg-[#16122a]/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
+        {/* Donation Main Card */}
+        <div className="w-full rounded-2xl border border-[#2b2542] bg-[#16122a]/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
             {/* Error Feedback Banner */}
             {errorFeedback && (
               <div
@@ -436,7 +345,6 @@ const DonorPage = () => {
               />
             )}
           </div>
-        )}
       </div>
 
       {/* Donation Success Modal */}

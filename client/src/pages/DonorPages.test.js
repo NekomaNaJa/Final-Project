@@ -46,7 +46,16 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
   });
 
   describe("DonorPage", () => {
-    test("renders DonorPage and handles toggle test controls", () => {
+    test("renders DonorPage and displays disabled card when channel is not enabled in settings", () => {
+      localStorage.setItem(
+        "donix_payment_config",
+        JSON.stringify({
+          promptpay: { enabled: true, number: "0812345678" },
+          bank: { enabled: true, bankName: "SCB", accountNumber: "123", accountName: "Owner" },
+          truemoney: { enabled: false, phone: "" },
+        })
+      );
+
       render(
         <MemoryRouter initialEntries={["/donor/JohnDoe"]}>
           <Routes>
@@ -58,22 +67,23 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       expect(screen.getByText("JohnDoe")).toBeInTheDocument();
       expect(screen.getByText("donix.app/JohnDoe")).toBeInTheDocument();
 
-      // Click test controls drawer
-      const testControlsBtn = screen.getByRole("button", { name: /จำลองสถานะ/i });
-      fireEvent.click(testControlsBtn);
+      // Switch to truemoney tab (which is disabled)
+      fireEvent.click(screen.getByText("ทรูมันนี่"));
+      expect(screen.getByText("ไม่พร้อมให้บริการ")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "สตรีมเมอร์ไม่ได้เปิดใช้งานช่องทางการชำระเงินนี้ กรุณาเลือกช่องทางอื่น"
+        )
+      ).toBeInTheDocument();
 
-      expect(screen.getByText("ทดสอบสถานะหน้า Donor")).toBeInTheDocument();
-
-      // Toggle promptpay channel button in drawer
-      const toggleButtons = screen.getAllByRole("button", { name: /เปิดอยู่/i });
-      if (toggleButtons.length > 0) {
-        fireEvent.click(toggleButtons[0]);
-      }
-
-      // Toggle offline
-      const liveToggle = screen.getByText("🔴 LIVE (Online)");
-      fireEvent.click(liveToggle);
-      expect(screen.getByText("ขณะนี้ปิดรับโดเนทชั่วคราว")).toBeInTheDocument();
+      // Switch back to promptpay tab (which is enabled)
+      fireEvent.click(screen.getByText("พร้อมเพย์"));
+      expect(
+        screen.queryByText("ไม่พร้อมให้บริการ")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "ยืนยันการชำระเงิน" })
+      ).toBeInTheDocument();
     });
 
     test("loads configuration from localStorage and submits donation", async () => {
