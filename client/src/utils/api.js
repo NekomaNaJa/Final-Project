@@ -9,9 +9,11 @@ export const API = {
   usersDonationPage: `${API_URL}/users/donation-page`,
   changePassword: `${API_URL}/users/change-password`,
   publicStreamer: (username) => `${API_URL}/public/${encodeURIComponent(username)}`,
+  publicOverlay: (type, token) => `${API_URL}/public/overlay/${encodeURIComponent(type)}/${encodeURIComponent(token)}`,
   donations: `${API_URL}/donations`,
   donationsStats: `${API_URL}/donations/stats`,
   donationDetail: (id) => `${API_URL}/donations/${encodeURIComponent(id)}`,
+  widgetsMe: `${API_URL}/widgets/me`,
 };
 
 export const getAuthToken = () => {
@@ -199,3 +201,49 @@ export const createDonation = async (payload) => {
 };
 
 export const submitDonation = createDonation;
+
+/**
+ * ดึงข้อมูลการตั้งค่าวิดเจ็ตของผู้ใช้ปัจจุบัน (GET /api/widgets/me)
+ */
+export const fetchWidgetConfig = async () => {
+  const res = await fetch(API.widgetsMe, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถดึงข้อมูลวิดเจ็ตได้");
+  }
+  return json.data;
+};
+
+/**
+ * บันทึกการตั้งค่าวิดเจ็ตไปยังฐานข้อมูลจริง (PUT /api/widgets/me)
+ */
+export const saveWidgetSettings = async (payload) => {
+  const res = await fetch(API.widgetsMe, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถบันทึกการตั้งค่าวิดเจ็ตได้");
+  }
+  return json.data;
+};
+
+/**
+ * ดึงข้อมูลการแสดงผลวิดเจ็ตสำหรับ Browser Source (GET /api/public/overlay/:type/:token)
+ */
+export const fetchPublicOverlayConfig = async (type, token) => {
+  const res = await fetch(API.publicOverlay(type, token), {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถดึงข้อมูลการแสดงผลวิดเจ็ตได้");
+  }
+  return json.data;
+};

@@ -14,6 +14,8 @@ import HistoryPage from "./pages/HistoryPage";
 import NotFound from "./pages/NotFound";
 import Widget from "./pages/WidgetPage";
 import OverlayAlertPage from "./pages/OverlayAlertPage";
+import OverlayGoalPage from "./pages/OverlayGoalPage";
+import OverlayLeaderboardPage from "./pages/OverlayLeaderboardPage";
 
 const App = () => {
   return (
@@ -76,6 +78,16 @@ const App = () => {
         <Route path="/:username" element={<DonorPage />} />
         <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
         <Route path="/overlay/alert" element={<OverlayAlertPage />} />
+        <Route path="/overlay/goal/:token" element={<OverlayGoalPage />} />
+        <Route path="/overlay/goal" element={<OverlayGoalPage />} />
+        <Route
+          path="/overlay/leaderboard/:token"
+          element={<OverlayLeaderboardPage />}
+        />
+        <Route
+          path="/overlay/leaderboard"
+          element={<OverlayLeaderboardPage />}
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

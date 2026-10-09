@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import publicRoutes from "./routes/public.js";
 import donationRoutes from "./routes/donations.js";
+import widgetRoutes from "./routes/widgets.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
 
@@ -44,6 +45,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/donations", donationRoutes);
+app.use("/api/widgets", widgetRoutes);
 
 // Central error handler
 app.use(errorHandler);

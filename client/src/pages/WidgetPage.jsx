@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -10,7 +10,12 @@ import LeaderboardPanel from "../components/Widget/LeaderboardPanel";
 import MissionDonatePanel from "../components/Widget/MissionDonatePanel";
 import WidgetPreview from "../components/Widget/WidgetPreview";
 import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
-import { getWidgetConfig, saveWidgetConfig } from "../components/Widget/widgetStorage";
+import {
+  DEFAULT_WIDGET_CONFIG,
+  getWidgetConfig,
+  saveWidgetConfig,
+} from "../components/Widget/widgetStorage";
+import { fetchWidgetConfig, saveWidgetSettings } from "../utils/api";
 import { playAlertSound, speakAlertText } from "../utils/alertAudio";
 import { emitTestAlert } from "../utils/socket";
 
@@ -33,7 +38,42 @@ const WidgetPage = () => {
   const [activeTab, setActiveTab] = useState("alert");
   const [config, setConfig] = useState(getWidgetConfig);
   const [savedConfig, setSavedConfig] = useState(getWidgetConfig);
+  const [widgetToken, setWidgetToken] = useState("");
   const [playing, setPlaying] = useState(false);
+
+  // ดึงการตั้งค่าวิดเจ็ตจาก DB ผ่าน API เมื่อโหลดหน้าเว็บ
+  useEffect(() => {
+    let isMounted = true;
+    const loadConfig = async () => {
+      try {
+        const data = await fetchWidgetConfig();
+        if (isMounted && data) {
+          if (data.token) {
+            setWidgetToken(data.token);
+          }
+          const merged = {
+            alert: { ...DEFAULT_WIDGET_CONFIG.alert, ...data.alert },
+            goal: { ...DEFAULT_WIDGET_CONFIG.goal, ...data.goal },
+            leaderboard: {
+              ...DEFAULT_WIDGET_CONFIG.leaderboard,
+              ...data.leaderboard,
+            },
+            mission: { ...DEFAULT_WIDGET_CONFIG.mission, ...data.mission },
+          };
+          setConfig(merged);
+          setSavedConfig(merged);
+          saveWidgetConfig(merged);
+        }
+      } catch {
+        // หากเชื่อมต่อ API ไม่ได้ ให้ใช้ข้อมูลจาก localStorage ต่อไป
+      }
+    };
+
+    void loadConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -44,9 +84,19 @@ const WidgetPage = () => {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = () => {
-    saveWidgetConfig(config);
-    setSavedConfig(config);
+  const handleSave = async () => {
+    try {
+      const result = await saveWidgetSettings(config);
+      if (result?.token) {
+        setWidgetToken(result.token);
+      }
+      saveWidgetConfig(config);
+      setSavedConfig(config);
+    } catch {
+      // Fallback บันทึกลง localStorage หากเกิดข้อผิดพลาด
+      saveWidgetConfig(config);
+      setSavedConfig(config);
+    }
   };
 
   const handleTest = () => {
@@ -181,6 +231,7 @@ const WidgetPage = () => {
               <BrowserSourceCard
                 type={activeTab}
                 username={user?.username}
+                token={widgetToken}
                 isLive={isLive}
                 onTest={handleTest}
               />
