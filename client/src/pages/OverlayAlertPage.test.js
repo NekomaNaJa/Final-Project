@@ -382,5 +382,99 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     // Clean up local storage
     localStorage.removeItem("donix_widget_config");
   });
+
+  test("handles storage event listener for live config updates", () => {
+    render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "donix_widget_config",
+        })
+      );
+    });
+  });
+
+  test("handles visual filter effects (Shake, Glitch, Wave, Pulse) and image onError", () => {
+    localStorage.setItem(
+      "donix_widget_config",
+      JSON.stringify({
+        alert: {
+          overlayImage: "https://example.com/broken-alert.png",
+          filterEffect: "Shake",
+          shineEffect: true,
+          minAmount: 0,
+        },
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const card = screen.getByTestId("alert-display-card");
+    expect(card).toBeInTheDocument();
+
+    const img = screen.getByAltText("Alert Overlay");
+    expect(img).toBeInTheDocument();
+    fireEvent.error(img);
+
+    localStorage.removeItem("donix_widget_config");
+  });
+
+  test("handles filter effects Glitch and Wave", () => {
+    localStorage.setItem(
+      "donix_widget_config",
+      JSON.stringify({
+        alert: {
+          filterEffect: "Glitch",
+          minAmount: 0,
+        },
+      })
+    );
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
+    unmount();
+
+    localStorage.setItem(
+      "donix_widget_config",
+      JSON.stringify({
+        alert: {
+          filterEffect: "Wave",
+          minAmount: 0,
+        },
+      })
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
+    localStorage.removeItem("donix_widget_config");
+  });
 });
+
 

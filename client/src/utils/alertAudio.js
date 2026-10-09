@@ -2,7 +2,6 @@
  * โมดูลจัดการระบบเสียงแจ้งเตือน (Sound Presets / Custom Audio)
  * และระบบอ่านออกเสียงอัตโนมัติ (Text-to-Speech) สำหรับ OBS Overlay Alert
  */
-import { API_URL } from "./api";
 
 let activeTtsAudio = null;
 let cachedVoices = [];
@@ -162,9 +161,8 @@ const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = ""
       utterance.pitch = 1.25; // เสียงหวานใสแบบผู้หญิง (สิริพร)
     }
 
-    utterance.rate = Math.max(0.5, Math.min(2.0, speed));
-
     window.speechSynthesis.speak(utterance);
+
   } catch {
     // ป้องกันข้อผิดพลาด
   }
@@ -228,53 +226,37 @@ export const speakAlertText = async ({
     return;
   }
 
-  // 3. หากเป็นภาษาไทย แต่เครื่องไม่มี Voice ภาษาไทย ให้ลองเล่นผ่าน Donix Backend หรือ Google TTS Stream
+  // 3. หากเป็นภาษาไทย แต่เครื่องไม่มี Voice ภาษาไทย ให้เล่นผ่าน Google TTS HTTPS Stream
   if (isThai) {
-    const streamUrls = [
-      `${API_URL}/public/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=th`,
-      `http://localhost:5000/api/public/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=th`,
-      `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`,
-    ];
-
+    const streamUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`;
     const isMale = voice === "th-male";
-    for (const url of streamUrls) {
-      try {
-        const audio =
-          typeof document !== "undefined"
-            ? document.createElement("audio")
-            : new Audio(url);
-        audio.referrerPolicy = "no-referrer";
-        audio.src = url;
-        audio.volume = normalizedVolume;
 
-        if (isMale) {
-          audio.preservesPitch = false;
-          audio.mozPreservesPitch = false;
-          audio.webkitPreservesPitch = false;
-          audio.playbackRate = Math.max(0.65, Math.min(1.3, parsedSpeed * 0.8));
-        } else {
-          audio.preservesPitch = true;
-          audio.mozPreservesPitch = true;
-          audio.webkitPreservesPitch = true;
-          audio.playbackRate = Math.max(0.75, Math.min(1.5, parsedSpeed * 1.02));
-        }
+    try {
+      const audio =
+        typeof document !== "undefined"
+          ? document.createElement("audio")
+          : new Audio(streamUrl);
+      audio.referrerPolicy = "no-referrer";
+      audio.src = streamUrl;
+      audio.volume = normalizedVolume;
 
-        activeTtsAudio = audio;
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          const played = await playPromise
-            .then(() => true)
-            .catch(() => false);
-          if (played) return;
-        }
-      } catch {
-        // หาก URL แรกไม่สำเร็จ ให้ลอง URL ถัดไป
+      if ("preservesPitch" in audio) {
+        audio.preservesPitch = !isMale;
       }
+      audio.playbackRate = isMale
+        ? Math.max(0.65, Math.min(1.3, parsedSpeed * 0.8))
+        : Math.max(0.75, Math.min(1.5, parsedSpeed * 1.02));
+
+      activeTtsAudio = audio;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        await playPromise.catch(() => {});
+      }
+    } catch {
+      // หากเล่นเสียงไม่สำเร็จ ให้ข้ามไป
     }
 
-    // หากไม่สามารถเล่นเสียงไทยได้ในเครื่องนี้ ให้หยุดทันที
-    // "ห้าม" Fallback ไปใช้เสียงภาษาอังกฤษอย่าง David มาอ่านภาษาไทยเด็ดขาด
     return;
   }
 

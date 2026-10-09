@@ -99,12 +99,38 @@ describe("DonatePage Components & Page", () => {
         file,
         expect.stringMatching(/^(data:image|blob:)/)
       );
+    });
+
+    test("handles removing an existing preview image", () => {
+      const handleSelect = jest.fn();
+      const { container } = render(
+        <ImageUploadBox
+          label="รูปภาพหน้าปก"
+          previewUrl="data:image/png;base64,existing"
+          onImageSelect={handleSelect}
+        />
+      );
 
       const removeBtn = container.querySelector('button[title="ลบรูปภาพ"]');
-      if (removeBtn) {
-        fireEvent.click(removeBtn);
-        expect(handleSelect).toHaveBeenCalledWith(null, null);
-      }
+      expect(removeBtn).toBeInTheDocument();
+      fireEvent.click(removeBtn);
+      expect(handleSelect).toHaveBeenCalledWith(null, null);
+    });
+
+    test("handles image onError fallback", () => {
+      const handleSelect = jest.fn();
+      const { container } = render(
+        <ImageUploadBox
+          label="รูปภาพหน้าปก"
+          previewUrl="https://invalid-url.com/broken.png"
+          onImageSelect={handleSelect}
+        />
+      );
+
+      const img = container.querySelector("img");
+      expect(img).toBeInTheDocument();
+      fireEvent.error(img);
+      expect(handleSelect).toHaveBeenCalledWith(null, null);
     });
 
     test("handles drag, dragover, dragleave and drop events", () => {
@@ -124,6 +150,9 @@ describe("DonatePage Components & Page", () => {
         dataTransfer: { files: [file] },
       });
       expect(handleSelect).toHaveBeenCalled();
+
+      // Click to open file dialog
+      fireEvent.click(dropZone);
     });
 
     test("rejects invalid file type with alert", () => {
@@ -136,6 +165,21 @@ describe("DonatePage Components & Page", () => {
 
       expect(window.alert).toHaveBeenCalledWith(
         "รองรับเฉพาะไฟล์รูปภาพประเภท jpg, png, gif เท่านั้น"
+      );
+    });
+
+    test("rejects file larger than 3MB with alert", () => {
+      window.alert = jest.fn();
+      const { container } = render(<ImageUploadBox label="ทดสอบ" />);
+
+      const input = container.querySelector('input[type="file"]');
+      const largeFile = new File(["a".repeat(100)], "huge.png", { type: "image/png" });
+      Object.defineProperty(largeFile, "size", { value: 4 * 1024 * 1024 });
+
+      fireEvent.change(input, { target: { files: [largeFile] } });
+
+      expect(window.alert).toHaveBeenCalledWith(
+        "ขนาดไฟล์รูปภาพต้องไม่เกิน 3 MB เพื่อการแสดงผลที่รวดเร็ว"
       );
     });
   });

@@ -172,6 +172,30 @@ describe("alertAudio Utility", () => {
       expect(mockUtteranceInstance.pitch).toBe(0.72);
     });
 
+    test("speaks text with english voice preset", async () => {
+      await speakAlertText({
+        text: "John Doe donated 100 USD",
+        voice: "en-female",
+        volume: 70,
+        speed: "1.0x",
+      });
+
+      expect(mockUtteranceInstance.lang).toBe("en-US");
+      expect(mockUtteranceInstance.pitch).toBe(1.25);
+    });
+
+    test("speaks text with english male voice preset", async () => {
+      await speakAlertText({
+        text: "John Doe donated 100 USD",
+        voice: "en-male",
+        volume: 70,
+        speed: "1.0x",
+      });
+
+      expect(mockUtteranceInstance.lang).toBe("en-US");
+      expect(mockUtteranceInstance.pitch).toBe(0.72);
+    });
+
     test("falls back to Google TTS audio element when no Thai voice exists in browser", async () => {
       window.speechSynthesis.getVoices = jest.fn(() => [
         { lang: "en-US", name: "English Only" },
@@ -189,6 +213,23 @@ describe("alertAudio Utility", () => {
       expect(playSpy).toHaveBeenCalled();
     });
 
+    test("falls back to Google TTS audio element with male pitch adjustment", async () => {
+      window.speechSynthesis.getVoices = jest.fn(() => [
+        { lang: "en-US", name: "English Only" },
+      ]);
+
+      const playSpy = jest.spyOn(window.HTMLMediaElement.prototype, "play");
+
+      await speakAlertText({
+        text: "แฟนคลับเบอร์หนึ่ง โดเนท 500 บาท",
+        voice: "th-male",
+        volume: 85,
+        speed: 1.2,
+      });
+
+      expect(playSpy).toHaveBeenCalled();
+    });
+
     test("handles missing text or missing speechSynthesis gracefully", async () => {
       await speakAlertText({ text: "" });
       expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
@@ -199,9 +240,47 @@ describe("alertAudio Utility", () => {
   });
 
   describe("stopAllAlertAudio", () => {
-    test("cancels active speech synthesis", () => {
+    test("cancels active speech synthesis and pauses active audio element", async () => {
+      // Trigger audio fallback to set activeTtsAudio
+      window.speechSynthesis.getVoices = jest.fn(() => []);
+      await speakAlertText({
+        text: "สวัสดีครับ",
+        voice: "th-female",
+      });
+
       stopAllAlertAudio();
       expect(window.speechSynthesis.cancel).toHaveBeenCalled();
     });
   });
+
+  describe("custom audio mapping and storage", () => {
+    test("plays custom sound from window._donixCustomAudioMap or localStorage", () => {
+      window._donixCustomAudioMap = {
+        "custom-key-1": "data:audio/mp3;base64,mapData",
+      };
+
+      playAlertSound({
+        preset: "custom",
+        volume: 50,
+        customSoundFile: "custom-key-1",
+      });
+
+      expect(window.Audio).toHaveBeenCalledWith("data:audio/mp3;base64,mapData");
+      delete window._donixCustomAudioMap;
+    });
+
+    test("plays custom sound from localStorage when map is not present", () => {
+      const getItemSpy = jest.spyOn(Storage.prototype, "getItem").mockReturnValueOnce("data:audio/mp3;base64,storageData");
+
+      playAlertSound({
+        preset: "custom",
+        volume: 50,
+        customSoundFile: "storage-key",
+      });
+
+      expect(window.Audio).toHaveBeenCalledWith("data:audio/mp3;base64,storageData");
+      getItemSpy.mockRestore();
+    });
+  });
 });
+

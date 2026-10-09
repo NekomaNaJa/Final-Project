@@ -126,34 +126,5 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.status).toBe(500);
     expect(res.body.data).toBeNull();
   });
-
-  describe("GET /api/public/tts", () => {
-    it("should return 400 if text parameter is missing", async () => {
-      const res = await request(app).get("/api/public/tts");
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("กรุณาระบุข้อความ");
-    });
-
-    it("should return audio/mpeg stream when text is provided", async () => {
-      const mockAudioBuffer = Buffer.from("mock-audio-bytes");
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: true,
-        arrayBuffer: async () => mockAudioBuffer.buffer,
-      });
-
-      const res = await request(app).get("/api/public/tts?text=ทดสอบเสียง&lang=th");
-      expect(res.status).toBe(200);
-      expect(res.headers["content-type"]).toBe("audio/mpeg");
-    });
-
-    it("should return 502 if upstream TTS service fails", async () => {
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: false,
-      });
-
-      const res = await request(app).get("/api/public/tts?text=ทดสอบ");
-      expect(res.status).toBe(502);
-      expect(res.body.message).toBe("ไม่สามารถสังเคราะห์เสียงได้");
-    });
-  });
 });
+

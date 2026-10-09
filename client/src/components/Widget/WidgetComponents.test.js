@@ -590,20 +590,120 @@ describe("Widget Components & Functions", () => {
   });
 
   describe("WidgetPreview", () => {
-    test("renders all widget preview types without throwing", () => {
+    test("renders all widget preview types and handles animation preview buttons and rerenders", () => {
+      jest.useFakeTimers();
+
       const { rerender } = render(
         <WidgetPreview
           type="alert"
+          username="CustomStreamer"
           config={{
             ...DEFAULT_WIDGET_CONFIG.alert,
             overlayImage: "http://localhost/alert.png",
             filterEffect: "Glow",
             strokeSize: 2,
+            animationIn: "bounceIn",
+            animationOut: "fadeOut",
+          }}
+          playing={false}
+        />
+      );
+      expect(screen.getByText(/CustomStreamer/)).toBeInTheDocument();
+
+      // Trigger image error
+      const overlayImg = screen.getByAltText("overlay");
+      fireEvent.error(overlayImg);
+
+      // Trigger manual preview buttons
+      const btnIn = screen.getByRole("button", { name: /ดูแอนิเมชั่นเข้า/ });
+      fireEvent.click(btnIn);
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      const btnOut = screen.getByRole("button", { name: /ดูแอนิเมชั่นออก/ });
+      fireEvent.click(btnOut);
+      act(() => {
+        jest.advanceTimersByTime(1200);
+      });
+
+      // Rerender with changed animationIn
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            animationIn: "slideInUp",
+            animationOut: "fadeOut",
+          }}
+          playing={false}
+        />
+      );
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      // Rerender with changed animationOut
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            animationIn: "slideInUp",
+            animationOut: "zoomOut",
+          }}
+          playing={false}
+        />
+      );
+      act(() => {
+        jest.advanceTimersByTime(1200);
+      });
+
+      // Rerender with playing = true to test alert sequence timers
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            durationIn: 0.5,
+            durationDisplay: 2,
+            durationOut: 0.5,
           }}
           playing={true}
         />
       );
-      expect(screen.getByText(/Shadow King/)).toBeInTheDocument();
+      act(() => {
+        jest.advanceTimersByTime(600); // tDisplay
+      });
+      act(() => {
+        jest.advanceTimersByTime(2100); // tOut
+      });
+      act(() => {
+        jest.advanceTimersByTime(600); // tEnd
+      });
+
+      // Rerender with various filter effects
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "Shake",
+          }}
+          playing={false}
+        />
+      );
+
+      rerender(
+        <WidgetPreview
+          type="alert"
+          config={{
+            ...DEFAULT_WIDGET_CONFIG.alert,
+            filterEffect: "Pulse",
+          }}
+          playing={false}
+        />
+      );
 
       rerender(
         <WidgetPreview
@@ -640,6 +740,7 @@ describe("Widget Components & Functions", () => {
       );
 
       rerender(
+
         <WidgetPreview
           type="goal"
           config={{
@@ -698,7 +799,10 @@ describe("Widget Components & Functions", () => {
         />
       );
       expect(screen.getByText("ภารกิจสตรีมเมอร์วันนี้")).toBeInTheDocument();
+
+      jest.useRealTimers();
     });
+
   });
 
   describe("widgetStorage", () => {

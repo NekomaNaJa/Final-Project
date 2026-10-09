@@ -124,11 +124,14 @@ const ImageUploadBox = ({ id, label, onImageSelect, previewUrl: initialPreview =
             </div>
             <button
               type="button"
+              title="ลบรูปภาพ"
+              aria-label="ลบรูปภาพ"
               onClick={handleRemove}
               className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/70 text-white hover:bg-red-600 flex items-center justify-center transition-colors"
             >
               <X size={13} />
             </button>
+
           </div>
         ) : (
           <>
