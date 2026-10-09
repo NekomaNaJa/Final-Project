@@ -3,6 +3,11 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Bell, Sparkles } from "lucide-react";
 import { DEFAULT_WIDGET_CONFIG } from "../components/Widget/widgetStorage";
 import { API_URL } from "../utils/api";
+import {
+  playAlertSound,
+  speakAlertText,
+  stopAllAlertAudio,
+} from "../utils/alertAudio";
 
 const SAMPLE_ALERTS = [
   {
@@ -36,6 +41,7 @@ const OverlayAlertPage = () => {
   const clearTimers = useCallback(() => {
     activeTimersRef.current.forEach((t) => window.clearTimeout(t));
     activeTimersRef.current = [];
+    stopAllAlertAudio();
   }, []);
 
   // ทำให้พื้นหลังของเอกสารโปร่งใสสำหรับ OBS Studio Browser Source
@@ -50,6 +56,7 @@ const OverlayAlertPage = () => {
       document.body.style.backgroundColor = originalBodyBg;
       document.documentElement.style.backgroundColor = originalHtmlBg;
       clearTimers();
+      stopAllAlertAudio();
     };
   }, [clearTimers]);
 
@@ -79,7 +86,7 @@ const OverlayAlertPage = () => {
     };
   }, [token]);
 
-  // ฟังก์ชันจำลองการแสดงแจ้งเตือนพร้อม Animation Lifecycle
+  // ฟังก์ชันจำลองการแสดงแจ้งเตือนพร้อม Animation Lifecycle และเสียง/TTS
   const triggerAlert = useCallback(
     (alertData, customConfig = null) => {
       clearTimers();
@@ -87,6 +94,42 @@ const OverlayAlertPage = () => {
 
       setCurrentAlert(alertData);
       setStage("entering");
+
+      // 1. เล่นเสียงแจ้งเตือน (Preset Sound, Amount Tier Sound, หรือ Custom File)
+      let soundPreset = activeCfg.soundPreset || "mythic-horn";
+      const amount = Number(alertData?.amount) || 0;
+      if (activeCfg.useAmountTiers && Array.isArray(activeCfg.amountTiers)) {
+        const matchedTier = activeCfg.amountTiers.find(
+          (t) => amount >= Number(t.min) && amount <= Number(t.max)
+        );
+        if (matchedTier?.sound) {
+          soundPreset = matchedTier.sound;
+        }
+      }
+
+      playAlertSound({
+        preset: soundPreset,
+        volume: activeCfg.volume,
+        customSoundFile: activeCfg.customSoundFile,
+      });
+
+      // 2. อ่านออกเสียงข้อความด้วย TTS (Text-to-Speech)
+      let ttsTimer = null;
+      if (activeCfg.ttsEnabled) {
+        const donor = alertData?.donorName || "ผู้สนับสนุน";
+        const donationAmount = alertData?.amount || 0;
+        const msg = alertData?.message ? `: ${alertData.message}` : "";
+        const ttsText = `${donor} โดเนท ${donationAmount} บาท ${msg}`;
+
+        ttsTimer = window.setTimeout(() => {
+          speakAlertText({
+            text: ttsText,
+            voice: activeCfg.ttsVoice,
+            volume: activeCfg.ttsVolume,
+            speed: activeCfg.ttsSpeed,
+          });
+        }, 500);
+      }
 
       const durInMs = Math.max(100, (activeCfg.durationIn || 0.8) * 1000);
       const durDisplayMs = Math.max(500, (activeCfg.durationDisplay || 5) * 1000);
@@ -108,7 +151,7 @@ const OverlayAlertPage = () => {
         setCurrentAlert(null);
       }, durInMs + durDisplayMs + durOutMs);
 
-      activeTimersRef.current = [t1, t2, t3];
+      activeTimersRef.current = [t1, t2, t3, ...(ttsTimer ? [ttsTimer] : [])];
     },
     [clearTimers, config]
   );

@@ -11,6 +11,7 @@ import MissionDonatePanel from "../components/Widget/MissionDonatePanel";
 import WidgetPreview from "../components/Widget/WidgetPreview";
 import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
 import { getWidgetConfig, saveWidgetConfig } from "../components/Widget/widgetStorage";
+import { playAlertSound } from "../utils/alertAudio";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -47,51 +48,14 @@ const WidgetPage = () => {
     setSavedConfig(config);
   };
 
-  const playSimulationSound = (preset) => {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (preset === "dragon-roar") {
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(160, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 1.2);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.2);
-      } else if (preset === "ancient-bell") {
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        gain.gain.setValueAtTime(0.4, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.0);
-        osc.start();
-        osc.stop(ctx.currentTime + 2.0);
-      } else if (preset !== "none") {
-        // Mythic Horn
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(392.0, ctx.currentTime);
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime + 0.15);
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.35);
-        gain.gain.setValueAtTime(0.35, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.5);
-      }
-    } catch {
-      // Ignore audio synthesis errors on autoplay policy
-    }
-  };
-
   const handleTest = () => {
     setPlaying(true);
     if (activeTab === "alert") {
-      playSimulationSound(config.alert?.soundPreset);
+      playAlertSound({
+        preset: config.alert?.soundPreset,
+        volume: config.alert?.volume,
+        customSoundFile: config.alert?.customSoundFile,
+      });
     }
     const duration = (config.alert?.durationDisplay || 5) * 1000;
     window.setTimeout(() => setPlaying(false), Math.min(6000, duration));

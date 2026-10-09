@@ -145,4 +145,51 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
     expect(screen.getByText("ผู้สนับสนุนใจดี")).toBeInTheDocument();
   });
+
+  test("triggers sound and text-to-speech with cleanup on unmount", () => {
+    const mockAudioContext = jest.fn(() => ({
+      currentTime: 0,
+      destination: {},
+      createOscillator: jest.fn(() => ({
+        connect: jest.fn(),
+        setValueAtTime: jest.fn(),
+        exponentialRampToValueAtTime: jest.fn(),
+        start: jest.fn(),
+        stop: jest.fn(),
+        frequency: { setValueAtTime: jest.fn() },
+      })),
+      createGain: jest.fn(() => ({
+        connect: jest.fn(),
+        gain: { setValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() },
+      })),
+    }));
+
+    window.AudioContext = mockAudioContext;
+    window.speechSynthesis = {
+      speak: jest.fn(),
+      cancel: jest.fn(),
+      getVoices: jest.fn(() => []),
+    };
+    global.SpeechSynthesisUtterance = jest.fn().mockImplementation((text) => ({ text }));
+
+    const { unmount } = render(
+      <MemoryRouter initialEntries={["/overlay/alert?demo=1"]}>
+        <Routes>
+          <Route path="/overlay/alert" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(mockAudioContext).toHaveBeenCalled();
+
+    // Advance 500ms to trigger TTS
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalled();
+
+    unmount();
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled();
+  });
 });
