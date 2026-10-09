@@ -275,4 +275,61 @@ describe("HistoryPage", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  test("allows clicking slip image to enlarge and close via button, backdrop, and Escape", () => {
+    const onClose = jest.fn();
+    const mockDonation = {
+      _id: "don-zoom-01",
+      donorName: "Big Donor",
+      amount: 1000,
+      slipImage: "https://example.com/large-slip.jpg",
+      status: "pending",
+    };
+
+    render(
+      <SlipModal
+        isOpen={true}
+        donation={mockDonation}
+        onClose={onClose}
+        onApprove={jest.fn()}
+        onReject={jest.fn()}
+      />
+    );
+
+    // Initial state: thumbnail image is rendered, zoom dialog is not
+    const slipThumbnail = screen.getByAltText("สลิปหลักฐานการโอน");
+    expect(slipThumbnail).toBeInTheDocument();
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
+
+    // Click to enlarge
+    fireEvent.click(slipThumbnail);
+
+    // Zoom modal should now be visible
+    expect(screen.getByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).toBeInTheDocument();
+    expect(screen.getByText("สลิปโอนเงิน (ขนาดเต็ม)")).toBeInTheDocument();
+
+    // Close via close button in zoom modal
+    const closeZoomBtn = screen.getByRole("button", { name: "ปิดรูปภาพ" });
+    fireEvent.click(closeZoomBtn);
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
+
+    // Reopen and test close via Escape key
+    fireEvent.click(slipThumbnail);
+    expect(screen.getByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
+    // Verify onClose was not called when closing zoom dialog
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Escape again when not zoomed should call onClose
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+
+    // Reopen and test close via clicking backdrop button
+    fireEvent.click(slipThumbnail);
+    const backdropBtn = screen.getByRole("button", { name: "ปิดรูปขนาดใหญ่" });
+    fireEvent.click(backdropBtn);
+    expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
+  });
 });
