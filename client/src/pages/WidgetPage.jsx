@@ -78,13 +78,14 @@ const WidgetPage = () => {
         const donorMsg = " ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!";
 
         window.setTimeout(() => {
-          speakAlertText({
+          void speakAlertText({
             text: `${parsedHeadline}${donorMsg}`,
             voice: config.alert?.ttsVoice,
             volume: config.alert?.ttsVolume,
             speed: config.alert?.ttsSpeed,
           });
         }, 400);
+
       }
     }
     const durIn = Number(config.alert?.durationIn) || 0.8;

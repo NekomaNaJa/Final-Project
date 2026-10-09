@@ -88,6 +88,11 @@ describe("Widget Components & Functions", () => {
 
       expect(screen.getByText("alert.mp3")).toBeInTheDocument();
 
+      const buttons = container.querySelectorAll("button");
+      if (buttons[0]) {
+        fireEvent.click(buttons[0]);
+      }
+
       const fileInput = container.querySelector('input[type="file"]');
       const badFile = new File(["dummy"], "sound.wav", { type: "audio/wav" });
       fireEvent.change(fileInput, { target: { files: [badFile] } });
@@ -97,7 +102,6 @@ describe("Widget Components & Functions", () => {
       fireEvent.change(fileInput, { target: { files: [goodFile] } });
       expect(handleSelect).toHaveBeenCalledWith("custom.mp3");
 
-      const buttons = container.querySelectorAll("button");
       if (buttons[1]) {
         fireEvent.click(buttons[1]);
         expect(handleSelect).toHaveBeenCalledWith("");
@@ -106,12 +110,12 @@ describe("Widget Components & Functions", () => {
   });
 
   describe("BrowserSourceCard", () => {
-    test("renders URL and copies to clipboard", async () => {
+    test("renders URL and copies to clipboard and handles clipboard failure", async () => {
       const mockClipboard = { writeText: jest.fn().mockResolvedValue() };
       Object.assign(navigator, { clipboard: mockClipboard });
 
       const handleTest = jest.fn();
-      render(
+      const { rerender } = render(
         <BrowserSourceCard
           type="alert"
           username="gamer123"
@@ -132,7 +136,25 @@ describe("Widget Components & Functions", () => {
       const testBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
       fireEvent.click(testBtn);
       expect(handleTest).toHaveBeenCalledTimes(1);
+
+      // Clipboard rejection
+      mockClipboard.writeText.mockRejectedValueOnce(new Error("fail"));
+      await act(async () => {
+        fireEvent.click(copyBtn);
+      });
+
+      // Rerender with isLive = false
+      rerender(
+        <BrowserSourceCard
+          type="alert"
+          username="gamer123"
+          isLive={false}
+          onTest={handleTest}
+        />
+      );
+      expect(screen.getByText("ยังไม่ได้บันทึก")).toBeInTheDocument();
     });
+
 
     test("renders mission type disclaimer without url copy", () => {
       render(

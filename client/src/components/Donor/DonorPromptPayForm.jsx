@@ -31,10 +31,11 @@ const DonorPromptPayForm = ({
 
   const handleBlur = () => {
     const num = Number(amount);
-    if (isNaN(num) || num < minAmount) {
+    if (Number.isNaN(num) || num < minAmount) {
       setAmount(minAmount);
     }
   };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -58,41 +58,30 @@ export const getAvailableVoices = () => {
 };
 
 /**
- * เล่นเสียงแจ้งเตือนตาม Preset หรือไฟล์เสียงแบบกำหนดเอง (Custom)
- * @param {Object} options
- * @param {string} options.preset - 'mythic-horn' | 'dragon-roar' | 'ancient-bell' | 'custom' | 'none'
- * @param {number} [options.volume=80] - ระดับเสียง 0 - 100
- * @param {string} [options.customSoundFile] - Base64 หรือ URL ของไฟล์เสียง
+ * เล่นไฟล์เสียง Custom ที่อัปโหลด
  */
-export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoundFile = null }) => {
-  if (preset === "none") return;
-
-  const normalizedVolume = Math.max(0, Math.min(100, Number(volume) || 80)) / 100;
-
-  // กรณีเลือกเล่นไฟล์เสียง Custom ที่สตรีมเมอร์อัปโหลด
-  if (preset === "custom") {
-    if (customSoundFile) {
-      try {
-        const cached =
-          (typeof window !== "undefined" && window._donixCustomAudioMap?.[customSoundFile]) ||
-          (typeof localStorage !== "undefined" && localStorage.getItem("donix_audio_" + customSoundFile)) ||
-          customSoundFile;
-        const audio = new Audio(cached);
-        audio.volume = normalizedVolume;
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            // จัดการกรณี Browser Autoplay Policy ป้องกันไม่ให้แครช
-          });
-        }
-      } catch {
-        // หากไฟล์เสียง custom ผิดพลาด จะไม่ขัดจังหวะระบบ
-      }
+const playCustomSound = (customSoundFile, normalizedVolume) => {
+  if (!customSoundFile) return;
+  try {
+    const cached =
+      (typeof window !== "undefined" && window._donixCustomAudioMap?.[customSoundFile]) ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("donix_audio_" + customSoundFile)) ||
+      customSoundFile;
+    const audio = new Audio(cached);
+    audio.volume = normalizedVolume;
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {});
     }
-    return;
+  } catch {
+    // หากไฟล์เสียง custom ผิดพลาด จะไม่ขัดจังหวะระบบ
   }
+};
 
-  // จำลองเสียง Presets ผ่าน Web Audio API (ความเข้ากันได้สูง ไม่ต้องโหลดไฟล์ MP3 ภายนอก)
+/**
+ * จำลองเสียง Synth ผ่าน Web Audio API
+ */
+const playSynthPreset = (preset, normalizedVolume) => {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
@@ -138,6 +127,27 @@ export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoun
 };
 
 /**
+ * เล่นเสียงแจ้งเตือนตาม Preset หรือไฟล์เสียงแบบกำหนดเอง (Custom)
+ * @param {Object} options
+ * @param {string} options.preset - 'mythic-horn' | 'dragon-roar' | 'ancient-bell' | 'custom' | 'none'
+ * @param {number} [options.volume=80] - ระดับเสียง 0 - 100
+ * @param {string} [options.customSoundFile] - Base64 หรือ URL ของไฟล์เสียง
+ */
+export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoundFile = null }) => {
+  if (preset === "none") return;
+
+  const normalizedVolume = Math.max(0, Math.min(100, Number(volume) || 80)) / 100;
+
+  if (preset === "custom") {
+    playCustomSound(customSoundFile, normalizedVolume);
+    return;
+  }
+
+  playSynthPreset(preset, normalizedVolume);
+};
+
+
+/**
  * ผู้ช่วยสังเคราะห์เสียงผ่าน Web Speech API
  */
 const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = "") => {
@@ -169,11 +179,57 @@ const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = ""
 };
 
 /**
+ * ค้นหา Voice ในเบราว์เซอร์ที่ตรงกับภาษา
+ */
+const findMatchingVoice = (availableVoices, isThai) => {
+  if (isThai) {
+    return availableVoices.find(
+      (v) =>
+        v.lang?.toLowerCase().includes("th") ||
+        v.name?.toLowerCase().includes("thai") ||
+        v.name?.includes("ไทย")
+    );
+  }
+  return availableVoices.find((v) => v.lang?.toLowerCase().includes("en"));
+};
+
+/**
+ * สตรีมเสียงสังเคราะห์ผ่าน Google TTS HTTPS
+ */
+const streamGoogleTts = async (cleanText, isMale, normalizedVolume, parsedSpeed) => {
+  const streamUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`;
+  try {
+    const audio =
+      typeof document !== "undefined"
+        ? document.createElement("audio")
+        : new Audio(streamUrl);
+    audio.referrerPolicy = "no-referrer";
+    audio.src = streamUrl;
+    audio.volume = normalizedVolume;
+
+    if ("preservesPitch" in audio) {
+      audio.preservesPitch = !isMale;
+    }
+    audio.playbackRate = isMale
+      ? Math.max(0.65, Math.min(1.3, parsedSpeed * 0.8))
+      : Math.max(0.75, Math.min(1.5, parsedSpeed * 1.02));
+
+    activeTtsAudio = audio;
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      await playPromise.catch(() => {});
+    }
+  } catch {
+    // หากเล่นเสียงไม่สำเร็จ ให้ข้ามไป
+  }
+};
+
+/**
  * อ่านออกเสียงข้อความแจ้งเตือนด้วย Text-to-Speech (TTS)
  * ลำดับการทำงาน:
- * 1. ดึงเสียงสังเคราะห์ผ่าน Backend Endpoint (/api/public/tts) เพื่อเสียงไทยที่ชัดเจน 100%
- * 2. หรือสตรีมผ่าน Google TTS Direct (พร้อม no-referrer)
- * 3. หรือ Web Speech API เฉพาะกรณีที่มี Voice ภาษาไทยจริง (ห้ามใช้ Voice ภาษาอังกฤษอย่าง David มาอ่านภาษาไทย)
+ * 1. ดึงเสียงสังเคราะห์ผ่าน Web Speech API เฉพาะกรณีที่มี Voice ภาษาไทยจริง
+ * 2. หรือสตรีมผ่าน Google TTS HTTPS Direct (พร้อม no-referrer)
  *
  * @param {Object} options
  * @param {string} options.text - ข้อความที่ต้องการอ่าน
@@ -196,24 +252,14 @@ export const speakAlertText = async ({
 
   const cleanText = text.replace(/["'*:;]/g, " ").trim();
   const normalizedVolume = Math.max(0, Math.min(100, Number(volume) || 80)) / 100;
-  const parsedSpeed = typeof speed === "number" ? speed : parseFloat(String(speed).replace("x", "")) || 1.0;
+  const parsedSpeed = typeof speed === "number" ? speed : Number.parseFloat(String(speed).replace("x", "")) || 1.0;
   const isThai = voice.startsWith("th");
 
-  // 1. ตรวจสอบว่าในเบราว์เซอร์มีเสียงสังเคราะห์ภาษาไทยแท้ๆ หรือไม่
+  // 1. ตรวจสอบว่าในเบราว์เซอร์มีเสียงสังเคราะห์ที่ตรงกับภาษาหรือไม่
   const availableVoices = await getAvailableVoices();
-  let matchedVoice = null;
-  if (isThai) {
-    matchedVoice = availableVoices.find(
-      (v) =>
-        v.lang?.toLowerCase().includes("th") ||
-        v.name?.toLowerCase().includes("thai") ||
-        v.name?.includes("ไทย")
-    );
-  } else {
-    matchedVoice = availableVoices.find((v) => v.lang?.toLowerCase().includes("en"));
-  }
+  const matchedVoice = findMatchingVoice(availableVoices, isThai);
 
-  // 2. หากพบ Voice ภาษาไทยในเบราว์เซอร์ (เช่น Google ภาษาไทย ใน Chrome) ให้ใช้ Web Speech API ได้เลย
+  // 2. หากพบ Voice ในเบราว์เซอร์ ให้ใช้ Web Speech API ได้เลย
   if (matchedVoice) {
     fallbackWebSpeech(
       cleanText,
@@ -226,43 +272,16 @@ export const speakAlertText = async ({
     return;
   }
 
-  // 3. หากเป็นภาษาไทย แต่เครื่องไม่มี Voice ภาษาไทย ให้เล่นผ่าน Google TTS HTTPS Stream
+  // 3. หากเป็นภาษาไทยแต่เครื่องไม่มี Voice ภาษาไทย ให้เล่นผ่าน Google TTS HTTPS Stream
   if (isThai) {
-    const streamUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`;
-    const isMale = voice === "th-male";
-
-    try {
-      const audio =
-        typeof document !== "undefined"
-          ? document.createElement("audio")
-          : new Audio(streamUrl);
-      audio.referrerPolicy = "no-referrer";
-      audio.src = streamUrl;
-      audio.volume = normalizedVolume;
-
-      if ("preservesPitch" in audio) {
-        audio.preservesPitch = !isMale;
-      }
-      audio.playbackRate = isMale
-        ? Math.max(0.65, Math.min(1.3, parsedSpeed * 0.8))
-        : Math.max(0.75, Math.min(1.5, parsedSpeed * 1.02));
-
-      activeTtsAudio = audio;
-
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        await playPromise.catch(() => {});
-      }
-    } catch {
-      // หากเล่นเสียงไม่สำเร็จ ให้ข้ามไป
-    }
-
+    await streamGoogleTts(cleanText, voice === "th-male", normalizedVolume, parsedSpeed);
     return;
   }
 
   // 4. กรณีเลือกเสียงภาษาอังกฤษ (en-female / en-male)
   fallbackWebSpeech(cleanText, "en-US", normalizedVolume, parsedSpeed, matchedVoice, voice);
 };
+
 
 /**
  * หยุดเสียงแจ้งเตือนและเสียงพูดทั้งหมด

@@ -28,6 +28,16 @@ const SAMPLE_ALERTS = [
   },
 ];
 
+const getSecureRandomIndex = (max) => {
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    return Number(array[0] % max);
+  }
+  return 0;
+};
+
+
 const OverlayAlertPage = () => {
   const { token } = useParams();
   const [searchParams] = useSearchParams();
@@ -113,8 +123,9 @@ const OverlayAlertPage = () => {
       }
     };
 
-    fetchOverlayConfig();
+    void fetchOverlayConfig();
     return () => {
+
       isMounted = false;
     };
   }, [token]);
@@ -158,13 +169,14 @@ const OverlayAlertPage = () => {
       const ttsText = `${parsedHeadline}${msg}`;
 
       ttsTimer = window.setTimeout(() => {
-        speakAlertText({
+        void speakAlertText({
           text: ttsText,
           voice: activeCfg.ttsVoice,
           volume: activeCfg.ttsVolume,
           speed: activeCfg.ttsSpeed,
         });
       }, 500);
+
     }
 
     const durInMs = Math.max(100, (activeCfg.durationIn || 0.8) * 1000);
@@ -358,8 +370,12 @@ const OverlayAlertPage = () => {
   // ตัดคำใน Template ({user}, {amount})
   const templateParts = useMemo(() => {
     const tpl = config.template || "{user} โดเนท {amount} บาท";
-    return tpl.split(/(\{user\}|\{amount\})/g);
+    return tpl.split(/(\{user\}|\{amount\})/g).map((part, index) => ({
+      partId: `tpl-part-${index}-${part.slice(0, 4)}`,
+      part,
+    }));
   }, [config.template]);
+
 
   // ขอบตัวหนังสือ (Text Stroke)
   const strokeStyle = useMemo(() => {
@@ -414,11 +430,11 @@ const OverlayAlertPage = () => {
             }}
           >
             <p className="leading-snug">
-              {templateParts.map((part, idx) => {
+              {templateParts.map(({ partId, part }) => {
                 if (part === "{user}") {
                   return (
                     <span
-                      key={idx}
+                      key={partId}
                       style={{ color: config.userNameColor || "#c084fc" }}
                       className="font-bold"
                     >
@@ -429,7 +445,7 @@ const OverlayAlertPage = () => {
                 if (part === "{amount}") {
                   return (
                     <span
-                      key={idx}
+                      key={partId}
                       style={{ color: config.amountColor || "#fbbf24" }}
                       className="font-bold"
                     >
@@ -437,9 +453,10 @@ const OverlayAlertPage = () => {
                     </span>
                   );
                 }
-                return <span key={idx}>{part}</span>;
+                return <span key={partId}>{part}</span>;
               })}
             </p>
+
           </div>
 
           {/* เอฟเฟกต์ประกาย (Shine Effect) */}
@@ -474,9 +491,10 @@ const OverlayAlertPage = () => {
         <button
           type="button"
           onClick={() => {
-            const randomIndex = Math.floor(Math.random() * SAMPLE_ALERTS.length);
+            const randomIndex = getSecureRandomIndex(SAMPLE_ALERTS.length);
             enqueueAlert(SAMPLE_ALERTS[randomIndex]);
           }}
+
           className="rounded-lg bg-purple-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-purple-500 active:scale-95 transition-all cursor-pointer shadow-sm"
         >
           ทดสอบแจ้งเตือน
