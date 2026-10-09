@@ -47,72 +47,85 @@ const AlertPreview = ({ config, playing }) => {
       }
     : {};
 
+  const animationClass = playing
+    ? `anim-${config.animationIn || "bounceIn"}`
+    : "";
+
   return (
-    <div className="flex h-full min-h-[260px] flex-col items-center justify-center text-center p-4 relative overflow-hidden">
-      {/* Alert Icon & Image */}
+    <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center p-4 relative overflow-hidden select-none">
       <div
-        className={`flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-500/40 bg-purple-600/20 text-purple-300 transition-all ${
-          playing ? "scale-110 shadow-[0_0_30px_rgba(168,85,247,0.8)]" : ""
-        }`}
+        className={`flex flex-col items-center justify-center transition-all ${animationClass}`}
+        style={playing ? { animationDuration: `${config.durationIn || 0.8}s` } : {}}
       >
-        <Bell size={28} className={playing ? "animate-bounce" : ""} />
-      </div>
+        {/* Alert Icon & Image */}
+        {config.overlayImage ? (
+          <img
+            src={config.overlayImage}
+            alt="overlay"
+            className="mb-2 max-h-24 max-w-24 rounded-2xl object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
+          />
+        ) : (
+          <div className="mb-2.5 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-500/50 bg-[#16122a]/95 text-purple-300 shadow-[0_0_30px_rgba(168,85,247,0.5)] backdrop-blur-md">
+            <Bell size={32} className={playing ? "animate-bounce" : ""} />
+          </div>
+        )}
 
-      {config.overlayImage && (
-        <img
-          src={config.overlayImage}
-          alt="overlay"
-          className="mt-3 h-20 w-20 rounded-xl object-contain shadow-lg"
-        />
-      )}
-
-      {/* Styled Message Text with Real-time Typography */}
-      <div
-        className={`mt-4 ${getFilterClass()} transition-all`}
-        style={{
-          fontFamily: config.fontFamily || "Kanit",
-          fontWeight: config.fontWeight || "700",
-          fontSize: `${Math.min(32, Math.max(16, (config.fontSize || 28) * 0.75))}px`,
-          color: config.textColor || "#ffffff",
-          ...strokeStyle,
-        }}
-      >
-        <p className="leading-snug">
-          {parts.map((part, idx) => {
-            if (part === "{user}") {
-              return (
-                <span
-                  key={idx}
-                  style={{ color: config.userNameColor || "#c084fc" }}
-                  className="font-bold"
-                >
-                  {userName}
-                </span>
-              );
-            }
-            if (part === "{amount}") {
-              return (
-                <span
-                  key={idx}
-                  style={{ color: config.amountColor || "#fbbf24" }}
-                  className="font-bold"
-                >
-                  {amount.toLocaleString()}
-                </span>
-              );
-            }
-            return <span key={idx}>{part}</span>;
-          })}
-        </p>
-      </div>
-
-      {/* Shine Effect Overlay */}
-      {config.shineEffect && (
-        <div className="mt-1 flex items-center gap-1 text-[11px] font-bold text-amber-300">
-          <Sparkles size={12} className="animate-spin" />
-          <span>Shine Effect Active</span>
+        {/* Styled Message Text with Real-time Typography */}
+        <div
+          className={`mt-2 ${getFilterClass()} transition-all`}
+          style={{
+            fontFamily: config.fontFamily || "Kanit",
+            fontWeight: config.fontWeight || "700",
+            fontSize: `${Math.min(32, Math.max(16, (config.fontSize || 28) * 0.75))}px`,
+            color: config.textColor || "#ffffff",
+            ...strokeStyle,
+          }}
+        >
+          <p className="leading-snug">
+            {parts.map((part, idx) => {
+              if (part === "{user}") {
+                return (
+                  <span
+                    key={idx}
+                    style={{ color: config.userNameColor || "#c084fc" }}
+                    className="font-bold"
+                  >
+                    {userName}
+                  </span>
+                );
+              }
+              if (part === "{amount}") {
+                return (
+                  <span
+                    key={idx}
+                    style={{ color: config.amountColor || "#fbbf24" }}
+                    className="font-bold"
+                  >
+                    {amount.toLocaleString()}
+                  </span>
+                );
+              }
+              return <span key={idx}>{part}</span>;
+            })}
+          </p>
         </div>
-      )}
+
+        {/* Shine Effect Overlay */}
+        {config.shineEffect && (
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-extrabold text-amber-300 drop-shadow-md">
+            <Sparkles size={12} className="animate-spin" />
+            <span>✨ DONATION ALERT ✨</span>
+            <Sparkles size={12} className="animate-spin" />
+          </div>
+        )}
+
+        {/* กรอบข้อความโดเนทจากผู้สนับสนุน (ตรงกับ Overlay จริง) */}
+        <div className="mt-3 max-w-[280px] rounded-xl border border-white/10 bg-[#0f0d1b]/95 px-4 py-2 text-xs font-medium text-white/95 shadow-xl backdrop-blur-md">
+          <p className="break-words leading-relaxed text-gray-200">
+            "ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!"
+          </p>
+        </div>
+      </div>
 
       {/* Playing simulation indicator */}
       {playing && (

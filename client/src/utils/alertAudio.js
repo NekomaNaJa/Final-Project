@@ -71,24 +71,26 @@ export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoun
   const normalizedVolume = Math.max(0, Math.min(100, Number(volume) || 80)) / 100;
 
   // กรณีเลือกเล่นไฟล์เสียง Custom ที่สตรีมเมอร์อัปโหลด
-  if (preset === "custom" && customSoundFile) {
-    try {
-      const cached =
-        (typeof window !== "undefined" && window._donixCustomAudioMap?.[customSoundFile]) ||
-        (typeof localStorage !== "undefined" && localStorage.getItem("donix_audio_" + customSoundFile)) ||
-        customSoundFile;
-      const audio = new Audio(cached);
-      audio.volume = normalizedVolume;
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // จัดการกรณี Browser Autoplay Policy ป้องกันไม่ให้แครช
-        });
+  if (preset === "custom") {
+    if (customSoundFile) {
+      try {
+        const cached =
+          (typeof window !== "undefined" && window._donixCustomAudioMap?.[customSoundFile]) ||
+          (typeof localStorage !== "undefined" && localStorage.getItem("donix_audio_" + customSoundFile)) ||
+          customSoundFile;
+        const audio = new Audio(cached);
+        audio.volume = normalizedVolume;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            // จัดการกรณี Browser Autoplay Policy ป้องกันไม่ให้แครช
+          });
+        }
+      } catch {
+        // หากไฟล์เสียง custom ผิดพลาด จะไม่ขัดจังหวะระบบ
       }
-      return;
-    } catch {
-      // หากไฟล์เสียง custom ผิดพลาด จะไม่ขัดจังหวะระบบ
     }
+    return;
   }
 
   // จำลองเสียง Presets ผ่าน Web Audio API (ความเข้ากันได้สูง ไม่ต้องโหลดไฟล์ MP3 ภายนอก)
@@ -228,12 +230,16 @@ export const speakAlertText = async ({
   if (isThai) {
     const streamUrls = [
       `${API_URL}/public/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=th`,
+      `http://localhost:5000/api/public/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=th`,
       `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`,
     ];
 
     for (const url of streamUrls) {
       try {
-        const audio = document.createElement("audio");
+        const audio =
+          typeof document !== "undefined"
+            ? document.createElement("audio")
+            : new Audio(url);
         audio.referrerPolicy = "no-referrer";
         audio.src = url;
         audio.volume = normalizedVolume;
@@ -242,8 +248,10 @@ export const speakAlertText = async ({
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
-          await playPromise;
-          return;
+          const played = await playPromise
+            .then(() => true)
+            .catch(() => false);
+          if (played) return;
         }
       } catch {
         // หาก URL แรกไม่สำเร็จ ให้ลอง URL ถัดไป
