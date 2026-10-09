@@ -103,6 +103,24 @@ export const getPublicStreamer = async (req, res, next) => {
 
 const DONOR_BADGES = ["MYTHIC", "ARCANE", "RUNE", "MANA", "ACOLYTE"];
 
+const addDateRangeCriteria = (filter, startDate, endDate) => {
+  const criteria = { ...filter };
+  if (startDate) {
+    const start = new Date(startDate);
+    if (!Number.isNaN(start.getTime())) {
+      criteria.createdAt = { ...criteria.createdAt, $gte: start };
+    }
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    if (!Number.isNaN(end.getTime())) {
+      end.setHours(23, 59, 59, 999);
+      criteria.createdAt = { ...criteria.createdAt, $lte: end };
+    }
+  }
+  return criteria;
+};
+
 /**
  * ดึงข้อมูลการแสดงผลวิดเจ็ตสำหรับ OBS Studio Browser Source (GET /api/public/overlay/:widgetType/:token)
  * รองรับ widgetType: alert, goal, leaderboard, mission, all
@@ -153,25 +171,11 @@ export const getPublicOverlayConfig = async (req, res, next) => {
     }
 
     // 2. คำนวณยอดสะสมของ Goal จาก Donation Aggregation (เฉพาะสถานะ approved)
-    const goalFilter = {
-      streamerId: streamer._id,
-      status: "approved",
-    };
-
-    if (widget.goal?.startDate) {
-      const start = new Date(widget.goal.startDate);
-      if (!Number.isNaN(start.getTime())) {
-        goalFilter.createdAt = { ...goalFilter.createdAt, $gte: start };
-      }
-    }
-
-    if (widget.goal?.endDate) {
-      const end = new Date(widget.goal.endDate);
-      if (!Number.isNaN(end.getTime())) {
-        end.setHours(23, 59, 59, 999);
-        goalFilter.createdAt = { ...goalFilter.createdAt, $lte: end };
-      }
-    }
+    const goalFilter = addDateRangeCriteria(
+      { streamerId: streamer._id, status: "approved" },
+      widget.goal?.startDate,
+      widget.goal?.endDate
+    );
 
     const goalAgg = await Donation.aggregate([
       { $match: goalFilter },
@@ -185,31 +189,11 @@ export const getPublicOverlayConfig = async (req, res, next) => {
     };
 
     // 3. คำนวณอันดับของ Leaderboard จาก Donation Aggregation
-    const leaderboardFilter = {
-      streamerId: streamer._id,
-      status: "approved",
-    };
-
-    if (widget.leaderboard?.startDate) {
-      const start = new Date(widget.leaderboard.startDate);
-      if (!Number.isNaN(start.getTime())) {
-        leaderboardFilter.createdAt = {
-          ...leaderboardFilter.createdAt,
-          $gte: start,
-        };
-      }
-    }
-
-    if (widget.leaderboard?.endDate) {
-      const end = new Date(widget.leaderboard.endDate);
-      if (!Number.isNaN(end.getTime())) {
-        end.setHours(23, 59, 59, 999);
-        leaderboardFilter.createdAt = {
-          ...leaderboardFilter.createdAt,
-          $lte: end,
-        };
-      }
-    }
+    const leaderboardFilter = addDateRangeCriteria(
+      { streamerId: streamer._id, status: "approved" },
+      widget.leaderboard?.startDate,
+      widget.leaderboard?.endDate
+    );
 
     const limit = Math.max(1, Math.min(20, Number(widget.leaderboard?.limit) || 5));
     const leaderboardAgg = await Donation.aggregate([
