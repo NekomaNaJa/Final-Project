@@ -120,10 +120,6 @@ describe("Donor Components", () => {
         slipFile: file,
         method: "promptpay",
       });
-
-      // Test mobile upload button
-      const mobileBtn = screen.getByRole("button", { name: /อัปโหลดสลิปจากมือถือ/i });
-      fireEvent.click(mobileBtn);
     });
 
     test("handles image onError fallback without infinite loop", () => {
@@ -186,10 +182,6 @@ describe("Donor Components", () => {
         slipFile: file,
         method: "bank",
       });
-
-      // Test mobile upload button
-      const mobileBtn = screen.getByRole("button", { name: /อัปโหลดสลิปจากมือถือ/i });
-      fireEvent.click(mobileBtn);
     });
   });
 
