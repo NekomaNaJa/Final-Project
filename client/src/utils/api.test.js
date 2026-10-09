@@ -13,6 +13,9 @@ import {
   updateDonationStatus,
   fetchPublicStreamer,
   createDonation,
+  fetchWidgetConfig,
+  saveWidgetSettings,
+  fetchPublicOverlayConfig,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -495,5 +498,90 @@ describe("API utility functions", () => {
     await expect(createDonation({})).rejects.toThrow(
       "ไม่สามารถสร้างรายการบริจาคได้"
     );
+  });
+
+  test("fetchWidgetConfig gets widget config successfully", async () => {
+    const mockWidgetData = { token: "token123", alert: { minAmount: 10 } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockWidgetData }),
+    });
+
+    localStorage.setItem("token", "jwt-token");
+    const result = await fetchWidgetConfig();
+
+    expect(result).toEqual(mockWidgetData);
+    expect(global.fetch).toHaveBeenCalledWith(API.widgetsMe, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer jwt-token",
+      },
+    });
+  });
+
+  test("fetchWidgetConfig throws error on failure", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Unauthorized" }),
+    });
+
+    await expect(fetchWidgetConfig()).rejects.toThrow("Unauthorized");
+  });
+
+  test("saveWidgetSettings updates widget config successfully", async () => {
+    const payload = { alert: { minAmount: 50 } };
+    const mockUpdated = { token: "token123", alert: { minAmount: 50 } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockUpdated }),
+    });
+
+    localStorage.setItem("token", "jwt-token");
+    const result = await saveWidgetSettings(payload);
+
+    expect(result).toEqual(mockUpdated);
+    expect(global.fetch).toHaveBeenCalledWith(API.widgetsMe, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer jwt-token",
+      },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("saveWidgetSettings throws error on failure", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Invalid payload" }),
+    });
+
+    await expect(saveWidgetSettings({})).rejects.toThrow("Invalid payload");
+  });
+
+  test("fetchPublicOverlayConfig gets overlay config successfully", async () => {
+    const mockOverlay = { alert: { sound: "horn" } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockOverlay }),
+    });
+
+    const result = await fetchPublicOverlayConfig("alert", "tok123");
+
+    expect(result).toEqual(mockOverlay);
+    expect(global.fetch).toHaveBeenCalledWith(API.publicOverlay("alert", "tok123"), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  test("fetchPublicOverlayConfig throws error on failure", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Not found" }),
+    });
+
+    await expect(fetchPublicOverlayConfig("goal", "wrong")).rejects.toThrow("Not found");
   });
 });

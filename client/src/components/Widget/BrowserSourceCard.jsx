@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { Copy, Check, Play, Info } from "lucide-react";
 import { getBrowserSourceUrl } from "./widgetStorage";
 
-const BrowserSourceCard = ({ type, username, isLive = true, onTest }) => {
+const BrowserSourceCard = ({ type, username, token, isLive = true, onTest }) => {
   const [copied, setCopied] = useState(false);
-  const url = getBrowserSourceUrl(type, username);
+  const url = getBrowserSourceUrl(type, token || username);
 
   const handleCopy = async () => {
     try {

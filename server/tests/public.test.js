@@ -2,6 +2,8 @@ import request from "supertest";
 import { jest } from "@jest/globals";
 import app from "../app.js";
 import User from "../Models/User.js";
+import Widget from "../Models/Widget.js";
+import Donation from "../Models/Donation.js";
 
 describe("Public Route (GET /api/public/:username)", () => {
   beforeEach(() => {
@@ -127,4 +129,128 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data).toBeNull();
   });
 });
+
+describe("Public Overlay Route (GET /api/public/overlay/:widgetType/:token)", () => {
+  const mockUserId = "60c72b2f9b1d8b2bad876543";
+  const mockUser = {
+    _id: mockUserId,
+    username: "streamerpro",
+    nickname: "Pro Streamer",
+    avatar: "https://example.com/avatar.png",
+  };
+
+  const mockWidget = {
+    _id: "60c72b2f9b1d8b2bad876999",
+    userId: mockUserId,
+    token: "valid-widget-token-xyz",
+    alert: {
+      minAmount: 10,
+      soundPreset: "mythic-horn",
+    },
+    goal: {
+      title: "เป้าหมายพัฒนาสตรีม",
+      target: 10000,
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+      toObject: () => ({
+        title: "เป้าหมายพัฒนาสตรีม",
+        target: 10000,
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+      }),
+    },
+    leaderboard: {
+      title: "TOP DONORS ประจำเดือน",
+      limit: 5,
+      startDate: "2026-09-01",
+      endDate: "2026-09-30",
+      toObject: () => ({
+        title: "TOP DONORS ประจำเดือน",
+        limit: 5,
+        startDate: "2026-09-01",
+        endDate: "2026-09-30",
+      }),
+    },
+    mission: {
+      title: "ภารกิจโดเนท",
+      missions: [],
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should return 400 if widgetType or token is empty/whitespace", async () => {
+    const res = await request(app).get("/api/public/overlay/%20/%20");
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("ข้อมูลไม่ถูกต้อง");
+    expect(res.body.data).toBeNull();
+  });
+
+  it("should return 404 if neither widget token nor username matches", async () => {
+    jest.spyOn(Widget, "findOne").mockResolvedValueOnce(null);
+    jest.spyOn(User, "findOne").mockResolvedValueOnce(null);
+
+    const res = await request(app).get("/api/public/overlay/alert/nonexistent-token");
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("ไม่พบข้อมูลวิดเจ็ตนี้");
+    expect(res.body.data).toBeNull();
+  });
+
+  it("should return 200 and overlay config with aggregated goal & leaderboard", async () => {
+    jest.spyOn(Widget, "findOne").mockResolvedValueOnce(mockWidget);
+    jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+    // Mock aggregation for goal & leaderboard
+    jest
+      .spyOn(Donation, "aggregate")
+      .mockResolvedValueOnce([{ _id: null, total: 4500 }]) // Goal total
+      .mockResolvedValueOnce([
+        { _id: "TopDonor1", totalAmount: 3000, donationCount: 2 },
+        { _id: "TopDonor2", totalAmount: 1500, donationCount: 1 },
+      ]); // Leaderboard top donors
+
+    const res = await request(app).get(
+      "/api/public/overlay/goal/valid-widget-token-xyz"
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("ดึงข้อมูลการแสดงผลวิดเจ็ตสำเร็จ");
+    expect(res.body.data.token).toBe("valid-widget-token-xyz");
+    expect(res.body.data.streamer.username).toBe("streamerpro");
+    expect(res.body.data.goal.current).toBe(4500);
+    expect(res.body.data.leaderboard.donors).toHaveLength(2);
+    expect(res.body.data.leaderboard.donors[0].name).toBe("TopDonor1");
+    expect(res.body.data.leaderboard.donors[0].amount).toBe(3000);
+  });
+
+  it("should fallback to finding by username if token not found", async () => {
+    jest.spyOn(Widget, "findOne")
+      .mockResolvedValueOnce(null) // token lookup
+      .mockResolvedValueOnce(mockWidget); // username's widget lookup
+    jest.spyOn(User, "findOne").mockResolvedValueOnce(mockUser);
+    jest.spyOn(Donation, "aggregate")
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const res = await request(app).get("/api/public/overlay/alert/streamerpro");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.token).toBe("valid-widget-token-xyz");
+    expect(res.body.data.alert.soundPreset).toBe("mythic-horn");
+  });
+
+  it("should handle server error during overlay fetch", async () => {
+    jest.spyOn(Widget, "findOne").mockRejectedValueOnce(new Error("Database crash"));
+
+    const res = await request(app).get("/api/public/overlay/alert/some-token");
+
+    expect(res.status).toBe(500);
+    expect(res.body.data).toBeNull();
+  });
+});
+
 
