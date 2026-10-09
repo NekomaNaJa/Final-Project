@@ -168,7 +168,7 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     window.speechSynthesis = {
       speak: jest.fn(),
       cancel: jest.fn(),
-      getVoices: jest.fn(() => []),
+      getVoices: jest.fn(() => [{ lang: "th-TH", name: "Thai Female" }]),
     };
     global.SpeechSynthesisUtterance = jest.fn().mockImplementation((text) => ({ text }));
 

@@ -155,6 +155,24 @@ describe("alertAudio Utility", () => {
       expect(mockUtteranceInstance.pitch).toBe(0.85);
     });
 
+    test("falls back to Google TTS audio stream when no Thai voice exists in browser", () => {
+      window.speechSynthesis.getVoices = jest.fn(() => [
+        { lang: "en-US", name: "English Only" },
+      ]);
+
+      speakAlertText({
+        text: "แฟนคลับเบอร์หนึ่ง โดเนท 500 บาท",
+        voice: "th-female",
+        volume: 85,
+        speed: "1.0x",
+      });
+
+      expect(window.Audio).toHaveBeenCalledWith(
+        expect.stringContaining("translate.google.com/translate_tts")
+      );
+      expect(mockAudioInstance.play).toHaveBeenCalled();
+    });
+
     test("handles missing text or missing speechSynthesis gracefully", () => {
       speakAlertText({ text: "" });
       expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
