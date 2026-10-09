@@ -181,18 +181,6 @@ const DonorPage = () => {
     setIsSubmitting(true);
     setErrorFeedback(null);
 
-    // Timer fallback for simulated tests with fake timers
-    const timerId = setTimeout(() => {
-      setSubmittedDonation((prev) =>
-        prev ?? {
-          donorName,
-          message,
-          ...donationData,
-        }
-      );
-      setIsSubmitting(false);
-    }, 1000);
-
     try {
       const slipBase64 = await fileToBase64(donationData.slipFile);
       const res = await createDonation({
@@ -204,7 +192,6 @@ const DonorPage = () => {
         slipImage: slipBase64,
       });
 
-      clearTimeout(timerId);
       setSubmittedDonation({
         donorName,
         message,
@@ -212,8 +199,7 @@ const DonorPage = () => {
         donationId: res?.id || res?._id,
       });
     } catch (err) {
-      clearTimeout(timerId);
-      setErrorFeedback(err.message || "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท");
+      setErrorFeedback(err?.message || "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท");
     } finally {
       setIsSubmitting(false);
     }

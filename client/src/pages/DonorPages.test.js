@@ -76,7 +76,7 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       expect(screen.getByText("ขณะนี้ปิดรับโดเนทชั่วคราว")).toBeInTheDocument();
     });
 
-    test("loads configuration from localStorage and submits donation", () => {
+    test("loads configuration from localStorage and submits donation", async () => {
       localStorage.setItem(
         "donix_donate_config",
         JSON.stringify({
@@ -122,14 +122,124 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
       fireEvent.click(submitBtn);
 
-      // Advance timers for setTimeout in submit
-      act(() => {
-        jest.advanceTimersByTime(1100);
+      await waitFor(() => {
+        expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
       });
 
-      expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
-
       // Close modal
+      const closeBtn = screen.getByRole("button", { name: "ปิดหน้านี้" });
+      fireEvent.click(closeBtn);
+      expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();
+    });
+
+    test("shows streamer not found status alert when streamer is not found", async () => {
+      fetchPublicStreamer.mockRejectedValueOnce(new Error("ไม่พบสตรีมเมอร์นี้"));
+
+      render(
+        <MemoryRouter initialEntries={["/donor/GhostStreamer"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent(
+          'ไม่พบบัญชีสตรีมเมอร์ "GhostStreamer" ในระบบ กำลังแสดงหน้าจำลอง'
+        );
+      });
+    });
+
+    test("shows error feedback alert when donation submission fails with specific error", async () => {
+      createDonation.mockRejectedValueOnce(
+        new Error("ช่องทางการชำระเงินนี้ไม่พร้อมให้บริการ")
+      );
+
+      render(
+        <MemoryRouter initialEntries={["/donor/Streamer1"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ธนาคาร"));
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole("alert")).toHaveTextContent(
+          "ช่องทางการชำระเงินนี้ไม่พร้อมให้บริการ"
+        );
+      });
+
+      expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();
+    });
+
+    test("shows fallback error alert when donation fails without error message", async () => {
+      createDonation.mockRejectedValueOnce({});
+
+      render(
+        <MemoryRouter initialEntries={["/donor/Streamer1"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ธนาคาร"));
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole("alert")).toHaveTextContent(
+          "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท"
+        );
+      });
+    });
+
+    test("submits donation successfully with API _id and displays pending status and anonymous donor, then resets fields on modal close", async () => {
+      createDonation.mockResolvedValueOnce({
+        _id: "mongo_id_777",
+        status: "pending",
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/Streamer1"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Clear donor name to test "Anonymous" fallback in submission and modal
+      const nameInput = screen.getByPlaceholderText("Anonymous");
+      fireEvent.change(nameInput, { target: { value: "" } });
+
+      fireEvent.click(screen.getByText("ธนาคาร"));
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("รอสตรีมเมอร์ตรวจสอบสลิป (Pending)")).toBeInTheDocument();
+      expect(screen.getByText("Anonymous")).toBeInTheDocument();
+
+      // Close modal and verify it closes
       const closeBtn = screen.getByRole("button", { name: "ปิดหน้านี้" });
       fireEvent.click(closeBtn);
       expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();

@@ -20,3 +20,16 @@ if (!window.URL.createObjectURL) {
 if (!window.URL.revokeObjectURL) {
   window.URL.revokeObjectURL = () => {};
 }
+
+// Polyfill for FileReader in JSDOM
+if (typeof window !== "undefined") {
+  class MockFileReader {
+    readAsDataURL() {
+      this.result = "data:image/png;base64,mock-slip-base64";
+      if (this.onloadend) {
+        this.onloadend();
+      }
+    }
+  }
+  window.FileReader = MockFileReader;
+}
