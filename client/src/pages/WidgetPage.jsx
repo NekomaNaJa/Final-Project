@@ -59,9 +59,15 @@ const WidgetPage = () => {
       });
 
       if (config.alert?.ttsEnabled) {
+        const rawTpl = config.alert?.template || "{user} โดเนท {amount} บาท";
+        const parsedHeadline = rawTpl
+          .replaceAll("{user}", donorName)
+          .replaceAll("{amount}", "500");
+        const donorMsg = " ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!";
+
         window.setTimeout(() => {
           speakAlertText({
-            text: `${donorName} โดเนท 500 บาท ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!`,
+            text: `${parsedHeadline}${donorMsg}`,
             voice: config.alert?.ttsVoice,
             volume: config.alert?.ttsVolume,
             speed: config.alert?.ttsSpeed,
@@ -69,8 +75,11 @@ const WidgetPage = () => {
         }, 400);
       }
     }
-    const duration = (config.alert?.durationDisplay || 5) * 1000;
-    window.setTimeout(() => setPlaying(false), Math.min(6000, duration));
+    const durIn = Number(config.alert?.durationIn) || 0.8;
+    const durDisplay = Number(config.alert?.durationDisplay) || 5;
+    const durOut = Number(config.alert?.durationOut) || 0.8;
+    const totalDuration = (durIn + durDisplay + durOut) * 1000;
+    window.setTimeout(() => setPlaying(false), totalDuration);
   };
 
   const isLive =

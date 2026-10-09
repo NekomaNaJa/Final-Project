@@ -1,5 +1,14 @@
-import React from "react";
-import { Bell, Trophy, Target, Sparkles, Crown, Medal, Flag } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Bell,
+  Trophy,
+  Target,
+  Sparkles,
+  Crown,
+  Medal,
+  Flag,
+  Play,
+} from "lucide-react";
 import { GOAL_THEMES } from "./widgetStorage";
 
 const SAMPLE_DONORS = [
@@ -18,6 +27,153 @@ const SAMPLE_DONORS = [
 const AlertPreview = ({ config, playing, username }) => {
   const userName = username || "Shadow King";
   const amount = 500;
+
+  const [animState, setAnimState] = useState({
+    activeClass: "",
+    duration: 0.8,
+    label: "",
+  });
+  const [animKey, setAnimKey] = useState(0);
+
+  const prevAnimInRef = useRef(config.animationIn);
+  const prevAnimOutRef = useRef(config.animationOut);
+  const isFirstMount = useRef(true);
+
+  // Trigger preview when Animation In dropdown changes
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (playing) return;
+
+    if (config.animationIn !== prevAnimInRef.current) {
+      prevAnimInRef.current = config.animationIn;
+      const dur = Number(config.durationIn) || 0.8;
+      setAnimState({
+        activeClass: `anim-${config.animationIn || "bounceIn"}`,
+        duration: dur,
+        label: `แอนิเมชั่นเข้า (${config.animationIn})`,
+      });
+      setAnimKey((k) => k + 1);
+
+      const timer = window.setTimeout(() => {
+        setAnimState({ activeClass: "", duration: 0.8, label: "" });
+      }, dur * 1000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [config.animationIn, config.durationIn, playing]);
+
+  // Trigger preview when Animation Out dropdown changes
+  useEffect(() => {
+    if (isFirstMount.current) {
+      return;
+    }
+    if (playing) return;
+
+    if (config.animationOut !== prevAnimOutRef.current) {
+      prevAnimOutRef.current = config.animationOut;
+      const dur = Number(config.durationOut) || 0.8;
+      setAnimState({
+        activeClass: `anim-${config.animationOut || "fadeOut"}`,
+        duration: dur,
+        label: `แอนิเมชั่นออก (${config.animationOut})`,
+      });
+      setAnimKey((k) => k + 1);
+
+      const timer = window.setTimeout(() => {
+        setAnimState({ activeClass: "", duration: 0.8, label: "" });
+        setAnimKey((k) => k + 1);
+      }, (dur + 0.3) * 1000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [config.animationOut, config.durationOut, playing]);
+
+  // Full alert sequence when testing (playing = true)
+  useEffect(() => {
+    if (!playing) return;
+
+    const durIn = Number(config.durationIn) || 0.8;
+    const durDisplay = Number(config.durationDisplay) || 5;
+    const durOut = Number(config.durationOut) || 0.8;
+
+    // Step 1: Animation In
+    setAnimState({
+      activeClass: `anim-${config.animationIn || "bounceIn"}`,
+      duration: durIn,
+      label: `แอนิเมชั่นเข้า (${config.animationIn || "bounceIn"})`,
+    });
+    setAnimKey((k) => k + 1);
+
+    // Step 2: Displaying
+    const tDisplay = window.setTimeout(() => {
+      setAnimState({
+        activeClass: "",
+        duration: 0.8,
+        label: "กำลังแสดงผลบนจอ...",
+      });
+    }, durIn * 1000);
+
+    // Step 3: Animation Out
+    const tOut = window.setTimeout(() => {
+      setAnimState({
+        activeClass: `anim-${config.animationOut || "fadeOut"}`,
+        duration: durOut,
+        label: `แอนิเมชั่นออก (${config.animationOut || "fadeOut"})`,
+      });
+      setAnimKey((k) => k + 1);
+    }, (durIn + durDisplay) * 1000);
+
+    // Step 4: Reset
+    const tEnd = window.setTimeout(() => {
+      setAnimState({
+        activeClass: "",
+        duration: 0.8,
+        label: "",
+      });
+      setAnimKey((k) => k + 1);
+    }, (durIn + durDisplay + durOut) * 1000);
+
+    return () => {
+      window.clearTimeout(tDisplay);
+      window.clearTimeout(tOut);
+      window.clearTimeout(tEnd);
+    };
+  }, [
+    playing,
+    config.animationIn,
+    config.animationOut,
+    config.durationIn,
+    config.durationDisplay,
+    config.durationOut,
+  ]);
+
+  const handlePreviewIn = () => {
+    const dur = Number(config.durationIn) || 0.8;
+    setAnimState({
+      activeClass: `anim-${config.animationIn || "bounceIn"}`,
+      duration: dur,
+      label: `แอนิเมชั่นเข้า (${config.animationIn || "bounceIn"})`,
+    });
+    setAnimKey((k) => k + 1);
+    window.setTimeout(() => {
+      setAnimState({ activeClass: "", duration: 0.8, label: "" });
+    }, dur * 1000);
+  };
+
+  const handlePreviewOut = () => {
+    const dur = Number(config.durationOut) || 0.8;
+    setAnimState({
+      activeClass: `anim-${config.animationOut || "fadeOut"}`,
+      duration: dur,
+      label: `แอนิเมชั่นออก (${config.animationOut || "fadeOut"})`,
+    });
+    setAnimKey((k) => k + 1);
+    window.setTimeout(() => {
+      setAnimState({ activeClass: "", duration: 0.8, label: "" });
+      setAnimKey((k) => k + 1);
+    }, (dur + 0.3) * 1000);
+  };
 
   // Render template with customized colors
   const template = config.template || "{user} โดเนท {amount} บาท";
@@ -47,15 +203,16 @@ const AlertPreview = ({ config, playing, username }) => {
       }
     : {};
 
-  const animationClass = playing
-    ? `anim-${config.animationIn || "bounceIn"}`
-    : "";
-
   return (
     <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center p-4 relative overflow-hidden select-none">
       <div
-        className={`flex flex-col items-center justify-center transition-all ${animationClass}`}
-        style={playing ? { animationDuration: `${config.durationIn || 0.8}s` } : {}}
+        key={animKey}
+        className={`flex flex-col items-center justify-center transition-all ${animState.activeClass}`}
+        style={
+          animState.activeClass
+            ? { animationDuration: `${animState.duration}s` }
+            : {}
+        }
       >
         {/* Alert Icon & Image */}
         {config.overlayImage ? (
@@ -127,11 +284,33 @@ const AlertPreview = ({ config, playing, username }) => {
         </div>
       </div>
 
-      {/* Playing simulation indicator */}
-      {playing && (
-        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-bold text-emerald-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-          กำลังเล่นแอนิเมชั่น · {config.durationDisplay || 5} วินาที
+      {/* Animation Status / Indicator */}
+      {animState.label && (
+        <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-[10px] font-bold text-purple-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
+          {animState.label} · {animState.duration}s
+        </div>
+      )}
+
+      {/* Quick Preview Buttons for Animation In / Out */}
+      {!playing && !animState.activeClass && (
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={handlePreviewIn}
+            className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[10px] font-semibold text-purple-300 hover:bg-purple-500/20 transition-all flex items-center gap-1"
+          >
+            <Play size={10} />
+            <span>ดูแอนิเมชั่นเข้า</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePreviewOut}
+            className="rounded-lg border border-pink-500/30 bg-pink-500/10 px-2.5 py-1 text-[10px] font-semibold text-pink-300 hover:bg-pink-500/20 transition-all flex items-center gap-1"
+          >
+            <Play size={10} />
+            <span>ดูแอนิเมชั่นออก</span>
+          </button>
         </div>
       )}
     </div>

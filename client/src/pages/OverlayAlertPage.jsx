@@ -142,7 +142,11 @@ const OverlayAlertPage = () => {
         const donor = alertData?.donorName || "ผู้สนับสนุน";
         const donationAmount = alertData?.amount || 0;
         const msg = alertData?.message ? ` ${alertData.message}` : "";
-        const ttsText = `${donor} โดเนท ${donationAmount} บาท${msg}`;
+        const rawTpl = activeCfg.template || "{user} โดเนท {amount} บาท";
+        const parsedHeadline = rawTpl
+          .replaceAll("{user}", donor)
+          .replaceAll("{amount}", String(donationAmount));
+        const ttsText = `${parsedHeadline}${msg}`;
 
         ttsTimer = window.setTimeout(() => {
           speakAlertText({

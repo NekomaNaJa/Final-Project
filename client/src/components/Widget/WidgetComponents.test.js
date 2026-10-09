@@ -408,9 +408,9 @@ describe("Widget Components & Functions", () => {
       fireEvent.click(msgBtn);
 
       const fontSelect = screen.getByDisplayValue(/Kanit/);
-      fireEvent.change(fontSelect, { target: { value: "Cinzel" } });
+      fireEvent.change(fontSelect, { target: { value: "FC Vision" } });
       expect(handleChange).toHaveBeenCalledWith(
-        expect.objectContaining({ fontFamily: "Cinzel" })
+        expect.objectContaining({ fontFamily: "FC Vision" })
       );
 
       const weightSelect = screen.getByDisplayValue(/Bold \(700\)/);
