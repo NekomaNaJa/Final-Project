@@ -2,12 +2,14 @@ import {
   playAlertSound,
   speakAlertText,
   stopAllAlertAudio,
+  getAvailableVoices,
 } from "./alertAudio";
 
 describe("alertAudio Utility", () => {
   let originalAudioContext;
   let originalAudio;
   let originalSpeechSynthesis;
+  let originalPlay;
 
   let mockOscillator;
   let mockGain;
@@ -19,6 +21,11 @@ describe("alertAudio Utility", () => {
     originalAudioContext = window.AudioContext;
     originalAudio = window.Audio;
     originalSpeechSynthesis = window.speechSynthesis;
+    originalPlay = window.HTMLMediaElement?.prototype?.play;
+
+    if (window.HTMLMediaElement) {
+      window.HTMLMediaElement.prototype.play = jest.fn().mockResolvedValue(undefined);
+    }
 
     mockOscillator = {
       connect: jest.fn(),
@@ -58,6 +65,8 @@ describe("alertAudio Utility", () => {
     window.speechSynthesis = {
       speak: jest.fn(),
       cancel: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
       getVoices: jest.fn(() => [
         { lang: "th-TH", name: "Thai Female" },
         { lang: "en-US", name: "English Female" },
@@ -74,6 +83,9 @@ describe("alertAudio Utility", () => {
     window.AudioContext = originalAudioContext;
     window.Audio = originalAudio;
     window.speechSynthesis = originalSpeechSynthesis;
+    if (window.HTMLMediaElement && originalPlay) {
+      window.HTMLMediaElement.prototype.play = originalPlay;
+    }
     jest.clearAllMocks();
   });
 
@@ -126,9 +138,14 @@ describe("alertAudio Utility", () => {
     });
   });
 
-  describe("speakAlertText", () => {
-    test("speaks text with thai voice preset", () => {
-      speakAlertText({
+  describe("speakAlertText & getAvailableVoices", () => {
+    test("fetches available voices properly", async () => {
+      const voices = await getAvailableVoices();
+      expect(voices).toHaveLength(2);
+    });
+
+    test("speaks text with thai voice preset when available", async () => {
+      await speakAlertText({
         text: "ผู้สนับสนุน โดเนท 50 บาท",
         voice: "th-female",
         volume: 80,
@@ -143,8 +160,8 @@ describe("alertAudio Utility", () => {
       expect(mockUtteranceInstance.pitch).toBe(1.15);
     });
 
-    test("speaks text with english male voice preset", () => {
-      speakAlertText({
+    test("speaks text with english male voice preset", async () => {
+      await speakAlertText({
         text: "User donated $50",
         voice: "en-male",
         volume: 100,
@@ -155,32 +172,29 @@ describe("alertAudio Utility", () => {
       expect(mockUtteranceInstance.pitch).toBe(0.85);
     });
 
-    test("falls back to Google TTS audio stream when no Thai voice exists in browser", () => {
+    test("falls back to Google TTS audio element when no Thai voice exists in browser", async () => {
       window.speechSynthesis.getVoices = jest.fn(() => [
         { lang: "en-US", name: "English Only" },
       ]);
 
-      speakAlertText({
+      const playSpy = jest.spyOn(window.HTMLMediaElement.prototype, "play");
+
+      await speakAlertText({
         text: "แฟนคลับเบอร์หนึ่ง โดเนท 500 บาท",
         voice: "th-female",
         volume: 85,
         speed: "1.0x",
       });
 
-      expect(window.Audio).toHaveBeenCalledWith(
-        expect.stringContaining("translate.google.com/translate_tts")
-      );
-      expect(mockAudioInstance.play).toHaveBeenCalled();
+      expect(playSpy).toHaveBeenCalled();
     });
 
-    test("handles missing text or missing speechSynthesis gracefully", () => {
-      speakAlertText({ text: "" });
+    test("handles missing text or missing speechSynthesis gracefully", async () => {
+      await speakAlertText({ text: "" });
       expect(window.speechSynthesis.speak).not.toHaveBeenCalled();
 
       delete window.speechSynthesis;
-      expect(() => {
-        speakAlertText({ text: "Hello" });
-      }).not.toThrow();
+      await expect(speakAlertText({ text: "Hello" })).resolves.not.toThrow();
     });
   });
 

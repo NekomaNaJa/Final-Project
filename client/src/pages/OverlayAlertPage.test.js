@@ -146,7 +146,7 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     expect(screen.getByText("ผู้สนับสนุนใจดี")).toBeInTheDocument();
   });
 
-  test("triggers sound and text-to-speech with cleanup on unmount", () => {
+  test("triggers sound and text-to-speech with cleanup on unmount", async () => {
     const mockAudioContext = jest.fn(() => ({
       currentTime: 0,
       destination: {},
@@ -182,9 +182,10 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
 
     expect(mockAudioContext).toHaveBeenCalled();
 
-    // Advance 500ms to trigger TTS
-    act(() => {
+    // Advance 500ms to trigger TTS and resolve getAvailableVoices
+    await act(async () => {
       jest.advanceTimersByTime(500);
+      await Promise.resolve();
     });
 
     expect(window.speechSynthesis.speak).toHaveBeenCalled();

@@ -32,4 +32,9 @@ if (typeof window !== "undefined") {
     }
   }
   window.FileReader = MockFileReader;
+
+  if (window.HTMLMediaElement) {
+    window.HTMLMediaElement.prototype.play = () => Promise.resolve();
+    window.HTMLMediaElement.prototype.pause = () => {};
+  }
 }
