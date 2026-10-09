@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Landmark, Copy, Check, Smartphone } from "lucide-react";
+import { Landmark, Copy, Check } from "lucide-react";
 import DonorSlipUpload from "./DonorSlipUpload";
 
 const DonorBankForm = ({
@@ -92,20 +92,7 @@ const DonorBankForm = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="space-y-3 pt-2">
-        {/* Upload from Mobile Button */}
-        <button
-          type="button"
-          onClick={() => {
-            const input = document.querySelector('input[type="file"]');
-            if (input) input.click();
-          }}
-          className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 rounded-2xl border border-[#31284d] bg-[#1a1433]/70 hover:bg-[#231b45] text-xs sm:text-sm font-semibold text-gray-300 hover:text-white transition-all"
-        >
-          <Smartphone size={17} />
-          <span>อัปโหลดสลิปจากมือถือ</span>
-        </button>
-
+      <div className="pt-2">
         {/* Confirm Payment Button */}
         <button
           type="submit"

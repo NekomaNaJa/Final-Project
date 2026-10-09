@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Sliders, X } from "lucide-react";
+import { CheckCircle2, Sliders, X, AlertCircle } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
 import DonorOfflineCard from "../components/Donor/DonorOfflineCard";
@@ -111,6 +111,8 @@ const DonorPage = () => {
   const [message, setMessage] = useState("สวัสดีครับ");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedDonation, setSubmittedDonation] = useState(null);
+  const [errorFeedback, setErrorFeedback] = useState(null);
+  const [streamerNotFound, setStreamerNotFound] = useState(false);
 
   // Interactive Test Controls Drawer
   const [showTestControls, setShowTestControls] = useState(false);
@@ -121,6 +123,7 @@ const DonorPage = () => {
 
     const loadPublicStreamer = async () => {
       try {
+        setStreamerNotFound(false);
         const publicData = await fetchPublicStreamer(username);
         if (publicData && isMounted) {
           setIsWidgetOnline(Boolean(publicData.isLive));
@@ -156,7 +159,10 @@ const DonorPage = () => {
             },
           }));
         }
-      } catch {
+      } catch (err) {
+        if (isMounted && err?.message?.includes("ไม่พบสตรีมเมอร์นี้")) {
+          setStreamerNotFound(true);
+        }
         // Keep storage/defaults if API unreachable
       }
     };
@@ -173,22 +179,11 @@ const DonorPage = () => {
 
   const handleDonationSubmit = async (donationData) => {
     setIsSubmitting(true);
-
-    // Timer fallback for simulated tests with fake timers
-    const timerId = setTimeout(() => {
-      setSubmittedDonation((prev) =>
-        prev ?? {
-          donorName,
-          message,
-          ...donationData,
-        }
-      );
-      setIsSubmitting(false);
-    }, 1000);
+    setErrorFeedback(null);
 
     try {
       const slipBase64 = await fileToBase64(donationData.slipFile);
-      await createDonation({
+      const res = await createDonation({
         username,
         donorName: donorName || "Anonymous",
         amount: Number(donationData.amount),
@@ -197,14 +192,14 @@ const DonorPage = () => {
         slipImage: slipBase64,
       });
 
-      clearTimeout(timerId);
       setSubmittedDonation({
         donorName,
         message,
         ...donationData,
+        donationId: res?.id || res?._id,
       });
-    } catch {
-      // Fallback handled by timer for test environments
+    } catch (err) {
+      setErrorFeedback(err?.message || "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท");
     } finally {
       setIsSubmitting(false);
     }
@@ -213,6 +208,8 @@ const DonorPage = () => {
   const handleCloseModal = () => {
     setSubmittedDonation(null);
     setMessage("");
+    setDonorName("Anonymous");
+    setErrorFeedback(null);
   };
 
   return (
@@ -322,6 +319,17 @@ const DonorPage = () => {
 
       {/* Main Donor Card Container */}
       <div className="relative z-10 w-full max-w-[720px] space-y-5">
+        {/* Streamer Not Found Alert */}
+        {streamerNotFound && (
+          <div
+            role="status"
+            className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/40 p-3.5 text-xs font-medium text-amber-300 shadow-md"
+          >
+            <AlertCircle size={16} className="shrink-0 text-amber-400" />
+            <span>ไม่พบบัญชีสตรีมเมอร์ "{username}" ในระบบ กำลังแสดงหน้าจำลอง</span>
+          </div>
+        )}
+
         {/* Streamer Header */}
         <DonorHeader
           username={username}
@@ -337,6 +345,17 @@ const DonorPage = () => {
         ) : (
           /* Online States */
           <div className="w-full rounded-2xl border border-[#2b2542] bg-[#16122a]/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
+            {/* Error Feedback Banner */}
+            {errorFeedback && (
+              <div
+                role="alert"
+                className="flex items-center gap-2.5 rounded-xl border border-red-500/40 bg-red-950/60 p-4 text-xs font-semibold text-red-200 shadow-lg animate-in fade-in"
+              >
+                <AlertCircle size={18} className="shrink-0 text-red-400" />
+                <span>{errorFeedback}</span>
+              </div>
+            )}
+
             {/* Payment Channel Selector Tabs */}
             <DonorPaymentTabs
               activeTab={activeTab}
@@ -435,6 +454,28 @@ const DonorPage = () => {
               <p className="text-xs text-gray-300 mt-1">
                 ขอบคุณสำหรับการสนับสนุน {username}
               </p>
+            </div>
+
+            {/* Donation Summary Details */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3.5 text-xs text-left space-y-1.5 text-gray-300">
+              <div className="flex justify-between">
+                <span className="text-gray-400">ผู้สนับสนุน:</span>
+                <span className="font-semibold text-white">
+                  {submittedDonation.donorName || "Anonymous"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">จำนวนเงิน:</span>
+                <span className="font-bold text-purple-400">
+                  {submittedDonation.amount} บาท
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">สถานะ:</span>
+                <span className="font-medium text-amber-400">
+                  รอสตรีมเมอร์ตรวจสอบสลิป (Pending)
+                </span>
+              </div>
             </div>
 
             {streamerConfig.thankYouMessage && (
