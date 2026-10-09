@@ -228,9 +228,11 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 #### 3) หน้าแดชบอร์ด (Dashboard) — `/dashboard`
 
-- การ์ดสถิติ (StatCards): ยอดการรับเงินรวม (บาท), จำนวนครั้งที่โดเนท, จำนวนผู้ชม/ผู้สนับสนุน
-- กราฟสถิติโดเนท (DonationChart): แสดงสถิติโดเนทแบบแท่ง/เส้นด้วย Recharts รองรับรายสัปดาห์และรายเดือน
-- ฟีดกิจกรรมล่าสุด (RealtimeFeed) และภาพรวมช่องทางรับเงิน (PaymentChannels)
+- การ์ดสถิติ (StatCards): ยอดการรับเงินรวม (บาท), จำนวนครั้งที่โดเนท, จำนวนรายการที่รอดำเนินการ (ดึงจาก `GET /api/donations/stats`)
+- กราฟสถิติโดเนท (DonationChart): แสดงสถิติโดเนทแบบแท่ง/เส้นด้วย Recharts รองรับรายสัปดาห์และรายเดือนจาก Aggregated Pipeline จริง
+- ฟีดกิจกรรมล่าสุด (RealtimeFeed): แสดงรายการโดเนทล่าสุด 5 รายการจากเซิร์ฟเวอร์
+- อันดับผู้สนับสนุนสูงสุด (TopDonors): จัดอันดับผู้สนับสนุนยอดสูงสุดจากฐานข้อมูล MongoDB
+- ภาพรวมช่องทางรับเงิน (PaymentChannels)
 - ใช้เลย์เอาต์ร่วม **Sticky Sidebar** ด้านซ้าย และ **Sticky Topbar** ด้านบน
 
 #### 4) หน้าบัญชีรับเงิน (PaymentPage) — `/payment`
@@ -273,7 +275,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 #### 8) หน้าจัดการบัญชี (Account) — `/account`
 
-- `AccountProfileCard`: แสดงรูปโปรไฟล์ Avatar, ชื่อผู้ใช้, อีเมล, สถานะการยืนยันตัวตน
+- `AccountProfileCard`: แสดงรูปโปรไฟล์ Avatar, ชื่อผู้ใช้, อีเมล, สถานะการยืนยันตัวตน พร้อมระบบอัปโหลดเปลี่ยนรูป Avatar (แปลงเป็น Base64) และแก้ไขชื่อเล่น (Nickname) บันทึกผ่าน `PUT /api/users/me`
 - `AccountTabs`: แท็บสลับ 3 หมวดหมู่:
   - **UserInfoTab**: จัดการข้อมูลส่วนตัว, ชื่อแสดงผล, ข้อมูลติดต่อ
   - **SecurityTab**: จัดการรหัสผ่าน, เปลี่ยนรหัสผ่านใหม่พร้อม Checklist
@@ -281,8 +283,10 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 #### 9) หน้าประวัติการรับเงิน (HistoryPage) — `/history`
 
-- แสดงสถิติสรุปยอดโดเนททั้งหมด, จำนวนรายการที่สำเร็จ
-- ตารางประวัติการรับเงิน `DonationHistoryTable` แสดงวันเวลา, ผู้สนับสนุน, จำนวนเงิน, ช่องทางที่ใช้, และสถานะ
+- แสดงสถิติสรุปยอดโดเนททั้งหมด, จำนวนรายการที่สำเร็จ (ดึงจาก `GET /api/donations`)
+- ตารางประวัติการรับเงิน `DonationHistoryTable` แสดงวันเวลา, ผู้สนับสนุน, จำนวนเงิน, ช่องทางที่ใช้, ข้อความ, รูปสลิปโอนเงิน, และสถานะ (`completed`, `pending`, `rejected`)
+- รองรับตัวกรองสถานะ (`ทั้งหมด`, `สำเร็จ`, `รอดำเนินการ`, `ปฏิเสธ`), ช่องค้นหาชื่อผู้สนับสนุนหรือ Transaction ID, และระบบแบ่งหน้า (Pagination)
+- `SlipModal`: ป๊อปอัปตรวจสอบสลิปโอนเงินขยายใหญ่ พร้อมปุ่มอนุมัติ (`อนุมัติ`) หรือปฏิเสธ (`ปฏิเสธ`) รายการโดเนท บันทึกสถานะไปยัง `PATCH /api/donations/:id` แบบเรียลไทม์
 
 ---
 
@@ -335,7 +339,7 @@ client/src/
    - **ห้ามใส่ `overflow-x: hidden`** บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้คุณสมบัติ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
 4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกันเสมอ
 5. **การจัดการ State และ Storage**:
-   - หน้า **Account**, **Payment**, **DonatePage**, และ **DonorPage** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — ห้ามอ่าน/เขียนข้อมูลหลักลง `localStorage` โดยตรงในหน้าเหล่านี้
+   - หน้า **Account**, **Payment**, **DonatePage**, **DonorPage**, **Dashboard**, และ **HistoryPage** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — ห้ามอ่าน/เขียนข้อมูลหลักลง `localStorage` โดยตรงในหน้าเหล่านี้
    - หน้า **Widget** ยังอ่านและบันทึกข้อมูลผ่านไฟล์กลาง `widgetStorage.js` และ `sanitizeStorage.js` (เตรียมสำหรับการย้ายขึ้น REST API ใน Phase 7)
    - ห้ามเรียก `localStorage` ตรงๆ ในทุกกรณี ให้ใช้ผ่าน `safeGetItem`/`safeSetItem` ใน `sanitizeStorage.js` เสมอ
 6. **Zero Warning Policy บน CI**: ตัวแปร `CI=true` บน GitHub Actions จะเปลี่ยน warning ทุกตัวเป็น fatal error ดังนั้นห้ามทิ้ง unused variables หรือ unused imports
@@ -354,11 +358,11 @@ client/src/
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (162 Tests ผ่าน 100%), Server: 6 Suites (84 Tests ผ่าน 100%, Coverage > 98%)             |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (185 Tests ผ่าน 100%), Server: 6 Suites (107 Tests ผ่าน 100%, Coverage > 97%)             |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
-| **Database Models**          | 🔄 อยู่ระหว่างพัฒนา | มี `User` และ `Donation` Model แล้ว (Phase 6), เตรียมเพิ่ม `Widget`, `Mission` ใน Phase 7                   |
-| **Donation Pipeline**        | ✅ สมบูรณ์       | Public API (`GET /api/public/:username`), Donation Submission (`POST /api/donations`), Slip Upload Base64   |
+| **Database Models**          | ✅ สมบูรณ์       | มี `User` และ `Donation` Model แล้ว (Phase 6), เตรียมเพิ่ม `Widget`, `Mission` ใน Phase 7                   |
+| **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
 | **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---
@@ -401,7 +405,7 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-> **Phase 1–5 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), และ Cloud Deployment (Render + Vercel + MongoDB Atlas)
+> **Phase 1–6 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), และ Donation Pipeline, Dashboard Analytics & History Backoffice
 
 - **Phase 5: Deploy (เสร็จสมบูรณ์ ✅)**
   - Server ขึ้น **Render** (`https://final-project-xntd.onrender.com`) พร้อม Reverse Proxy (`trust proxy`), Dynamic Port และ CORS
@@ -409,16 +413,19 @@ client/src/
   - Database เชื่อมต่อ **MongoDB Atlas**
   - ผลการทดสอบ: เชื่อมต่อ REST API (`/api/users/me`) ตอบสนอง 401 Unauthorized ตามข้อกำหนด
 
-- **Phase 6: แกนหลัก Donation REST API & Database Schema (อยู่ระหว่างพัฒนา 🔄)**
-  - **ส่วนที่ 1: Donation Model, Public API & Donor Pipeline (เสร็จสมบูรณ์ ✅ — Branch `feature-donation-pipeline`)**
+- **Phase 6: แกนหลัก Donation REST API, Dashboard Analytics & History Backoffice (เสร็จสมบูรณ์ ✅)**
+  - **ส่วนที่ 1: Donation Model, Public API & Donor Pipeline (PR #50)**
     - สร้าง `server/Models/Donation.js` (`streamerId`, `donorName`, `amount`, `message`, `paymentMethod`, `status`, `slipImage`, `missionId`) ทำ Compound Index `{ streamerId: 1, createdAt: -1 }`
     - Public Endpoint: `GET /api/public/:username` (ข้อมูลสำหรับ Donor Page ปิดบังข้อมูลส่วนตัว พร้อม NoSQL guard)
     - `POST /api/donations` (สร้างรายการโดเนท พร้อมอัปโหลดสลิป Base64, ตรวจสอบยอดขั้นต่ำ, กรองคำหยาบ และ Socket Alert)
     - ปรับปรุง `DonorPage.jsx` เชื่อมต่อ REST API เซิร์ฟเวอร์จริงแทน `localStorage`
-  - **ส่วนที่ 2: Dashboard Analytics & History Backoffice (ถัดไป — ฝั่งเพื่อน)**
-    - `GET /api/donations` (ดึงประวัติการโดเนท พร้อม Pagination และตัวกรองสถานะสำหรับ `HistoryPage`)
-    - `GET /api/donations/stats` (ดึงสถิติรวม ยอดเงิน กราฟ และ Top Donors ด้วย Mongo Aggregation สำหรับ `Dashboard`)
-    - `PATCH /api/donations/:id` (อนุมัติ/ปฏิเสธสลิป)
+  - **ส่วนที่ 2: Dashboard Analytics, History Backoffice & Slip Management (PR #51)**
+    - `GET /api/donations` (ดึงประวัติการโดเนท พร้อม Pagination, ค้นหาชื่อผู้บริจาค/รหัสธุรกรรม, และตัวกรองสถานะสำหรับ `HistoryPage`)
+    - `GET /api/donations/stats` (ดึงสถิติรวม ยอดเงิน กราฟตามช่วงเวลา และ Top Donors ด้วย Mongo Aggregation สำหรับ `Dashboard`)
+    - `PATCH /api/donations/:id` (อนุมัติ/ปฏิเสธสลิปโอนเงิน อัปเดตสถานะในระบบ พร้อมบันทึกหมายเหตุ)
+    - `PUT /api/users/me` รองรับการอัปโหลด Avatar ใหม่ (Base64) และอัปเดต Nickname ในหน้า `Account`
+    - เพิ่มคอมโพเนนต์ `SlipModal` ให้สตรีมเมอร์กดดูสลิปขยายใหญ่และกดอนุมัติ/ปฏิเสธได้ทันที
+    - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 107 Tests, Client 185 Tests ผ่าน 100%) และผ่าน SonarCloud Quality Gate
 
 - **Phase 7: Real-time Alert + Widget OBS (ขนาดใหญ่)**
   - สร้าง `server/Models/Widget.js` (บันทึก Config และ Token สำหรับ Browser Source OBS)
