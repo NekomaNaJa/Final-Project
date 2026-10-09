@@ -95,7 +95,10 @@ describe("DonatePage Components & Page", () => {
       const file = new File(["image-bytes"], "cover.jpg", { type: "image/jpeg" });
       fireEvent.change(input, { target: { files: [file] } });
 
-      expect(handleSelect).toHaveBeenCalledWith(file, "blob:http://localhost/test-image");
+      expect(handleSelect).toHaveBeenCalledWith(
+        file,
+        expect.stringMatching(/^(data:image|blob:)/)
+      );
 
       const removeBtn = container.querySelector('button[title="ลบรูปภาพ"]');
       if (removeBtn) {

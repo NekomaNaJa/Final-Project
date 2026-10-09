@@ -220,6 +220,9 @@ const AlertPreview = ({ config, playing, username }) => {
             src={config.overlayImage}
             alt="overlay"
             className="mb-2 max-h-24 max-w-24 rounded-2xl object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
         ) : (
           <div className="mb-2.5 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-500/50 bg-[#16122a]/95 text-purple-300 shadow-[0_0_30px_rgba(168,85,247,0.5)] backdrop-blur-md">

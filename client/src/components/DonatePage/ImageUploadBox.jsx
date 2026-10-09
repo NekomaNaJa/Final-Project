@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Image as ImageIcon, X } from "lucide-react";
 
 const ImageUploadBox = ({ id, label, onImageSelect, previewUrl: initialPreview = null }) => {
@@ -7,16 +7,48 @@ const ImageUploadBox = ({ id, label, onImageSelect, previewUrl: initialPreview =
   const [preview, setPreview] = useState(initialPreview);
   const [isDragging, setIsDragging] = useState(false);
 
+  useEffect(() => {
+    setPreview(initialPreview);
+  }, [initialPreview]);
+
   const handleFile = (file) => {
     if (!file) return;
     if (!file.type.match("image/(jpeg|png|gif)")) {
       alert("รองรับเฉพาะไฟล์รูปภาพประเภท jpg, png, gif เท่านั้น");
       return;
     }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    if (onImageSelect) {
-      onImageSelect(file, url);
+    if (file.size > 3 * 1024 * 1024) {
+      alert("ขนาดไฟล์รูปภาพต้องไม่เกิน 3 MB เพื่อการแสดงผลที่รวดเร็ว");
+      return;
+    }
+
+    if (typeof FileReader !== "undefined") {
+      const reader = new FileReader();
+      const onDone = () => {
+        const resultUrl = reader.result;
+        if (resultUrl) {
+          setPreview(resultUrl);
+          if (onImageSelect) {
+            onImageSelect(file, resultUrl);
+          }
+        }
+      };
+      reader.onload = onDone;
+      reader.onloadend = onDone;
+      try {
+        reader.readAsDataURL(file);
+        return;
+      } catch {
+        // Fallback below
+      }
+    }
+
+    if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+      if (onImageSelect) {
+        onImageSelect(file, url);
+      }
     }
   };
 
@@ -80,6 +112,12 @@ const ImageUploadBox = ({ id, label, onImageSelect, previewUrl: initialPreview =
               src={preview}
               alt={label}
               className="h-full w-full object-cover rounded-lg"
+              onError={() => {
+                setPreview(null);
+                if (onImageSelect) {
+                  onImageSelect(null, null);
+                }
+              }}
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs text-white">
               คลิกเพื่อเปลี่ยนรูปภาพ

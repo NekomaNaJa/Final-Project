@@ -369,6 +369,9 @@ const OverlayAlertPage = () => {
               src={activeImage}
               alt="Alert Overlay"
               className="mb-3 max-h-40 max-w-40 rounded-2xl object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
             />
           ) : (
             <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-2xl border border-purple-500/50 bg-[#16122a]/95 text-purple-300 shadow-[0_0_40px_rgba(168,85,247,0.5)] backdrop-blur-md">
