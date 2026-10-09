@@ -208,6 +208,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 | `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
 | `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ                    |
 | `/widget`                            | `WidgetPage`   | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Live Preview   |
+| `/overlay/alert/:token`              | `OverlayAlertPage` | สาธารณะ        | หน้า Browser Source สำหรับ OBS Studio (พื้นหลังใส, FIFO Queue, Realtime Alert) |
 | `/:username` หรือ `/donor/:username` | `DonorPage`    | สาธารณะ            | หน้ารับเงินจริงสำหรับผู้สนับสนุน (Donor) รองรับ 5 สถานะการทำงาน             |
 | `*`                                  | `NotFound`     | สาธารณะ            | หน้าแจ้งเตือน 404 Not Found เมื่อไม่พบเส้นทาง URL                           |
 
@@ -271,6 +272,13 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
   3. **Leaderboard**: ชื่อหัวข้อ, สวิตช์แสดงยอดเงิน, กำหนดช่วงเวลา, ปรับจำนวนอันดับ 1–10 (Stepper +/-)
   4. **Mission Donate**: จัดการช่องภารกิจสูงสุด 12 ช่อง (ชื่อภารกิจ + ราคา ฿) สำหรับนำไปแสดงผลบน Donor Page
 - **BrowserSourceCard**: แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, ปุ่มคัดลอก URL, และปุ่มทดสอบ Alert พร้อมจำลอง Web Audio API เสียงจริง
+- **OverlayAlertPage (`/overlay/alert/:token`)**:
+  - พื้นหลังโปร่งใส 100% สำหรับใส่ใน OBS Browser Source
+  - ระบบ **FIFO Alert Queue**: รองรับกรณีมีโดเนทเข้ามาพร้อมกันหรือต่อเนื่อง จัดการแสดงผลทีละรายการตามลำดับพร้อมพัก Cooldown 400ms ป้องกันเสียงและแอนิเมชั่นทับซ้อน
+  - กรองยอดเงินขั้นต่ำ (`minAmount`) อัตโนมัติ รายการที่ต่ำกว่าเกณฑ์จะไม่ถูกนำเข้าคิว
+  - Animation Lifecycle ครบ 3 เฟส: เข้า (`entering`) -> แสดงผล (`visible`) -> เลือนออก (`exiting`) -> ว่าง (`idle`)
+  - รองรับ Amount Tiers, Web Audio API Sound Presets & Custom MP3, และ Responsive Thai TTS
+  - ควบคุมการทดสอบผ่าน Footer Toolbar: ปุ่มทดสอบแจ้งเตือน, ปุ่มข้าม (`skipAlert`), ปุ่มล้างคิว (`clearQueue`) พร้อมตัวนับจำนวนคิวรอ
 
 #### 8) หน้าจัดการบัญชี (Account) — `/account`
 
