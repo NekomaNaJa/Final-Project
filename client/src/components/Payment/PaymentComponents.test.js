@@ -64,7 +64,7 @@ describe("Payment Components", () => {
   });
 
   describe("TrueMoneyCard", () => {
-    test("renders TrueMoneyCard and allows changing phone number", () => {
+    test("renders TrueMoneyCard and handles toggle switch and changing phone number", () => {
       const handleSave = jest.fn();
       const { container } = render(
         <TrueMoneyCard
@@ -74,6 +74,16 @@ describe("Payment Components", () => {
       );
 
       expect(screen.getByText("ทรูมันนี่")).toBeInTheDocument();
+      expect(screen.getByText("เปิดใช้งาน")).toBeInTheDocument();
+
+      // Toggle switch
+      const toggle = screen.getByRole("switch");
+      fireEvent.click(toggle);
+      expect(screen.getByText("ปิดใช้งาน")).toBeInTheDocument();
+      expect(handleSave).toHaveBeenCalledWith({
+        enabled: false,
+        phone: "0812345678",
+      });
 
       // Expand card
       const expandBtn = screen.getByText(/จัดการ/i);
@@ -85,14 +95,14 @@ describe("Payment Components", () => {
       const submitBtn = container.querySelector('button[type="submit"]');
       fireEvent.click(submitBtn);
       expect(handleSave).toHaveBeenCalledWith({
-        enabled: true,
+        enabled: false,
         phone: "0888888888",
       });
     });
   });
 
   describe("BankCard", () => {
-    test("renders BankCard and allows editing bank details", () => {
+    test("renders BankCard and handles toggle switch and editing bank details", () => {
       const handleSave = jest.fn();
       const { container } = render(
         <BankCard
@@ -107,6 +117,18 @@ describe("Payment Components", () => {
       );
 
       expect(screen.getByText("ธนาคาร")).toBeInTheDocument();
+      expect(screen.getByText("เปิดใช้งาน")).toBeInTheDocument();
+
+      // Toggle switch
+      const toggle = screen.getByRole("switch");
+      fireEvent.click(toggle);
+      expect(screen.getByText("ปิดใช้งาน")).toBeInTheDocument();
+      expect(handleSave).toHaveBeenCalledWith({
+        enabled: false,
+        bankName: "ธนาคารไทยพาณิชย์ (SCB)",
+        accountNumber: "1234567890",
+        accountName: "ผู้ทดสอบ",
+      });
 
       // Expand card
       const expandBtn = screen.getByText(/จัดการ/i);
@@ -118,7 +140,7 @@ describe("Payment Components", () => {
       const submitBtn = container.querySelector('button[type="submit"]');
       fireEvent.click(submitBtn);
       expect(handleSave).toHaveBeenCalledWith({
-        enabled: true,
+        enabled: false,
         bankName: "ธนาคารไทยพาณิชย์ (SCB)",
         accountNumber: "9876543210",
         accountName: "ผู้ทดสอบ",

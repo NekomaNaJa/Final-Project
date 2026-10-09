@@ -51,6 +51,9 @@ const PaymentPage = () => {
         if (data.payment) {
           setPaymentConfig(data.payment);
           safeSetItem("donix_payment_config", data.payment);
+          if (data.username) {
+            safeSetItem(`donix_payment_config_${data.username}`, data.payment);
+          }
         }
       }
     } catch (err) {
@@ -90,6 +93,9 @@ const PaymentPage = () => {
 
       setPaymentConfig(updated);
       safeSetItem("donix_payment_config", updated);
+      if (user?.username) {
+        safeSetItem(`donix_payment_config_${user.username}`, updated);
+      }
       setFeedback({ type: "success", message: "บันทึกข้อมูลพร้อมเพย์สำเร็จ" });
       setTimeout(() => setFeedback(null), 4000);
     } catch (err) {
@@ -121,6 +127,9 @@ const PaymentPage = () => {
 
       setPaymentConfig(updated);
       safeSetItem("donix_payment_config", updated);
+      if (user?.username) {
+        safeSetItem(`donix_payment_config_${user.username}`, updated);
+      }
       setFeedback({ type: "success", message: "บันทึกข้อมูลทรูมันนี่สำเร็จ" });
       setTimeout(() => setFeedback(null), 4000);
     } catch (err) {
@@ -154,6 +163,9 @@ const PaymentPage = () => {
 
       setPaymentConfig(updated);
       safeSetItem("donix_payment_config", updated);
+      if (user?.username) {
+        safeSetItem(`donix_payment_config_${user.username}`, updated);
+      }
       setFeedback({ type: "success", message: "บันทึกข้อมูลบัญชีธนาคารสำเร็จ" });
       setTimeout(() => setFeedback(null), 4000);
     } catch (err) {
