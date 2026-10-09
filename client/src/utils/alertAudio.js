@@ -2,6 +2,7 @@
  * โมดูลจัดการระบบเสียงแจ้งเตือน (Sound Presets / Custom Audio)
  * และระบบอ่านออกเสียงอัตโนมัติ (Text-to-Speech) สำหรับ OBS Overlay Alert
  */
+import { API_URL } from "./api";
 
 let activeTtsAudio = null;
 let cachedVoices = [];
@@ -53,7 +54,7 @@ export const getAvailableVoices = () => {
         cachedVoices = window.speechSynthesis.getVoices() || [];
         resolve(cachedVoices);
       }
-    }, 1000);
+    }, 800);
   });
 };
 
@@ -136,6 +137,10 @@ export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoun
  */
 const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = "") => {
   try {
+    if (lang.toLowerCase().startsWith("th") && !voiceObj) {
+      return;
+    }
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.volume = volume;
@@ -159,7 +164,11 @@ const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = ""
 
 /**
  * อ่านออกเสียงข้อความแจ้งเตือนด้วย Text-to-Speech (TTS)
- * รองรับทั้ง Web Speech API ที่รอโหลด Voice สมบูรณ์ และ No-Referrer Cloud Audio Fallback สำหรับภาษาไทย
+ * ลำดับการทำงาน:
+ * 1. ดึงเสียงสังเคราะห์ผ่าน Backend Endpoint (/api/public/tts) เพื่อเสียงไทยที่ชัดเจน 100%
+ * 2. หรือสตรีมผ่าน Google TTS Direct (พร้อม no-referrer)
+ * 3. หรือ Web Speech API เฉพาะกรณีที่มี Voice ภาษาไทยจริง (ห้ามใช้ Voice ภาษาอังกฤษอย่าง David มาอ่านภาษาไทย)
+ *
  * @param {Object} options
  * @param {string} options.text - ข้อความที่ต้องการอ่าน
  * @param {string} [options.voice='th-female'] - 'th-female' | 'th-male' | 'en-female' | 'en-male'
@@ -184,9 +193,8 @@ export const speakAlertText = async ({
   const parsedSpeed = typeof speed === "number" ? speed : parseFloat(String(speed).replace("x", "")) || 1.0;
   const isThai = voice.startsWith("th");
 
-  // รอให้รายการ Voice ของเบราว์เซอร์พร้อมใช้งาน
+  // 1. ตรวจสอบว่าในเบราว์เซอร์มีเสียงสังเคราะห์ภาษาไทยแท้ๆ หรือไม่
   const availableVoices = await getAvailableVoices();
-
   let matchedVoice = null;
   if (isThai) {
     matchedVoice = availableVoices.find(
@@ -199,7 +207,7 @@ export const speakAlertText = async ({
     matchedVoice = availableVoices.find((v) => v.lang?.toLowerCase().includes("en"));
   }
 
-  // 1. หากพบ Voice ภาษาไทยในเครื่อง (เช่น Google ภาษาไทย ใน Chrome) ให้ใช้ Web Speech API ทันที
+  // 2. หากพบ Voice ภาษาไทยในเบราว์เซอร์ (เช่น Google ภาษาไทย ใน Chrome) ให้ใช้ Web Speech API ได้เลย
   if (matchedVoice) {
     fallbackWebSpeech(
       cleanText,
@@ -212,33 +220,39 @@ export const speakAlertText = async ({
     return;
   }
 
-  // 2. หากเป็นภาษาไทย แต่เครื่องไม่มี Voice ภาษาไทย (เช่น Windows ทั่วไปที่ไม่มี Thai Speech Pack)
-  // ใช้ Audio Element พร้อม no-referrer ป้องกันไม่ให้ Google บล็อก HTTP Referer จากเว็บ
+  // 3. หากเป็นภาษาไทย แต่เครื่องไม่มี Voice ภาษาไทย ให้ลองเล่นผ่าน Donix Backend หรือ Google TTS Stream
   if (isThai) {
-    try {
-      const audio = document.createElement("audio");
-      audio.referrerPolicy = "no-referrer";
-      const encoded = encodeURIComponent(cleanText.slice(0, 200));
-      audio.src = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encoded}`;
-      audio.volume = normalizedVolume;
-      audio.playbackRate = Math.max(0.75, Math.min(1.5, parsedSpeed));
-      activeTtsAudio = audio;
+    const streamUrls = [
+      `${API_URL}/public/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}&lang=th`,
+      `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=th&q=${encodeURIComponent(cleanText.slice(0, 200))}`,
+    ];
 
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // หากเครือข่ายไม่อนุญาต ให้พยายาม Web Speech API เป็นทางเลือกสุดท้าย
-          fallbackWebSpeech(cleanText, "th-TH", normalizedVolume, parsedSpeed, null, voice);
-        });
+    for (const url of streamUrls) {
+      try {
+        const audio = document.createElement("audio");
+        audio.referrerPolicy = "no-referrer";
+        audio.src = url;
+        audio.volume = normalizedVolume;
+        audio.playbackRate = Math.max(0.75, Math.min(1.5, parsedSpeed));
+        activeTtsAudio = audio;
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+          return;
+        }
+      } catch {
+        // หาก URL แรกไม่สำเร็จ ให้ลอง URL ถัดไป
       }
-      return;
-    } catch {
-      // หากเกิดข้อผิดพลาด
     }
+
+    // หากไม่สามารถเล่นเสียงไทยได้ในเครื่องนี้ ให้หยุดทันที
+    // "ห้าม" Fallback ไปใช้เสียงภาษาอังกฤษอย่าง David มาอ่านภาษาไทยเด็ดขาด
+    return;
   }
 
-  // 3. เสียงภาษาอังกฤษหรือกรณีทั่วไป
-  fallbackWebSpeech(cleanText, "en-US", normalizedVolume, parsedSpeed, null, voice);
+  // 4. กรณีเลือกเสียงภาษาอังกฤษ (en-female / en-male)
+  fallbackWebSpeech(cleanText, "en-US", normalizedVolume, parsedSpeed, matchedVoice, voice);
 };
 
 /**

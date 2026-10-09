@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Bell, Sparkles } from "lucide-react";
-import { DEFAULT_WIDGET_CONFIG } from "../components/Widget/widgetStorage";
+import { DEFAULT_WIDGET_CONFIG, getWidgetConfig } from "../components/Widget/widgetStorage";
 import { API_URL } from "../utils/api";
 import {
   playAlertSound,
@@ -32,11 +32,34 @@ const OverlayAlertPage = () => {
   const [searchParams] = useSearchParams();
   const isDemoMode = searchParams.get("demo") === "1" || searchParams.get("test") === "1";
 
-  const [config, setConfig] = useState(DEFAULT_WIDGET_CONFIG.alert);
+  const [config, setConfig] = useState(() => {
+    try {
+      return getWidgetConfig().alert;
+    } catch {
+      return DEFAULT_WIDGET_CONFIG.alert;
+    }
+  });
   const [currentAlert, setCurrentAlert] = useState(null);
   const [stage, setStage] = useState("idle"); // "idle" | "entering" | "visible" | "exiting"
 
   const activeTimersRef = useRef([]);
+
+  // รับการอัปเดตการตั้งค่าจาก WidgetPage ทันทีเมื่อมีการบันทึก
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "donix_widget_config") {
+        try {
+          const updated = getWidgetConfig().alert;
+          setConfig((prev) => ({ ...prev, ...updated }));
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const clearTimers = useCallback(() => {
     activeTimersRef.current.forEach((t) => window.clearTimeout(t));

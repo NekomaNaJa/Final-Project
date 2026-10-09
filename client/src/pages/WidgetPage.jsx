@@ -11,7 +11,7 @@ import MissionDonatePanel from "../components/Widget/MissionDonatePanel";
 import WidgetPreview from "../components/Widget/WidgetPreview";
 import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
 import { getWidgetConfig, saveWidgetConfig } from "../components/Widget/widgetStorage";
-import { playAlertSound } from "../utils/alertAudio";
+import { playAlertSound, speakAlertText } from "../utils/alertAudio";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -56,6 +56,17 @@ const WidgetPage = () => {
         volume: config.alert?.volume,
         customSoundFile: config.alert?.customSoundFile,
       });
+
+      if (config.alert?.ttsEnabled) {
+        window.setTimeout(() => {
+          speakAlertText({
+            text: "แฟนคลับเบอร์หนึ่ง โดเนท 500 บาท ข้อความ ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!",
+            voice: config.alert?.ttsVoice,
+            volume: config.alert?.ttsVolume,
+            speed: config.alert?.ttsSpeed,
+          });
+        }, 400);
+      }
     }
     const duration = (config.alert?.durationDisplay || 5) * 1000;
     window.setTimeout(() => setPlaying(false), Math.min(6000, duration));
