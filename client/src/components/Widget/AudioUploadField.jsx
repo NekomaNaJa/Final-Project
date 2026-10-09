@@ -10,6 +10,34 @@ const AudioUploadField = ({ fileName, onFileSelect }) => {
       alert("รองรับเฉพาะไฟล์เสียงประเภท MP3 เท่านั้น");
       return;
     }
+
+    try {
+      if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+        window._donixCustomAudioMap = window._donixCustomAudioMap || {};
+        window._donixCustomAudioMap[file.name] = URL.createObjectURL(file);
+      }
+    } catch {
+      // ignore
+    }
+
+    if (typeof FileReader !== "undefined") {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          if (e.target?.result) {
+            localStorage.setItem("donix_audio_" + file.name, e.target.result);
+          }
+        } catch {
+          // ignore quota error
+        }
+      };
+      try {
+        reader.readAsDataURL(file);
+      } catch {
+        // ignore
+      }
+    }
+
     onFileSelect?.(file.name);
   };
 
@@ -33,7 +61,17 @@ const AudioUploadField = ({ fileName, onFileSelect }) => {
       {fileName && (
         <button
           type="button"
-          onClick={() => onFileSelect?.("")}
+          onClick={() => {
+            if (typeof window !== "undefined" && window._donixCustomAudioMap) {
+              delete window._donixCustomAudioMap[fileName];
+            }
+            try {
+              localStorage.removeItem("donix_audio_" + fileName);
+            } catch {
+              // ignore
+            }
+            onFileSelect?.("");
+          }}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#2e2648] text-gray-400 hover:border-red-500/40 hover:text-red-400"
         >
           <X size={14} />

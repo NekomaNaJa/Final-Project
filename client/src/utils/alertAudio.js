@@ -73,7 +73,11 @@ export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoun
   // กรณีเลือกเล่นไฟล์เสียง Custom ที่สตรีมเมอร์อัปโหลด
   if (preset === "custom" && customSoundFile) {
     try {
-      const audio = new Audio(customSoundFile);
+      const cached =
+        (typeof window !== "undefined" && window._donixCustomAudioMap?.[customSoundFile]) ||
+        (typeof localStorage !== "undefined" && localStorage.getItem("donix_audio_" + customSoundFile)) ||
+        customSoundFile;
+      const audio = new Audio(cached);
       audio.volume = normalizedVolume;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
