@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     isEmailVerified: { type: Boolean, default: false },
 
     // สถานะการไลฟ์/เปิดรับเงิน (สำหรับ DonorPage & Dashboard)
-    isLive: { type: Boolean, default: true },
+    isLive: { type: Boolean, default: false },
 
     // Social Media (ครบทั้ง 6 แพลตฟอร์ม)
     social: {
@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
     // ช่องทางรับเงิน (ตรงกับหน้า Payment)
     payment: {
       promptpay: {
-        enabled: { type: Boolean, default: true },
+        enabled: { type: Boolean, default: false },
         type: {
           type: String,
           enum: [
@@ -60,12 +60,12 @@ const userSchema = new mongoose.Schema(
             "BBL Merchant Pro",
             "ร้านค้าถุงเงิน",
           ],
-          default: "เบอร์โทรศัพท์",
+          default: null,
         },
-        number: { type: String, default: "0812345678" },
+        number: { type: String, default: "" },
       },
       bank: {
-        enabled: { type: Boolean, default: true },
+        enabled: { type: Boolean, default: false },
         bankName: {
           type: String,
           enum: [
@@ -78,10 +78,10 @@ const userSchema = new mongoose.Schema(
             "ธนาคารทหารไทยธนชาต (TTB)",
             "ธนาคารออมสิน (GSB)",
           ],
-          default: "ธนาคารไทยพาณิชย์ (SCB)",
+          default: null,
         },
-        accountNumber: { type: String, default: "4170606722" },
-        accountName: { type: String, default: "มนต์ธร กอเจริญทรัพย์" },
+        accountNumber: { type: String, default: "" },
+        accountName: { type: String, default: "" },
       },
       truemoney: {
         enabled: { type: Boolean, default: false },
