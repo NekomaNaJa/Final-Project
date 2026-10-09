@@ -41,8 +41,17 @@ const OverlayAlertPage = () => {
   });
   const [currentAlert, setCurrentAlert] = useState(null);
   const [stage, setStage] = useState("idle"); // "idle" | "entering" | "visible" | "exiting"
+  const [alertQueue, setAlertQueue] = useState([]);
 
+  const configRef = useRef(config);
+  const queueRef = useRef([]);
+  const isProcessingRef = useRef(false);
   const activeTimersRef = useRef([]);
+  const processAlertRef = useRef(null);
+
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   // รับการอัปเดตการตั้งค่าจาก WidgetPage ทันทีเมื่อมีการบันทึก
   useEffect(() => {
@@ -109,79 +118,155 @@ const OverlayAlertPage = () => {
     };
   }, [token]);
 
-  // ฟังก์ชันจำลองการแสดงแจ้งเตือนพร้อม Animation Lifecycle และเสียง/TTS
+  // ประมวลผลเล่นการแจ้งเตือนทีละรายการ (Internal Execution)
+  const processAlert = useCallback((alertData) => {
+    isProcessingRef.current = true;
+    const activeCfg = configRef.current;
+
+    setCurrentAlert(alertData);
+    setStage("entering");
+
+    // 1. เล่นเสียงแจ้งเตือน (Preset Sound, Amount Tier Sound, หรือ Custom File)
+    let soundPreset = activeCfg.soundPreset || "mythic-horn";
+    const amount = Number(alertData?.amount) || 0;
+    if (activeCfg.useAmountTiers && Array.isArray(activeCfg.amountTiers)) {
+      const matchedTier = activeCfg.amountTiers.find(
+        (t) => amount >= Number(t.min) && amount <= Number(t.max)
+      );
+      if (matchedTier?.sound) {
+        soundPreset = matchedTier.sound;
+      }
+    }
+
+    playAlertSound({
+      preset: soundPreset,
+      volume: activeCfg.volume,
+      customSoundFile: activeCfg.customSoundFile,
+    });
+
+    // 2. อ่านออกเสียงข้อความด้วย TTS (Text-to-Speech)
+    let ttsTimer = null;
+    if (activeCfg.ttsEnabled) {
+      const donor = alertData?.donorName || "ผู้สนับสนุน";
+      const donationAmount = alertData?.amount || 0;
+      const msg = alertData?.message ? ` ${alertData.message}` : "";
+      const rawTpl = activeCfg.template || "{user} โดเนท {amount} บาท";
+      const parsedHeadline = rawTpl
+        .replaceAll("{user}", donor)
+        .replaceAll("{amount}", String(donationAmount));
+      const ttsText = `${parsedHeadline}${msg}`;
+
+      ttsTimer = window.setTimeout(() => {
+        speakAlertText({
+          text: ttsText,
+          voice: activeCfg.ttsVoice,
+          volume: activeCfg.ttsVolume,
+          speed: activeCfg.ttsSpeed,
+        });
+      }, 500);
+    }
+
+    const durInMs = Math.max(100, (activeCfg.durationIn || 0.8) * 1000);
+    const durDisplayMs = Math.max(500, (activeCfg.durationDisplay || 5) * 1000);
+    const durOutMs = Math.max(100, (activeCfg.durationOut || 0.8) * 1000);
+    const cooldownMs = 400; // ระยะเวลาพักก่อนดึงคิวถัดไป
+
+    // Phase 1: เข้าสู่สเตจแสดงผลค้างไว้ (visible)
+    const t1 = window.setTimeout(() => {
+      setStage("visible");
+    }, durInMs);
+
+    // Phase 2: เริ่มแอนิเมชันเลือนออก (exiting)
+    const t2 = window.setTimeout(() => {
+      setStage("exiting");
+    }, durInMs + durDisplayMs);
+
+    // Phase 3: สิ้นสุด กลับสู่สถานะว่าง (idle) และประมวลผลคิวถัดไป
+    const t3 = window.setTimeout(() => {
+      setStage("idle");
+      setCurrentAlert(null);
+
+      const tCooldown = window.setTimeout(() => {
+        if (queueRef.current.length > 0) {
+          const nextAlert = queueRef.current[0];
+          queueRef.current = queueRef.current.slice(1);
+          setAlertQueue([...queueRef.current]);
+          if (processAlertRef.current) {
+            processAlertRef.current(nextAlert);
+          }
+        } else {
+          isProcessingRef.current = false;
+        }
+      }, cooldownMs);
+
+      activeTimersRef.current.push(tCooldown);
+    }, durInMs + durDisplayMs + durOutMs);
+
+    activeTimersRef.current = [t1, t2, t3, ...(ttsTimer ? [ttsTimer] : [])];
+  }, []);
+
+  useEffect(() => {
+    processAlertRef.current = processAlert;
+  }, [processAlert]);
+
+  // นำรายการเข้าคิวแบบ FIFO พร้อมตรวจสอบยอดขั้นต่ำ (minAmount)
+  const enqueueAlert = useCallback(
+    (alertData) => {
+      if (!alertData) return;
+
+      const min = Number(configRef.current?.minAmount) || 0;
+      const amount = Number(alertData.amount) || 0;
+      if (amount < min) {
+        return;
+      }
+
+      if (!isProcessingRef.current) {
+        processAlert(alertData);
+      } else {
+        queueRef.current = [...queueRef.current, alertData];
+        setAlertQueue([...queueRef.current]);
+      }
+    },
+    [processAlert]
+  );
+
+  // ฟังก์ชัน Trigger Alert (รองรับทั้ง Custom Config และการทำงานดั้งเดิม)
   const triggerAlert = useCallback(
     (alertData, customConfig = null) => {
-      clearTimers();
-      const activeCfg = customConfig || config;
-
-      setCurrentAlert(alertData);
-      setStage("entering");
-
-      // 1. เล่นเสียงแจ้งเตือน (Preset Sound, Amount Tier Sound, หรือ Custom File)
-      let soundPreset = activeCfg.soundPreset || "mythic-horn";
-      const amount = Number(alertData?.amount) || 0;
-      if (activeCfg.useAmountTiers && Array.isArray(activeCfg.amountTiers)) {
-        const matchedTier = activeCfg.amountTiers.find(
-          (t) => amount >= Number(t.min) && amount <= Number(t.max)
-        );
-        if (matchedTier?.sound) {
-          soundPreset = matchedTier.sound;
-        }
+      if (customConfig) {
+        configRef.current = { ...configRef.current, ...customConfig };
+        setConfig(configRef.current);
       }
-
-      playAlertSound({
-        preset: soundPreset,
-        volume: activeCfg.volume,
-        customSoundFile: activeCfg.customSoundFile,
-      });
-
-      // 2. อ่านออกเสียงข้อความด้วย TTS (Text-to-Speech)
-      let ttsTimer = null;
-      if (activeCfg.ttsEnabled) {
-        const donor = alertData?.donorName || "ผู้สนับสนุน";
-        const donationAmount = alertData?.amount || 0;
-        const msg = alertData?.message ? ` ${alertData.message}` : "";
-        const rawTpl = activeCfg.template || "{user} โดเนท {amount} บาท";
-        const parsedHeadline = rawTpl
-          .replaceAll("{user}", donor)
-          .replaceAll("{amount}", String(donationAmount));
-        const ttsText = `${parsedHeadline}${msg}`;
-
-        ttsTimer = window.setTimeout(() => {
-          speakAlertText({
-            text: ttsText,
-            voice: activeCfg.ttsVoice,
-            volume: activeCfg.ttsVolume,
-            speed: activeCfg.ttsSpeed,
-          });
-        }, 500);
-      }
-
-      const durInMs = Math.max(100, (activeCfg.durationIn || 0.8) * 1000);
-      const durDisplayMs = Math.max(500, (activeCfg.durationDisplay || 5) * 1000);
-      const durOutMs = Math.max(100, (activeCfg.durationOut || 0.8) * 1000);
-
-      // Phase 1: เข้าสู่สเตจแสดงผลค้างไว้ (visible)
-      const t1 = window.setTimeout(() => {
-        setStage("visible");
-      }, durInMs);
-
-      // Phase 2: เริ่มแอนิเมชันเลือนออก (exiting)
-      const t2 = window.setTimeout(() => {
-        setStage("exiting");
-      }, durInMs + durDisplayMs);
-
-      // Phase 3: สิ้นสุด กลับสู่สถานะว่าง (idle)
-      const t3 = window.setTimeout(() => {
-        setStage("idle");
-        setCurrentAlert(null);
-      }, durInMs + durDisplayMs + durOutMs);
-
-      activeTimersRef.current = [t1, t2, t3, ...(ttsTimer ? [ttsTimer] : [])];
+      enqueueAlert(alertData);
     },
-    [clearTimers, config]
+    [enqueueAlert]
   );
+
+  // ล้างคิวทั้งหมดทันที
+  const clearQueue = useCallback(() => {
+    clearTimers();
+    queueRef.current = [];
+    setAlertQueue([]);
+    isProcessingRef.current = false;
+    setStage("idle");
+    setCurrentAlert(null);
+  }, [clearTimers]);
+
+  // ข้ามการแจ้งเตือนปัจจุบันไปยังรายการถัดไปในคิว
+  const skipAlert = useCallback(() => {
+    clearTimers();
+    setStage("idle");
+    setCurrentAlert(null);
+
+    if (queueRef.current.length > 0) {
+      const nextAlert = queueRef.current[0];
+      queueRef.current = queueRef.current.slice(1);
+      setAlertQueue([...queueRef.current]);
+      processAlert(nextAlert);
+    } else {
+      isProcessingRef.current = false;
+    }
+  }, [clearTimers, processAlert]);
 
   // ถ้าเปิดในโหมด demo ให้ยิงการแจ้งเตือนตัวอย่างอัตโนมัติ 1 ครั้ง
   useEffect(() => {
@@ -358,17 +443,38 @@ const OverlayAlertPage = () => {
       >
         <span className="text-[11px] text-purple-300">
           OBS Alert {stage !== "idle" ? `(${stage})` : ""}
+          {alertQueue.length > 0 && ` · คิวรอ: ${alertQueue.length}`}
         </span>
         <button
           type="button"
           onClick={() => {
             const randomIndex = Math.floor(Math.random() * SAMPLE_ALERTS.length);
-            triggerAlert(SAMPLE_ALERTS[randomIndex]);
+            enqueueAlert(SAMPLE_ALERTS[randomIndex]);
           }}
           className="rounded-lg bg-purple-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-purple-500 active:scale-95 transition-all cursor-pointer shadow-sm"
         >
           ทดสอบแจ้งเตือน
         </button>
+        {isDisplaying && (
+          <button
+            type="button"
+            onClick={skipAlert}
+            className="rounded-lg bg-[#2e2648] px-2.5 py-1.5 text-[11px] font-semibold text-gray-300 hover:bg-[#3b325c] active:scale-95 transition-all cursor-pointer shadow-sm"
+            title="ข้ามแจ้งเตือนนี้ไปยังคิวถัดไป"
+          >
+            ข้าม
+          </button>
+        )}
+        {alertQueue.length > 0 && (
+          <button
+            type="button"
+            onClick={clearQueue}
+            className="rounded-lg bg-red-900/60 border border-red-500/30 px-2 py-1.5 text-[11px] font-semibold text-red-200 hover:bg-red-800/80 active:scale-95 transition-all cursor-pointer shadow-sm"
+            title="ล้างคิวทั้งหมด"
+          >
+            ล้างคิว ({alertQueue.length})
+          </button>
+        )}
       </footer>
     </div>
   );
