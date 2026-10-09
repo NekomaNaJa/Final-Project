@@ -279,6 +279,11 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
 
     expect(screen.queryByText(/คิวรอ:/)).not.toBeInTheDocument();
     expect(screen.queryByTestId("alert-display-card")).not.toBeInTheDocument();
+
+    // Skip when queue is empty sets isProcessing to false
+    act(() => {
+      fireEvent.click(skipBtn);
+    });
   });
 
   test("filters out incoming donations below minAmount threshold", async () => {
@@ -443,7 +448,7 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
       })
     );
 
-    const { unmount } = render(
+    const { unmount: unmountGlitch } = render(
       <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
         <Routes>
           <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
@@ -452,7 +457,7 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     );
 
     expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
-    unmount();
+    unmountGlitch();
 
     localStorage.setItem(
       "donix_widget_config",
@@ -464,7 +469,7 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
       })
     );
 
-    render(
+    const { unmount: unmountWave } = render(
       <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
         <Routes>
           <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
@@ -473,6 +478,49 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     );
 
     expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
+    unmountWave();
+
+    localStorage.setItem(
+      "donix_widget_config",
+      JSON.stringify({
+        alert: {
+          filterEffect: "Pulse",
+          minAmount: 0,
+        },
+      })
+    );
+
+    const { unmount: unmountPulse } = render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
+    unmountPulse();
+
+    localStorage.setItem(
+      "donix_widget_config",
+      JSON.stringify({
+        alert: {
+          filterEffect: "None",
+          minAmount: 0,
+        },
+      })
+    );
+
+    const { unmount: unmountNone } = render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss?demo=1"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
+    unmountNone();
     localStorage.removeItem("donix_widget_config");
   });
 });

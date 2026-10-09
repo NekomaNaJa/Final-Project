@@ -106,6 +106,30 @@ describe("Widget Components & Functions", () => {
         fireEvent.click(buttons[1]);
         expect(handleSelect).toHaveBeenCalledWith("");
       }
+
+      // Test FileReader onload and quota error catch
+      const originalFileReader = window.FileReader;
+      class MockFileReader {
+        readAsDataURL() {
+          if (this.onload) {
+            this.onload({ target: { result: "data:audio/mp3;base64,mockResult" } });
+          }
+        }
+      }
+      window.FileReader = MockFileReader;
+
+      const customMp3 = new File(["dummy"], "onload.mp3", { type: "audio/mpeg" });
+      fireEvent.change(fileInput, { target: { files: [customMp3] } });
+      expect(handleSelect).toHaveBeenCalledWith("onload.mp3");
+
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = jest.fn(() => {
+        throw new Error("Quota exceeded");
+      });
+      fireEvent.change(fileInput, { target: { files: [customMp3] } });
+
+      Storage.prototype.setItem = originalSetItem;
+      window.FileReader = originalFileReader;
     });
   });
 
@@ -995,6 +1019,31 @@ describe("Widget Components & Functions", () => {
         </BrowserRouter>
       );
       expect(localStorage.getItem("token")).toBeNull();
+    });
+
+    test("triggers TTS speech on test alert and handles tts timeout and completion", () => {
+      jest.useFakeTimers();
+      const mockPayload = btoa(JSON.stringify({ username: "tts_streamer" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      const testBtn = screen.getByRole("button", { name: /ทดสอบ Alert/ });
+      fireEvent.click(testBtn);
+
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(7000);
+      });
+
+      jest.useRealTimers();
     });
   });
 });

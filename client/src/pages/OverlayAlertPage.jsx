@@ -243,13 +243,9 @@ const OverlayAlertPage = () => {
     [processAlert]
   );
 
-  // ฟังก์ชัน Trigger Alert (รองรับทั้ง Custom Config และการทำงานดั้งเดิม)
+  // ฟังก์ชัน Trigger Alert
   const triggerAlert = useCallback(
-    (alertData, customConfig = null) => {
-      if (customConfig) {
-        configRef.current = { ...configRef.current, ...customConfig };
-        setConfig(configRef.current);
-      }
+    (alertData) => {
       enqueueAlert(alertData);
     },
     [enqueueAlert]

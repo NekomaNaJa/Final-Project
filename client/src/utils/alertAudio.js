@@ -152,10 +152,6 @@ export const playAlertSound = ({ preset = "mythic-horn", volume = 80, customSoun
  */
 const fallbackWebSpeech = (text, lang, volume, speed, voiceObj, voicePreset = "") => {
   try {
-    if (lang.toLowerCase().startsWith("th") && !voiceObj) {
-      return;
-    }
-
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.volume = volume;

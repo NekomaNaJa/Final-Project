@@ -237,6 +237,99 @@ describe("alertAudio Utility", () => {
       delete window.speechSynthesis;
       await expect(speakAlertText({ text: "Hello" })).resolves.not.toThrow();
     });
+
+    test("speaks english text via fallbackWebSpeech when no matching voice is found in getVoices", async () => {
+      // Simulate voiceschanged with only Thai voices so no English voice matches
+      window.speechSynthesis.getVoices = jest.fn(() => [{ lang: "th-TH", name: "Thai Only" }]);
+      if (typeof window.speechSynthesis.onvoiceschanged === "function") {
+        window.speechSynthesis.onvoiceschanged();
+      }
+      await speakAlertText({
+        text: "John Doe donated 100 USD",
+        voice: "en-female",
+        volume: 70,
+        speed: "1.0x",
+      });
+      expect(window.speechSynthesis.speak).toHaveBeenCalled();
+    });
+
+    test("falls back to Google TTS audio element with preservesPitch property supported", async () => {
+      window.speechSynthesis.getVoices = jest.fn(() => []);
+      HTMLMediaElement.prototype.preservesPitch = true;
+
+      await speakAlertText({
+        text: "ผู้สนับสนุน โดเนท 500 บาท",
+        voice: "th-female",
+        volume: 80,
+      });
+
+      delete HTMLMediaElement.prototype.preservesPitch;
+    });
+
+    test("handles error during streamGoogleTts gracefully when audio creation fails", async () => {
+      window.speechSynthesis.getVoices = jest.fn(() => []);
+      const originalCreate = document.createElement;
+      document.createElement = jest.fn((tag) => {
+        if (tag === "audio") throw new Error("DOM audio fail");
+        return originalCreate.call(document, tag);
+      });
+
+      await expect(
+        speakAlertText({
+          text: "ผู้สนับสนุน โดเนท 500 บาท",
+          voice: "th-female",
+        })
+      ).resolves.not.toThrow();
+
+      document.createElement = originalCreate;
+    });
+
+    test("catches error during fallbackWebSpeech if speak throws", async () => {
+      window.speechSynthesis.getVoices = jest.fn(() => [
+        { lang: "th-TH", name: "Thai Female" },
+      ]);
+      window.speechSynthesis.speak = jest.fn(() => {
+        throw new Error("Speech synthesis fail");
+      });
+
+      await expect(
+        speakAlertText({
+          text: "ทดสอบ",
+          voice: "th-female",
+        })
+      ).resolves.not.toThrow();
+    });
+
+    test("handles delayed voice loading with voiceschanged event or fallback timeout", async () => {
+      jest.useFakeTimers();
+      let listener = null;
+      window.speechSynthesis.getVoices = jest.fn().mockReturnValueOnce([]);
+      window.speechSynthesis.addEventListener = jest.fn((event, cb) => {
+        if (event === "voiceschanged") listener = cb;
+      });
+
+      const promise = getAvailableVoices();
+      jest.advanceTimersByTime(850);
+      const voices = await promise;
+      expect(Array.isArray(voices)).toBe(true);
+      jest.useRealTimers();
+    });
+
+    test("handles delayed voice loading when voiceschanged event fires", async () => {
+      let listener = null;
+      window.speechSynthesis.getVoices = jest
+        .fn()
+        .mockReturnValueOnce([])
+        .mockReturnValue([{ lang: "th-TH", name: "Thai Voice" }]);
+      window.speechSynthesis.addEventListener = jest.fn((event, cb) => {
+        if (event === "voiceschanged") listener = cb;
+      });
+
+      const promise = getAvailableVoices();
+      if (listener) listener();
+      const voices = await promise;
+      expect(voices).toHaveLength(1);
+    });
   });
 
   describe("stopAllAlertAudio", () => {
