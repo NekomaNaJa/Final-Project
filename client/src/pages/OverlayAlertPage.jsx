@@ -141,7 +141,7 @@ const OverlayAlertPage = () => {
       if (activeCfg.ttsEnabled) {
         const donor = alertData?.donorName || "ผู้สนับสนุน";
         const donationAmount = alertData?.amount || 0;
-        const msg = alertData?.message ? ` ข้อความ ${alertData.message}` : "";
+        const msg = alertData?.message ? ` ${alertData.message}` : "";
         const ttsText = `${donor} โดเนท ${donationAmount} บาท${msg}`;
 
         ttsTimer = window.setTimeout(() => {

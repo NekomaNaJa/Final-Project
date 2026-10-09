@@ -61,7 +61,7 @@ const WidgetPage = () => {
       if (config.alert?.ttsEnabled) {
         window.setTimeout(() => {
           speakAlertText({
-            text: `${donorName} โดเนท 500 บาท ข้อความ ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!`,
+            text: `${donorName} โดเนท 500 บาท ขอเพลงโปรดหน่อยครับ เล่นเกมเก่งมาก!`,
             voice: config.alert?.ttsVoice,
             volume: config.alert?.ttsVolume,
             speed: config.alert?.ttsSpeed,
