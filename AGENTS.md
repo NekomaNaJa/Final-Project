@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (21 Suites, 185 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (24 Suites, 242 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -54,8 +54,13 @@ npm run test:coverage
 
 # ทดสอบฝั่ง Client (Unit Tests + Production Build)
 cd client
+# สำหรับ CMD (Command Prompt)
 set CI=true&& npm test -- --coverage --watchAll=false
 set CI=true&& npm run build
+
+# สำหรับ PowerShell (Windows)
+$env:CI="true"; npm test -- --coverage --watchAll=false
+$env:CI="true"; npm run build
 ```
 
 ---
@@ -297,18 +302,20 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 ---
 
-## 6. โครงสร้างโฟลเดอร์ Component ฝั่ง Client
+### 6. โครงสร้างโฟลเดอร์ Component ฝั่ง Client
 
 ```
 client/src/
+├── __mocks__/
+│   └── socket.io-client.js    → Mock Socket.IO Client สำหรับ Jest
 ├── assets/                    → โลโก้และรูปภาพประกอบ (PrimaryLogo, HeroLogo, hero, bg-login)
 ├── components/
 │   ├── Account/               → AccountProfileCard, AccountTabs, ManageAccountCard, SecurityTab, SocialMediaTab, UserInfoTab
 │   ├── Auth/                  → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
 │   ├── Dashboard/             → CardWrapper, DonationChart, PaymentChannels, ProtectedRoute, RealtimeFeed, StatsCard, TopDonors
 │   ├── Discover/              → CategorySection, StreamerCard
-│   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection
-│   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorTrueMoneyForm
+│   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection, DonatePageComponents.test.js
+│   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorTrueMoneyForm, DonorComponents.test.js
 │   ├── Histor/                → DonationHistoryTable, SlipModal (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
 │   ├── HowToUse/              → BenefitsSection, StepsSection
 │   ├── MainPage/              → CTASection, Features, Footer, Hero, Navbar, StreamerList
@@ -321,13 +328,17 @@ client/src/
 │   └── socialPlatforms.js     → รายชื่อและไอคอนของแพลตฟอร์มโซเชียลมีเดีย
 ├── hooks/
 │   └── useJwtUser.js          → Custom hook ดึงข้อมูล user จาก JWT ใน localStorage
-├── pages/                     → หน้าหลักทั้ง 12 หน้า และ NotFound
+├── pages/                     → หน้าหลักทั้ง 12 หน้า, NotFound, OverlayAlertPage.jsx, OverlayAlertPage.test.js
 ├── utils/
+│   ├── alertAudio.js          → ระบบเสียงแจ้งเตือน Web Audio API Synth, custom MP3, Google TTS HTTPS Direct, Web Speech API fallback
+│   ├── alertAudio.test.js     → ชุดทดสอบระบบเสียงและการสังเคราะห์เสียง TTS (23 tests)
 │   ├── api.js                 → ฟังก์ชัน fetch กลาง (fetchCurrentUser, updateCurrentUser, updatePaymentSettings, updateDonationPageSettings, changePassword, fetchDonationHistory, fetchDonationStats, updateDonationStatus) + API Endpoint Constants
 │   ├── passwordValidation.js  → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน
 │   ├── passwordValidation.test.js
 │   ├── sanitizeStorage.js     → ฟังก์ชันกรองและจัดเก็บข้อมูล localStorage ให้ปลอดภัย
-│   └── sanitizeStorage.test.js
+│   ├── sanitizeStorage.test.js
+│   ├── socket.js              → Socket.IO Client singleton (getSocket, joinStreamRoom, leaveStreamRoom, onDonationAlert, emitTestAlert, disconnectSocket)
+│   └── socket.test.js         → ชุดทดสอบ Socket.IO integration (9 tests)
 ├── App.js                     → การกำหนดเส้นทาง URL Routing ทั้งหมด
 ├── App.test.js                → การทดสอบ Routing ภาพรวม
 ├── setupTests.js              → การตั้งค่า Jest polyfill (TextEncoder/TextDecoder)
@@ -365,11 +376,12 @@ client/src/
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 21 Suites (185 Tests ผ่าน 100%), Server: 6 Suites (107 Tests ผ่าน 100%, Coverage > 97%)             |
-| **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
-| **SonarCloud Quality Gate**  | ✅ ผ่าน          | 0 Security Issues, 0 Vulnerabilities, Duplication ≤ 3%, New Code Coverage > 80%                            |
-| **Database Models**          | ✅ สมบูรณ์       | มี `User` และ `Donation` Model แล้ว (Phase 6), เตรียมเพิ่ม `Widget`, `Mission` ใน Phase 7                   |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
+| **Phase 7 — Real-time Alert & OBS Widget** | ✅ สมบูรณ์ (PR #57) | OBS Overlay Alert Page, FIFO Queue, Cooldown 400ms, Web Audio API Sound Presets, Google TTS Direct HTTPS, Real-time Socket.IO (`donation-alert`, `test-alert`) |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 24 Suites (242 Tests ผ่าน 100%, Coverage > 91%), Server: 6 Suites (107 Tests ผ่าน 100%, Coverage > 97%), รวม 349 Tests ผ่าน 100% |
+| **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
+| **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities    |
+| **Database Models**          | ✅ สมบูรณ์       | มี `User` และ `Donation` Model แล้ว, เตรียมเพิ่ม `Widget`, `Mission` ตามแผนงาน                              |
 | **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---
@@ -412,7 +424,7 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-> **Phase 1–6 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), และ Donation Pipeline, Dashboard Analytics & History Backoffice
+> **Phase 1–7 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), Donation Pipeline, Dashboard Analytics & History Backoffice, และ Real-time Alert & OBS Widget System (PR #57)
 
 - **Phase 5: Deploy (เสร็จสมบูรณ์ ✅)**
   - Server ขึ้น **Render** (`https://final-project-xntd.onrender.com`) พร้อม Reverse Proxy (`trust proxy`), Dynamic Port และ CORS
@@ -434,13 +446,19 @@ client/src/
     - เพิ่มคอมโพเนนต์ `SlipModal` ให้สตรีมเมอร์กดดูสลิปขยายใหญ่และกดอนุมัติ/ปฏิเสธได้ทันที
     - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 107 Tests, Client 185 Tests ผ่าน 100%) และผ่าน SonarCloud Quality Gate
 
-- **Phase 7: Real-time Alert + Widget OBS (กำลังดำเนินการ - เสร็จสิ้น Step 1-5)**
+- **Phase 7: Real-time Alert & OBS Widget System (เสร็จสมบูรณ์ ✅ - PR #57)**
   - **Step 1: Preset & Visual Upgrades**: ปรับขนาดและรายการฟอนต์ให้เหลือ Kanit และ FC Vision, รองรับ Dynamic Template TTS `{user}` และ `{amount}`, เพิ่มปุ่มทดสอบแอนิเมชันและพรีวิวทันทีเมื่อเปลี่ยนตัวเลือก
-  - **Step 2: Persistent Uploads**: แปลงไฟล์รูปภาพแสดงผล (JPG/PNG/GIF) เป็น Base64 Data URL ผ่าน `FileReader.readAsDataURL` แทน `blob:` URL ชั่วคราว ป้องกันรูปหายเมื่อรีเฟรชหน้าเว็บ
+  - **Step 2: Persistent Uploads**: แปลงไฟล์รูปภาพแสดงผล (JPG/PNG/GIF) และไฟล์เสียงแจ้งเตือน MP3 เป็น Data URL บันทึกลง Storage ป้องกันข้อมูลหายเมื่อรีเฟรชหน้าเว็บ
   - **Step 3: Minimum Donation Sync**: ซิงค์ค่ายอดโดเนทขั้นต่ำ (`minAmount`) ระหว่างการตั้งค่าวิดเจ็ตและหน้ารับเงิน (`DonorPage`), ล็อกไม่ให้ผู้สนับสนุนกรอกยอดต่ำกว่าขั้นต่ำพร้อมระบบแก้ไขเลขอัตโนมัติเมื่อหลุดโฟกัส
   - **Step 4: FIFO Alert Queue & Sound Sync**: ระบบคิวการแจ้งเตือนแบบ FIFO (`alertQueue`) บน `OverlayAlertPage` พร้อมคูลดาวน์ 400ms, กรองยอดเงินที่ต่ำกว่า `minAmount`, ปุ่มข้ามแจ้งเตือนและล้างคิว
-  - **Step 5: Real-time Socket.IO Integration**: เชื่อมต่อ `socket.io-client` ทั้งฝั่ง Client และ Server (`client/src/utils/socket.js`), จัดการห้องสตรีมเมอร์ (`join-stream`, `leave-stream`), รับอีเวนต์ `donation-alert` แบบเรียลไทม์บน OBS Browser Source, และปุ่มส่ง `test-alert` จากหน้า `WidgetPage` ไปแสดงผลบน OBS Studio ทันที
-  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 110 Tests, Client 223 Tests รวม 333 Tests ผ่าน 100%) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
+  - **Step 5: Real-time Socket.IO Integration**: เชื่อมต่อ `socket.io-client` ทั้งฝั่ง Client และ Server (`client/src/utils/socket.js`), จัดการห้องสตรีมเมอร์ (`join-stream`), รับอีเวนต์ `donation-alert` แบบเรียลไทม์บน OBS Browser Source, และปุ่มส่ง `test-alert` จากหน้า `WidgetPage` ไปแสดงผลบน OBS Studio ทันที
+  - **Step 6: Security Hardening & Quality Gate Optimization**:
+    - **SSRF Protection**: ตัด TTS Proxy endpoint บน Express API ออก และเปลี่ยนมาใช้ Direct HTTPS Stream พร้อม `no-referrer` ป้องกันความเสี่ยง Server-Side Request Forgery
+    - **CSPRNG**: แทนที่ `Math.random()` ด้วย `window.crypto.getRandomValues()` ใน `OverlayAlertPage.jsx` ขจัดความเสี่ยงด้านความปลอดภัย
+    - **Promise Handling**: กำกับ Floating Promises ด้วย `void` ป้องกัน unhandled rejections
+    - **Refactoring & Clean Code**: ลด Cognitive Complexity ของฟังก์ชันจัดการเสียงใน `alertAudio.js`
+    - **Quality Gate Passed**: ผลักดัน Coverage บน New Code ให้ผ่านเกณฑ์ SonarCloud (≥ 80.0%) และ Lines Coverage รวมทั้ง Client สูงถึง **91.17%**
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 6 Suites 107 Tests, Client 24 Suites 242 Tests รวม **30 Suites, 349 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 
 - **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
   - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน
