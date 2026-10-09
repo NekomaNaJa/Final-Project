@@ -275,4 +275,62 @@ describe("HistoryPage", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  test("allows clicking slip image to enlarge and close via button, backdrop, and Escape", () => {
+    const onClose = jest.fn();
+    const mockDonation = {
+      _id: "don-zoom-01",
+      donorName: "Big Donor",
+      amount: 1000,
+      slipImage: "https://example.com/large-slip.jpg",
+      status: "pending",
+    };
+
+    render(
+      <SlipModal
+        isOpen={true}
+        donation={mockDonation}
+        onClose={onClose}
+        onApprove={jest.fn()}
+        onReject={jest.fn()}
+      />
+    );
+
+    // Initial state: thumbnail image is rendered, zoom dialog is not
+    const slipThumbnail = screen.getByAltText("สลิปหลักฐานการโอน");
+    expect(slipThumbnail).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+
+    // Click to enlarge
+    fireEvent.click(slipThumbnail);
+
+    // Zoom modal should now be visible
+    expect(screen.getByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).toBeInTheDocument();
+    expect(screen.getByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).toBeInTheDocument();
+    expect(screen.getByText("สลิปโอนเงิน (ขนาดเต็ม)")).toBeInTheDocument();
+
+    // Close via close button in zoom modal
+    const closeZoomBtn = screen.getByRole("button", { name: "ปิดรูปภาพ" });
+    fireEvent.click(closeZoomBtn);
+    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+
+    // Reopen and test close via Escape key
+    fireEvent.click(slipThumbnail);
+    expect(screen.getByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+    // Verify onClose was not called when closing zoom dialog
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Escape again when not zoomed should call onClose
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+
+    // Reopen and test close via clicking backdrop
+    fireEvent.click(slipThumbnail);
+    const zoomDialog = screen.getByRole("dialog", { name: "รูปสลิปขนาดใหญ่" });
+    fireEvent.click(zoomDialog);
+    expect(screen.queryByRole("dialog", { name: "รูปสลิปขนาดใหญ่" })).not.toBeInTheDocument();
+  });
 });
