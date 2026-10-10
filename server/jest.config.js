@@ -6,6 +6,7 @@ export default {
     "controllers/**/*.js",
     "middleware/**/*.js",
     "routes/**/*.js",
+    "services/**/*.js",
     "utils/**/*.js",
     "!node_modules/**",
   ],

@@ -162,12 +162,15 @@ describe("Donor Components", () => {
           bankName="SCB"
           accountNumber="1234567890"
           accountName="นายสมหวัง"
+          minAmount={50}
         />
       );
 
       expect(screen.getByText("SCB")).toBeInTheDocument();
       expect(screen.getByText("1234567890")).toBeInTheDocument();
       expect(screen.getByText("นายสมหวัง")).toBeInTheDocument();
+      expect(screen.getByText("ยอดโดเนทขั้นต่ำ")).toBeInTheDocument();
+      expect(screen.getAllByText(/50 บาท/).length).toBeGreaterThanOrEqual(1);
 
       const copyBtn = screen.getByTitle("คัดลอกเลขที่บัญชี");
       fireEvent.click(copyBtn);
@@ -180,20 +183,12 @@ describe("Donor Components", () => {
 
       render(
         <DonorBankForm
-          minAmount={20}
           bankName="SCB"
           accountNumber="1234567890"
           accountName="นายสมหวัง"
           onSubmit={handleSubmit}
         />
       );
-
-      const amountInput = screen.getByLabelText("จำนวนเงินที่โอน (บาท)");
-      expect(amountInput.value).toBe("20");
-
-      fireEvent.change(amountInput, { target: { value: "5" } });
-      fireEvent.blur(amountInput);
-      expect(amountInput.value).toBe("20");
 
       const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
       fireEvent.click(submitBtn);
@@ -206,7 +201,6 @@ describe("Donor Components", () => {
 
       fireEvent.click(submitBtn);
       expect(handleSubmit).toHaveBeenCalledWith({
-        amount: 20,
         slipFile: file,
         method: "bank",
       });

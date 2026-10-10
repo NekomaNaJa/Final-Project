@@ -5,7 +5,39 @@
 
 import jsqr from "jsqr";
 import { Jimp } from "jimp";
-import { parseThaiSlipQr } from "../utils/slipParser.js";
+import { createWorker } from "tesseract.js";
+import {
+  parseThaiSlipQr,
+  parseSlipText,
+  isRecipientNameMatched,
+  isAccountNumberMatched,
+} from "../utils/slipParser.js";
+
+let tesseractWorker = null;
+
+/**
+ * ดึง Singleton Tesseract OCR Worker
+ */
+export const getTesseractWorker = async () => {
+  if (!tesseractWorker) {
+    tesseractWorker = await createWorker("tha+eng");
+  }
+  return tesseractWorker;
+};
+
+/**
+ * ปิดการทำงานของ OCR Worker สำหรับ Jest teardown
+ */
+export const terminateOcrWorker = async () => {
+  if (tesseractWorker) {
+    try {
+      await tesseractWorker.terminate();
+    } catch {
+      // Ignored
+    }
+    tesseractWorker = null;
+  }
+};
 
 /**
  * แปลง Base64 หรือ Data URL ให้เป็น Buffer
@@ -42,14 +74,22 @@ const scanQrFromJimp = (image) => {
  * ตรวจสอบความถูกต้องของสลิปโอนเงินจากรูปภาพ Base64
  * 1. โหลดและแปลงรูปภาพด้วย Jimp
  * 2. ค้นหาและถอดรหัส Mini QR Code ด้วย jsQR
- * 3. วิเคราะห์โครงสร้างข้อมูลสลิปมาตรฐานธนาคารไทย (EMVCo/PromptPay)
- * 4. สกัดรหัสอ้างอิงธุรกรรม (transRef), จำนวนเงิน (amount), และชื่อธนาคาร
+ * 3. รัน Tesseract OCR อ่านข้อความ สกัดจำนวนเงิน และตรวจชื่อผู้รับเงิน
+ * 4. วิเคราะห์และรวมผลการตรวจสอบ
  *
  * @param {string} slipImage - รูปภาพสลิปในรูปแบบ Base64
  * @param {number} [expectedAmount] - ยอดเงินบริจาคที่คาดหวัง
+ * @param {object} [options] - ตัวเลือกเพิ่มเติม เช่น expectedAccountName, expectedAccountNumber
  * @returns {Promise<object>} ผลการตรวจสอบ
  */
-export const verifySlipImage = async (slipImage, expectedAmount) => {
+export const verifySlipImage = async (slipImage, expectedAmount, options = {}) => {
+  const {
+    expectedAccountName = null,
+    expectedAccountNumber = null,
+    mockOcrText = null,
+    skipOcr = false,
+  } = options;
+
   const buffer = extractBufferFromBase64(slipImage);
   if (!buffer) {
     return {
@@ -93,28 +133,69 @@ export const verifySlipImage = async (slipImage, expectedAmount) => {
     }
   }
 
-  // หากพบ QR Code ให้วิเคราะห์ Payload
+  let parsedQr = null;
   if (qrCode && qrCode.data) {
-    const parsed = parseThaiSlipQr(qrCode.data);
-    if (parsed.success && parsed.transRef) {
-      const isAmountMatched =
-        typeof expectedAmount === "number" && typeof parsed.amount === "number"
-          ? parsed.amount >= expectedAmount
-          : null;
+    parsedQr = parseThaiSlipQr(qrCode.data);
+  }
 
-      return {
-        success: true,
-        method: "qr",
-        transRef: parsed.transRef,
-        amount: parsed.amount,
-        bankCode: parsed.bankCode,
-        bankName: parsed.bankName,
-        date: parsed.date || null,
-        isAmountMatched,
-        rawPayload: parsed.rawPayload,
-        message: "ถอดรหัส QR Code บนสลิปสำเร็จ",
-      };
+  // รัน OCR เพื่ออ่านข้อความในสลิป (เฉพาะเมื่อจำเป็น หรือมียอดเงินที่ต้องสกัดเพิ่มเติม/ต้องตรวจชื่อผู้รับ)
+  let rawText = typeof mockOcrText === "string" ? mockOcrText : "";
+  const shouldRunOcr =
+    !skipOcr &&
+    !rawText &&
+    (!parsedQr?.amount || expectedAccountName || !parsedQr?.success);
+
+  if (shouldRunOcr) {
+    try {
+      const worker = await getTesseractWorker();
+      const ocrResult = await worker.recognize(buffer);
+      rawText = ocrResult?.data?.text || "";
+    } catch (err) {
+      console.warn("Tesseract OCR recognition warning:", err.message);
     }
+  }
+
+  const parsedText = rawText ? parseSlipText(rawText) : null;
+
+  // รวมผลลัพธ์จาก QR Code และ OCR
+  const transRef = parsedQr?.transRef || parsedText?.transRef || null;
+  const amount = parsedQr?.amount || parsedText?.amount || null;
+  const bankCode = parsedQr?.bankCode || null;
+  const bankName = parsedQr?.bankName || parsedText?.bankName || null;
+
+  // ตรวจสอบชื่อผู้รับเงิน (ถ้ามีระบุ expectedAccountName)
+  let recipientMatched = null;
+  if (expectedAccountName && typeof expectedAccountName === "string" && expectedAccountName.trim()) {
+    recipientMatched = rawText ? isRecipientNameMatched(rawText, expectedAccountName) : null;
+  }
+
+  // ตรวจสอบเลขที่บัญชี (ถ้ามีระบุ expectedAccountNumber)
+  let accountNumberMatched = null;
+  if (expectedAccountNumber && typeof expectedAccountNumber === "string" && expectedAccountNumber.trim()) {
+    accountNumberMatched = rawText ? isAccountNumberMatched(rawText, expectedAccountNumber) : null;
+  }
+
+  const isAmountMatched =
+    typeof expectedAmount === "number" && typeof amount === "number"
+      ? amount >= expectedAmount
+      : null;
+
+  if (transRef || amount) {
+    return {
+      success: true,
+      method: parsedQr?.success ? "qr" : "ocr",
+      transRef,
+      amount,
+      bankCode,
+      bankName,
+      date: parsedQr?.date || null,
+      isAmountMatched,
+      rawPayload: qrCode ? qrCode.data : null,
+      rawText: rawText || null,
+      recipientMatched,
+      accountNumberMatched,
+      message: "ตรวจสอบสลิปสำเร็จ",
+    };
   }
 
   return {
@@ -126,4 +207,6 @@ export const verifySlipImage = async (slipImage, expectedAmount) => {
 
 export default {
   verifySlipImage,
+  getTesseractWorker,
+  terminateOcrWorker,
 };

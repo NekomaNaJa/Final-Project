@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
-import { verifySlipImage } from "../services/slipVerificationService.js";
+import slipVerificationService from "../services/slipVerificationService.js";
 
 const THAI_DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const THAI_MONTHS = [
@@ -24,23 +24,32 @@ const DONOR_BADGES = ["MYTHIC", "ARCANE", "RUNE", "MANA", "ACOLYTE"];
  * ตรวจสอบความถูกต้องของข้อมูลเบื้องต้นสำหรับการสร้างการโดเนท
  */
 const validateDonationInput = (body) => {
-  const { username, amount, paymentMethod } = body;
-  const numAmount = Number(amount);
+  const { username, amount, paymentMethod, slipImage } = body;
+  const numAmount = amount !== undefined && amount !== null ? Number(amount) : null;
 
   if (
     typeof username !== "string" ||
     !username.trim() ||
-    typeof paymentMethod !== "string" ||
-    amount === null ||
-    amount === undefined ||
-    typeof amount === "boolean" ||
-    Number.isNaN(numAmount)
+    typeof paymentMethod !== "string"
   ) {
     return "ข้อมูลไม่ถูกต้อง";
   }
 
   if (!["promptpay", "bank", "truemoney"].includes(paymentMethod)) {
     return "ช่องทางการชำระเงินไม่ถูกต้อง";
+  }
+
+  // กรณีโอนผ่านธนาคารพร้อมแนบสลิป ไม่จำเป็นต้องกรอกจำนวนเงิน (ระบบจะอ่านยอดจากสลิปอัตโนมัติ)
+  if (paymentMethod === "bank" && typeof slipImage === "string" && slipImage.trim()) {
+    if (numAmount !== null && (Number.isNaN(numAmount) || numAmount <= 0)) {
+      return "จำนวนเงินต้องมากกว่า 0 บาท";
+    }
+    return null;
+  }
+
+  // สำหรับกรณีอื่นๆ ต้องระบุจำนวนเงินที่ถูกต้อง
+  if (numAmount === null || Number.isNaN(numAmount) || typeof amount === "boolean") {
+    return "ข้อมูลไม่ถูกต้อง";
   }
 
   if (numAmount <= 0) {
@@ -96,7 +105,14 @@ export const createDonation = async (req, res, next) => {
     }
 
     // 2. ตัดสาย taint และป้องกัน NoSQL injection
-    const numAmount = Number(amount);
+    let effectiveAmount =
+      amount !== undefined &&
+      amount !== null &&
+      !Number.isNaN(Number(amount)) &&
+      Number(amount) > 0
+        ? Number(amount)
+        : null;
+
     const safeUsername = String(username).trim();
     const streamer = await User.findOne({ username: { $eq: safeUsername } });
 
@@ -107,13 +123,13 @@ export const createDonation = async (req, res, next) => {
       });
     }
 
-    // 3. ตรวจสอบยอดเงินขั้นต่ำ
+    // 3. ตรวจสอบยอดเงินขั้นต่ำ (ถ้ามีการระบุยอดเงินล่วงหน้า)
     const minAmount =
       typeof streamer.donationPage?.minAmount === "number"
         ? streamer.donationPage.minAmount
         : 1;
 
-    if (numAmount < minAmount) {
+    if (effectiveAmount !== null && effectiveAmount < minAmount) {
       return res.status(400).json({
         message: `จำนวนเงินต้องไม่ต่ำกว่ายอดขั้นต่ำ ${minAmount} บาท`,
         data: null,
@@ -156,7 +172,12 @@ export const createDonation = async (req, res, next) => {
     let safeTransRef = null;
 
     if (safeSlipImage && (paymentMethod === "promptpay" || paymentMethod === "bank")) {
-      const verification = await verifySlipImage(safeSlipImage, numAmount);
+      const bankConfig = streamer.payment?.bank;
+      const verification = await slipVerificationService.verifySlipImage(safeSlipImage, effectiveAmount, {
+        expectedAccountName: paymentMethod === "bank" ? bankConfig?.accountName : null,
+        expectedAccountNumber: paymentMethod === "bank" ? bankConfig?.accountNumber : null,
+      });
+
       if (verification?.success) {
         safeTransRef = verification.transRef ? String(verification.transRef).trim() : null;
 
@@ -173,15 +194,48 @@ export const createDonation = async (req, res, next) => {
           }
         }
 
-        // 7.2 ตรวจสอบยอดเงินในสลิป (Amount Mismatch Check)
-        if (typeof verification.amount === "number" && verification.amount < numAmount) {
+        // 7.2 ตรวจสอบชื่อผู้รับเงินในสลิป ให้ตรงกับชื่อบัญชีของสตรีมเมอร์
+        if (
+          paymentMethod === "bank" &&
+          bankConfig?.accountName &&
+          verification.recipientMatched === false
+        ) {
           return res.status(400).json({
-            message: `ยอดเงินในสลิป (${verification.amount} บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (${numAmount} บาท)`,
+            message: `ชื่อผู้รับเงินในสลิปไม่ตรงกับชื่อบัญชีของสตรีมเมอร์ (${bankConfig.accountName})`,
             data: null,
           });
         }
 
-        // 7.3 ตรวจสอบการตั้งค่า Auto-Approve ของสตรีมเมอร์ (ค่าเริ่มต้น: true)
+        // 7.3 หากไม่ได้ระบุจำนวนเงินมา ให้ดึงจำนวนเงินจากสลิปอัตโนมัติ
+        if (
+          effectiveAmount === null &&
+          typeof verification.amount === "number" &&
+          verification.amount > 0
+        ) {
+          effectiveAmount = verification.amount;
+        }
+
+        // 7.4 ตรวจสอบยอดเงินในสลิป (Amount Mismatch Check)
+        if (
+          effectiveAmount !== null &&
+          typeof verification.amount === "number" &&
+          verification.amount < effectiveAmount
+        ) {
+          return res.status(400).json({
+            message: `ยอดเงินในสลิป (${verification.amount} บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (${effectiveAmount} บาท)`,
+            data: null,
+          });
+        }
+
+        // 7.5 ตรวจสอบยอดเงินขั้นต่ำหลังอ่านจากสลิป
+        if (effectiveAmount !== null && effectiveAmount < minAmount) {
+          return res.status(400).json({
+            message: `ยอดเงินในสลิป (${effectiveAmount} บาท) ต่ำกว่ายอดเงินขั้นต่ำที่กำหนด (${minAmount} บาท)`,
+            data: null,
+          });
+        }
+
+        // 7.6 ตรวจสอบการตั้งค่า Auto-Approve ของสตรีมเมอร์
         const autoApprove = streamer.donationPage?.autoApproveSlip !== false;
         if (autoApprove) {
           initialStatus = "approved";
@@ -191,7 +245,7 @@ export const createDonation = async (req, res, next) => {
           verified: true,
           method: verification.method || "qr",
           transRef: safeTransRef,
-          amount: verification.amount || null,
+          amount: verification.amount || effectiveAmount || null,
           bank: verification.bankCode || null,
           bankName: verification.bankName || null,
           message: autoApprove
@@ -200,7 +254,14 @@ export const createDonation = async (req, res, next) => {
           rawPayload: verification.rawPayload || null,
         };
       } else {
-        // หากไม่สามารถอ่าน QR Code ได้ ให้เก็บสถานะเป็น pending เพื่อให้สตรีมเมอร์ตรวจเอง
+        // หากสลิปอ่านไม่ผ่าน และไม่มีการระบุจำนวนเงินมาด้วย ให้แจ้งเตือนผู้ใช้
+        if (effectiveAmount === null) {
+          return res.status(400).json({
+            message: "ไม่สามารถอ่านจำนวนเงินหรือข้อมูลจากรูปภาพสลิปได้ กรุณาใช้สลิปที่มีความคมชัด",
+            data: null,
+          });
+        }
+
         ocrResult = {
           verified: false,
           method: "none",
@@ -214,11 +275,19 @@ export const createDonation = async (req, res, next) => {
       }
     }
 
+    // กรณีไม่มีการอ่านสลิปและไม่ได้ระบุจำนวนเงินมา
+    if (effectiveAmount === null || effectiveAmount <= 0) {
+      return res.status(400).json({
+        message: "กรุณาระบุจำนวนเงิน หรือแนบสลิปที่อ่านจำนวนเงินได้",
+        data: null,
+      });
+    }
+
     // 8. บันทึกลงฐานข้อมูล MongoDB
     const donation = new Donation({
       streamerId: streamer._id,
       donorName: safeDonorName,
-      amount: numAmount,
+      amount: effectiveAmount,
       message: safeMessage,
       paymentMethod,
       status: initialStatus,

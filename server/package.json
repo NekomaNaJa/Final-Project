@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "test:coverage": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --coverage --runInBand"
+    "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit",
+    "test:coverage": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --coverage --runInBand --forceExit"
   },
   "keywords": [],
   "author": "",
@@ -24,7 +24,8 @@
     "jsonwebtoken": "^9.0.3",
     "jsqr": "^1.4.0",
     "mongoose": "^9.9.4",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",

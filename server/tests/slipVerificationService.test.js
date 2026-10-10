@@ -1,9 +1,12 @@
 import QRCode from "qrcode";
 import { Jimp } from "jimp";
-import { verifySlipImage } from "../services/slipVerificationService.js";
+import { verifySlipImage, terminateOcrWorker } from "../services/slipVerificationService.js";
 import { buildMockEmvQrPayload } from "../utils/slipParser.js";
 
 describe("Slip Verification Service (Phase 8 OCR)", () => {
+  afterAll(async () => {
+    await terminateOcrWorker();
+  });
   it("should return error when slipImage is null, empty, or invalid type", async () => {
     const res1 = await verifySlipImage(null);
     expect(res1.success).toBe(false);
@@ -96,4 +99,52 @@ describe("Slip Verification Service (Phase 8 OCR)", () => {
     expect(res.transRef).toBe("LARGEREF9999");
     expect(res.amount).toBe(300);
   }, 15000);
+
+  it("should verify recipient name and extract amount via OCR text", async () => {
+    const blankImg = new Jimp({ width: 100, height: 100, color: 0xffffffff });
+    const buf = await blankImg.getBuffer("image/png");
+    const base64 = `data:image/png;base64,${buf.toString("base64")}`;
+
+    const mockText = `
+      โอนเงินสำเร็จ
+      ไปยัง นาย มนต์ธร กฤตยาพงศ์
+      บัญชี xxx-x-xx123-4
+      รหัสอ้างอิง: OCRREF998877
+      จำนวนเงิน: 250.00 บาท
+    `;
+
+    const res = await verifySlipImage(base64, 250, {
+      expectedAccountName: "มนต์ธร กฤตยาพงศ์",
+      expectedAccountNumber: "0987651234",
+      mockOcrText: mockText,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.method).toBe("ocr");
+    expect(res.amount).toBe(250);
+    expect(res.transRef).toBe("OCRREF998877");
+    expect(res.recipientMatched).toBe(true);
+    expect(res.accountNumberMatched).toBe(true);
+  });
+
+  it("should flag recipientMatched as false when streamer name does not match OCR text", async () => {
+    const blankImg = new Jimp({ width: 100, height: 100, color: 0xffffffff });
+    const buf = await blankImg.getBuffer("image/png");
+    const base64 = `data:image/png;base64,${buf.toString("base64")}`;
+
+    const mockText = `
+      โอนเงินสำเร็จ
+      ไปยัง นาย สมชาย สบายดี
+      รหัสอ้างอิง: OCRREF112233
+      จำนวนเงิน: 100.00 บาท
+    `;
+
+    const res = await verifySlipImage(base64, 100, {
+      expectedAccountName: "มนต์ธร กฤตยาพงศ์",
+      mockOcrText: mockText,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.recipientMatched).toBe(false);
+  });
 });
