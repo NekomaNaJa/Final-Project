@@ -236,8 +236,6 @@ const DonorPage = () => {
       try {
         if (typeof window.location?.reload === "function") {
           window.location.reload();
-        } else if (window.location?.href) {
-          window.location.href = window.location.href;
         }
       } catch {
         // Fallback for testing environments where navigation is not supported
