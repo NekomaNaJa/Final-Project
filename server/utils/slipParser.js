@@ -345,9 +345,9 @@ export const extractRecipientSection = (slipText) => {
     return m[1];
   }
 
-  // 2. ค้นหาหลังสัญลักษณ์ลูกศร เช่น ↓ ในสลิป Krungsri / KMA
+  // 2. ค้นหาหลังสัญลักษณ์ลูกศร เช่น ↓ ในสลิป Krungsri / KMA หรือ ง, จาก OCR
   const arrowMatch = slipText.match(
-    /(?:[↓▼]|->|-->)([\s\S]{1,250}?)(?:จำนวนเงิน|ยอดเงิน|วันที่|รหัสอ้างอิง|ค่าธรรมเนียม|amount|date|ref|$)/i
+    /(?:[↓▼]|->|-->|ง\s*,)([\s\S]{1,250}?)(?:จำนวนเงิน|ยอดเงิน|วันที่|รหัสอ้างอิง|ค่าธรรมเนียม|amount|date|ref|$)/i
   );
   if (arrowMatch && arrowMatch[1]) {
     return arrowMatch[1];
@@ -401,7 +401,7 @@ export const isRecipientNameMatched = (slipText, expectedAccountName) => {
     if (c.includes(cleanExpected) || s.includes(strippedExpected)) return true;
     if (
       parts.length > 0 &&
-      (c.includes(parts[0]) || s.includes(strippedParts[0]))
+      (parts.some((p) => c.includes(p)) || strippedParts.some((p) => s.includes(p)))
     ) {
       return true;
     }
@@ -411,15 +411,14 @@ export const isRecipientNameMatched = (slipText, expectedAccountName) => {
   // 1. ลองตัดหาเฉพาะส่วนของผู้รับเงิน (Recipient Section)
   const recipientSection = extractRecipientSection(slipText);
 
-  // ถ้าตัดส่วนผู้รับเงินออกมาได้ ให้ตรวจในส่วนผู้รับเงินเป็นหลัก
-  if (recipientSection !== slipText) {
-    if (checkTextMatch(recipientSection)) return true;
-    return false;
+  // ถ้าตัดส่วนผู้รับเงินออกมาได้ และตรวจพบชื่อผู้รับเงิน ให้ถือว่าผ่านทันที
+  if (recipientSection !== slipText && checkTextMatch(recipientSection)) {
+    return true;
   }
 
   // 2. หากไม่พบคำว่า "ไปยัง" ให้ระวังกรณีชื่อสตรีมเมอร์อยู่ในส่วน "จาก" (ผู้โอน)
   const fromMatch = slipText.match(
-    /(?:จาก|ผู้โอน|from\s*:?)([\s\S]{1,120}?)(?:ไปยัง|ถึง|to|[↓▼]|$)/i
+    /(?:จาก|ผู้โอน|from\s*:?)([\s\S]{1,120}?)(?:ไปยัง|ถึง|to|[↓▼]|ง\s*,|$)/i
   );
   if (fromMatch && fromMatch[1]) {
     const afterFrom = slipText.slice(slipText.indexOf(fromMatch[0]) + fromMatch[0].length);
@@ -449,24 +448,43 @@ export const isAccountNumberMatched = (slipText, expectedAccountNumber) => {
   if (digits.length < 4) return true;
   const last4 = digits.slice(-4);
 
-  // ค้นหาส่วนผู้รับเงินก่อน เพื่อไม่ให้ชนกับเลขบัญชีผู้โอนหรือเลขอ้างอิง
-  const recipientSection = extractRecipientSection(slipText);
+  // ทดแทนตัวอักษรที่ OCR มักสับสนบ่อย เช่น ตัวโอใหญ่/เล็ก (O/o -> 0) และไอ/แอล (I/l -> 1)
+  const normalizedText = slipText
+    .replace(/[oO]/g, "0")
+    .replace(/[lIi|]/g, "1");
 
-  // ค้นหารูปแบบเลขบัญชีหรือเบอร์โทร เช่น xxx-xxx672-2, 081-xxx-5678, 123-456789-0
-  const accountPattern = /(?:[0-9xX*#\-]{8,20})/g;
-  const matches = recipientSection.match(accountPattern) || [];
+  // ค้นหาส่วนผู้รับเงินก่อน เพื่อไม่ให้ชนกับเลขบัญชีผู้โอนหรือเลขอ้างอิง
+  const recipientSection = extractRecipientSection(normalizedText);
+  const targetSection = recipientSection !== normalizedText ? recipientSection : normalizedText;
+
+  // ค้นหารูปแบบเลขบัญชีหรือเบอร์โทร เช่น xxx-xxx672-2, 081-xxx-5678, 123-456789-0, xxx xxx 5907, xxx-xxx-5907
+  const accountPattern = /(?:[0-9xX*#\-\s.]{7,25})/g;
+  const matches = targetSection.match(accountPattern) || [];
 
   for (const match of matches) {
     const cleanMatch = match.replace(/[^0-9]/g, "");
-    if (cleanMatch.endsWith(last4) || cleanMatch.slice(-4) === last4) {
+    if (
+      cleanMatch.endsWith(last4) ||
+      cleanMatch.slice(-4) === last4 ||
+      cleanMatch.includes(last4)
+    ) {
       return true;
     }
   }
 
-  // หากไม่มี match เป็นก้อนบัญชี แต่ส่วนผู้รับเงินมีเลข 4 ตัวท้ายอยู่เดี่ยวๆ หรือมีเลขท้ายตรงกัน
-  const recDigits = recipientSection.replace(/[^0-9]/g, "");
-  if (recDigits.length >= 4 && recDigits.endsWith(last4)) {
+  // หากไม่มี match เป็นก้อนบัญชี แต่มีเลข 4 ตัวท้ายอยู่ในข้อความเป้าหมาย
+  const cleanDigits = targetSection.replace(/[^0-9]/g, "");
+  if (cleanDigits.includes(last4)) {
     return true;
+  }
+
+  // Fallback: ตรวจสอบในข้อความทั้งหมด หากมีเลข 4 หลักสุดท้ายตรงกับก้อนบัญชี
+  const allMatches = normalizedText.match(accountPattern) || [];
+  for (const match of allMatches) {
+    const cleanMatch = match.replace(/[^0-9]/g, "");
+    if (cleanMatch.endsWith(last4) || cleanMatch.slice(-4) === last4) {
+      return true;
+    }
   }
 
   return false;

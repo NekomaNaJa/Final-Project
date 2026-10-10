@@ -29,23 +29,23 @@ const getInitialStreamerConfig = (username) => {
     thankYouMessage: "ขอบคุณสำหรับการสนับสนุนมากๆ ครับ!",
     minAmount: 10,
     charLimit: 200,
-    filteredWords: ["คำหยาบ", "สแปม"],
+    filteredWords: [],
     coverImage: null,
     payment: {
       promptpay: {
         enabled: true,
         type: "เบอร์โทรศัพท์",
-        number: "0812345678",
+        number: "",
       },
       bank: {
         enabled: true,
-        bankName: "ธนาคารไทยพาณิชย์ (SCB)",
-        accountNumber: "4170606722",
-        accountName: "มนต์ธร กอเจริญทรัพย์",
+        bankName: "",
+        accountNumber: "",
+        accountName: "",
       },
       truemoney: {
         enabled: false,
-        phone: "0812345678",
+        phone: "",
       },
     },
   };
@@ -82,17 +82,6 @@ const getInitialStreamerConfig = (username) => {
         bank: { ...config.payment.bank, ...parsed.bank },
         truemoney: { ...config.payment.truemoney, ...parsed.truemoney },
       };
-    }
-
-    const savedWidgetConfig = localStorage.getItem("donix_widget_config");
-    if (savedWidgetConfig) {
-      const parsedWidget = JSON.parse(savedWidgetConfig);
-      if (parsedWidget?.alert?.minAmount !== undefined) {
-        const wMin = Number(parsedWidget.alert.minAmount);
-        if (wMin > 0) {
-          config.minAmount = wMin;
-        }
-      }
     }
 
     return config;
@@ -162,6 +151,15 @@ const DonorPage = () => {
               },
             },
           }));
+
+          // สลับไปยังแท็บแรกที่เปิดใช้งานจริงจาก Database
+          if (publicData.payment?.promptpay?.enabled) {
+            setActiveTab("promptpay");
+          } else if (publicData.payment?.bank?.enabled) {
+            setActiveTab("bank");
+          } else if (publicData.payment?.truemoney?.enabled) {
+            setActiveTab("truemoney");
+          }
         }
       } catch (err) {
         if (isMounted && err?.message?.includes("ไม่พบสตรีมเมอร์นี้")) {
