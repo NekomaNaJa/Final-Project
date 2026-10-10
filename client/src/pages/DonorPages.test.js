@@ -136,10 +136,19 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
         expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
       });
 
+      // Spy on window.location.reload
+      const originalLocation = window.location;
+      const reloadMock = jest.fn();
+      delete window.location;
+      window.location = { ...originalLocation, reload: reloadMock };
+
       // Close modal
       const closeBtn = screen.getByRole("button", { name: "ปิดหน้านี้" });
       fireEvent.click(closeBtn);
       expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();
+      expect(reloadMock).toHaveBeenCalled();
+
+      window.location = originalLocation;
     });
 
     test("shows streamer not found status alert when streamer is not found", async () => {
