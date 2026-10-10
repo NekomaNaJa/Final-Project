@@ -12,6 +12,8 @@ export const SOCKET_URL =
 
 let socketInstance = null;
 
+const activeRooms = new Set();
+
 /**
  * รับ instance ของ Socket.IO client (Singleton pattern)
  */
@@ -25,6 +27,12 @@ export const getSocket = (options = {}) => {
       reconnectionDelay: 1000,
       ...options,
     });
+
+    socketInstance.on("connect", () => {
+      activeRooms.forEach((room) => {
+        socketInstance.emit("join-stream", room);
+      });
+    });
   }
   return socketInstance;
 };
@@ -37,6 +45,7 @@ export const disconnectSocket = () => {
     socketInstance.disconnect();
     socketInstance = null;
   }
+  activeRooms.clear();
 };
 
 /**
@@ -46,8 +55,10 @@ export const joinStreamRoom = (room) => {
   if (!room) return;
   const s = getSocket();
   const cleanRoom = String(room).trim();
+  activeRooms.add(cleanRoom);
   s.emit("join-stream", cleanRoom);
   if (!cleanRoom.startsWith("streamer_")) {
+    activeRooms.add(`streamer_${cleanRoom}`);
     s.emit("join-stream", `streamer_${cleanRoom}`);
   }
 };
@@ -59,6 +70,8 @@ export const leaveStreamRoom = (room) => {
   if (!room) return;
   const s = getSocket();
   const cleanRoom = String(room).trim();
+  activeRooms.delete(cleanRoom);
+  activeRooms.delete(`streamer_${cleanRoom}`);
   s.emit("leave-stream", cleanRoom);
   if (!cleanRoom.startsWith("streamer_")) {
     s.emit("leave-stream", `streamer_${cleanRoom}`);
