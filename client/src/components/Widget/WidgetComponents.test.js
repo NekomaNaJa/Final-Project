@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import WidgetHeader from "./WidgetHeader";
 import WidgetTypeTabs from "./WidgetTypeTabs";
@@ -19,14 +19,46 @@ import {
 } from "./widgetStorage";
 import WidgetPage from "../../pages/WidgetPage";
 import { mockSocketInstance } from "../../__mocks__/socket.io-client";
+import { fetchWidgetConfig, saveWidgetSettings } from "../../utils/api";
 
 jest.mock("socket.io-client");
+jest.mock("../../utils/api", () => ({
+  ...jest.requireActual("../../utils/api"),
+  fetchWidgetConfig: jest.fn().mockResolvedValue({
+    token: "mock-widget-token-123",
+    alert: {},
+    goal: { title: "Goal from DB", target: 5000, current: 0 },
+    leaderboard: {},
+    mission: {},
+  }),
+  saveWidgetSettings: jest.fn().mockResolvedValue({
+    token: "mock-widget-token-123",
+    alert: {},
+    goal: { title: "Goal from DB", target: 5000, current: 0 },
+    leaderboard: {},
+    mission: {},
+  }),
+}));
 
 describe("Widget Components & Functions", () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
     mockSocketInstance.__reset();
+    fetchWidgetConfig.mockResolvedValue({
+      token: "mock-widget-token-123",
+      alert: {},
+      goal: { title: "Goal from DB", target: 5000, current: 0 },
+      leaderboard: {},
+      mission: {},
+    });
+    saveWidgetSettings.mockResolvedValue({
+      token: "mock-widget-token-123",
+      alert: {},
+      goal: { title: "Goal from DB", target: 5000, current: 0 },
+      leaderboard: {},
+      mission: {},
+    });
   });
 
   describe("WidgetHeader", () => {
@@ -883,7 +915,7 @@ describe("Widget Components & Functions", () => {
   });
 
   describe("WidgetPage (Full Page Integration)", () => {
-    test("renders full widget page with authenticated token and handles tab switching and save", () => {
+    test("renders full widget page with authenticated token and handles tab switching and save", async () => {
       const mockAudio = {
         currentTime: 0,
         createOscillator: jest.fn().mockReturnValue({
@@ -915,6 +947,10 @@ describe("Widget Components & Functions", () => {
           <WidgetPage />
         </BrowserRouter>
       );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
 
       expect(screen.getByText("WIDGETS")).toBeInTheDocument();
       expect(screen.getAllByText("วิดเจ็ตรับเงิน").length).toBeGreaterThan(0);
@@ -949,6 +985,12 @@ describe("Widget Components & Functions", () => {
       // Save config
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
       fireEvent.click(saveBtn);
+      await waitFor(() => {
+        expect(mockSocketInstance.emit).toHaveBeenCalledWith(
+          "widget-config-update",
+          expect.objectContaining({ token: "mock-widget-token-123" })
+        );
+      });
       const saved = getWidgetConfig();
       expect(saved).toBeDefined();
 
@@ -1050,6 +1092,51 @@ describe("Widget Components & Functions", () => {
       });
 
       jest.useRealTimers();
+    });
+
+    test("handles saveWidgetSettings failure by falling back to localStorage and emitting with existing widgetToken", async () => {
+      const mockPayload = btoa(JSON.stringify({ username: "fallback_streamer", id: "user_fb_123" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      saveWidgetSettings.mockRejectedValueOnce(new Error("Network Error"));
+
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(mockSocketInstance.emit).toHaveBeenCalledWith(
+          "widget-config-update",
+          expect.objectContaining({ token: "mock-widget-token-123" })
+        );
+      });
+    });
+
+    test("handles fetchWidgetConfig failure gracefully", async () => {
+      fetchWidgetConfig.mockRejectedValueOnce(new Error("Fetch failed"));
+      const mockPayload = btoa(JSON.stringify({ username: "error_streamer" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText("WIDGETS")).toBeInTheDocument();
     });
   });
 });

@@ -25,6 +25,7 @@ import {
   joinStreamRoom,
   leaveStreamRoom,
   emitTestAlert,
+  emitWidgetConfigUpdate,
 } from "./socket";
 
 describe("Socket Utility (client/src/utils/socket.js)", () => {
@@ -102,5 +103,12 @@ describe("Socket Utility (client/src/utils/socket.js)", () => {
     const payload = { username: "pro_gamer", amount: 200 };
     emitTestAlert(payload);
     expect(s.emit).toHaveBeenCalledWith("test-alert", payload);
+  });
+
+  test("emitWidgetConfigUpdate emits widget-config-update event with payload", () => {
+    const s = getSocket();
+    const payload = { token: "tok_123", streamerId: "u_456", alert: {} };
+    emitWidgetConfigUpdate(payload);
+    expect(s.emit).toHaveBeenCalledWith("widget-config-update", payload);
   });
 });

@@ -523,6 +523,38 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     unmountNone();
     localStorage.removeItem("donix_widget_config");
   });
+
+  test("updates alert config in real time when widget-config-updated is received", () => {
+    mockSocketInstance.__clearListeners();
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/alert/streamer_boss"]}>
+        <Routes>
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("widget-config-updated", {
+        alert: {
+          minAmount: 50,
+          soundPreset: "ancient-bell",
+        },
+      });
+      mockSocketInstance.__trigger("widget-config-updated", null);
+      mockSocketInstance.__trigger("widget-config-updated", {});
+    });
+
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้สนับสนุน",
+        amount: 60,
+      });
+    });
+
+    expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
+  });
 });
 
 

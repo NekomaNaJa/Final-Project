@@ -163,4 +163,32 @@ describe("OverlayLeaderboardPage Component", () => {
 
     expect(screen.getByTestId("leaderboard-display-card")).toBeInTheDocument();
   });
+
+  test("updates leaderboard config in real time when widget-config-updated is received", () => {
+    mockSocketInstance.__clearListeners();
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/leaderboard/lb_room"]}>
+        <Routes>
+          <Route
+            path="/overlay/leaderboard/:token"
+            element={<OverlayLeaderboardPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("widget-config-updated", {
+        leaderboard: {
+          title: "ยอดนักบริจาคประจำเดือน",
+          limit: 10,
+        },
+      });
+      mockSocketInstance.__trigger("widget-config-updated", null);
+      mockSocketInstance.__trigger("widget-config-updated", {});
+    });
+
+    expect(screen.getByText("ยอดนักบริจาคประจำเดือน")).toBeInTheDocument();
+  });
 });
