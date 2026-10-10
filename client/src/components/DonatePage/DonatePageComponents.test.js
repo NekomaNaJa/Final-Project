@@ -42,7 +42,16 @@ describe("DonatePage Components & Page", () => {
     test("renders link and handles copy and external link", async () => {
       render(<DonatePageLink username="StreamerHero" />);
       expect(screen.getByText("DONOR URL")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("http://donix.app/StreamerHero")).toBeInTheDocument();
+      expect(
+        screen.getByDisplayValue("https://final-project-orpin-five.vercel.app/StreamerHero")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("final-project-orpin-five.vercel.app/StreamerHero")
+      ).toBeInTheDocument();
+
+      // Ensure IG and Twitch share buttons are removed
+      expect(screen.queryByTitle("แชร์ไปยัง Instagram")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("แชร์ไปยัง Twitch")).not.toBeInTheDocument();
 
       const copyBtn = screen.getByTitle("คัดลอกลิงก์");
       fireEvent.click(copyBtn);
