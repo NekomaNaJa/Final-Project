@@ -25,13 +25,16 @@ const DONOR_BADGES = ["MYTHIC", "ARCANE", "RUNE", "MANA", "ACOLYTE"];
  */
 const validateDonationInput = (body) => {
   const { username, amount, paymentMethod } = body;
+  const numAmount = Number(amount);
 
   if (
     typeof username !== "string" ||
     !username.trim() ||
-    typeof amount !== "number" ||
-    Number.isNaN(amount) ||
-    typeof paymentMethod !== "string"
+    typeof paymentMethod !== "string" ||
+    amount === null ||
+    amount === undefined ||
+    typeof amount === "boolean" ||
+    Number.isNaN(numAmount)
   ) {
     return "ข้อมูลไม่ถูกต้อง";
   }
@@ -40,7 +43,7 @@ const validateDonationInput = (body) => {
     return "ช่องทางการชำระเงินไม่ถูกต้อง";
   }
 
-  if (amount <= 0) {
+  if (numAmount <= 0) {
     return "จำนวนเงินต้องมากกว่า 0 บาท";
   }
 
@@ -93,6 +96,7 @@ export const createDonation = async (req, res, next) => {
     }
 
     // 2. ตัดสาย taint และป้องกัน NoSQL injection
+    const numAmount = Number(amount);
     const safeUsername = String(username).trim();
     const streamer = await User.findOne({ username: { $eq: safeUsername } });
 
@@ -109,7 +113,7 @@ export const createDonation = async (req, res, next) => {
         ? streamer.donationPage.minAmount
         : 1;
 
-    if (amount < minAmount) {
+    if (numAmount < minAmount) {
       return res.status(400).json({
         message: `จำนวนเงินต้องไม่ต่ำกว่ายอดขั้นต่ำ ${minAmount} บาท`,
         data: null,
@@ -152,7 +156,7 @@ export const createDonation = async (req, res, next) => {
     let safeTransRef = null;
 
     if (safeSlipImage && (paymentMethod === "promptpay" || paymentMethod === "bank")) {
-      const verification = await verifySlipImage(safeSlipImage, amount);
+      const verification = await verifySlipImage(safeSlipImage, numAmount);
       if (verification?.success) {
         safeTransRef = verification.transRef ? String(verification.transRef).trim() : null;
 
@@ -170,9 +174,9 @@ export const createDonation = async (req, res, next) => {
         }
 
         // 7.2 ตรวจสอบยอดเงินในสลิป (Amount Mismatch Check)
-        if (typeof verification.amount === "number" && verification.amount < amount) {
+        if (typeof verification.amount === "number" && verification.amount < numAmount) {
           return res.status(400).json({
-            message: `ยอดเงินในสลิป (${verification.amount} บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (${amount} บาท)`,
+            message: `ยอดเงินในสลิป (${verification.amount} บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (${numAmount} บาท)`,
             data: null,
           });
         }
@@ -214,7 +218,7 @@ export const createDonation = async (req, res, next) => {
     const donation = new Donation({
       streamerId: streamer._id,
       donorName: safeDonorName,
-      amount,
+      amount: numAmount,
       message: safeMessage,
       paymentMethod,
       status: initialStatus,

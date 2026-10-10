@@ -186,7 +186,8 @@ const DonorPage = () => {
     setErrorFeedback(null);
 
     const min = Number(streamerConfig.minAmount) || 1;
-    if (Number(donationData.amount) < min) {
+    const numericAmount = Number(donationData?.amount);
+    if (Number.isNaN(numericAmount) || numericAmount < min) {
       setErrorFeedback(`จำนวนเงินต้องไม่ต่ำกว่า ${min} บาท`);
       setIsSubmitting(false);
       return;
@@ -197,7 +198,7 @@ const DonorPage = () => {
       const res = await createDonation({
         username,
         donorName: donorName || "Anonymous",
-        amount: Number(donationData.amount),
+        amount: numericAmount,
         message,
         paymentMethod: donationData.method || activeTab,
         slipImage: slipBase64,
@@ -366,6 +367,7 @@ const DonorPage = () => {
               /* State 3: Bank Form */
               <DonorBankForm
                 key={`bank-${resetKey}`}
+                minAmount={streamerConfig.minAmount}
                 bankName={streamerConfig.payment.bank.bankName}
                 accountNumber={streamerConfig.payment.bank.accountNumber}
                 accountName={streamerConfig.payment.bank.accountName}

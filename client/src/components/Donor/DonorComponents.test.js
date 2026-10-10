@@ -180,12 +180,20 @@ describe("Donor Components", () => {
 
       render(
         <DonorBankForm
+          minAmount={20}
           bankName="SCB"
           accountNumber="1234567890"
           accountName="นายสมหวัง"
           onSubmit={handleSubmit}
         />
       );
+
+      const amountInput = screen.getByLabelText("จำนวนเงินที่โอน (บาท)");
+      expect(amountInput.value).toBe("20");
+
+      fireEvent.change(amountInput, { target: { value: "5" } });
+      fireEvent.blur(amountInput);
+      expect(amountInput.value).toBe("20");
 
       const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
       fireEvent.click(submitBtn);
@@ -198,6 +206,7 @@ describe("Donor Components", () => {
 
       fireEvent.click(submitBtn);
       expect(handleSubmit).toHaveBeenCalledWith({
+        amount: 20,
         slipFile: file,
         method: "bank",
       });
