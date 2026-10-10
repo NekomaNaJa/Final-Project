@@ -212,6 +212,12 @@ describe("Widget Components & Functions", () => {
       );
 
       expect(screen.getByText("Donate Goal")).toBeInTheDocument();
+      expect(screen.getByText("ยอดสะสมปัจจุบัน (บาท)")).toBeInTheDocument();
+      expect(screen.getByText("คำนวณอัตโนมัติจากยอดโดเนทจริง")).toBeInTheDocument();
+
+      const currentDisplay = screen.getByTestId("goal-current-amount-display");
+      expect(currentDisplay).toBeDisabled();
+      expect(currentDisplay).toHaveAttribute("readonly");
 
       const titleInput = screen.getByPlaceholderText(/เป้าหมายพัฒนาสตรีม/);
       fireEvent.change(titleInput, { target: { value: "เป้าหมายใหม่" } });

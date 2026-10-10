@@ -103,7 +103,8 @@ describe("OverlayGoalPage Component", () => {
       });
     });
 
-    expect(screen.getByText(/1,000/)).toBeInTheDocument();
+    expect(screen.getByText(/\+1,000/)).toBeInTheDocument();
+    expect(screen.getByText(/\/ 10,000 บาท/)).toBeInTheDocument();
 
     unmount();
     expect(mockSocketInstance.off).toHaveBeenCalledWith(

@@ -35,14 +35,20 @@ const DonateGoalPanel = ({ value, onChange, onSave }) => {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
-              <label className={labelClass}>ยอดเริ่มต้น (บาท)</label>
+              <div className="flex items-center justify-between">
+                <label className={labelClass}>ยอดสะสมปัจจุบัน (บาท)</label>
+                <span className="text-[10px] font-medium text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                  คำนวณอัตโนมัติจากยอดโดเนทจริง
+                </span>
+              </div>
               <input
-                type="number"
-                min="0"
-                value={value.current ?? 0}
-                onChange={(e) => update({ current: Number(e.target.value) })}
-                className={inputClass}
-                placeholder="0"
+                type="text"
+                readOnly
+                disabled
+                value={`${Number(value.current || 0).toLocaleString()} บาท`}
+                className={`${inputClass} cursor-not-allowed opacity-80 border-purple-500/30 bg-[#16122a] font-mono font-bold text-purple-300`}
+                title="ยอดสะสมปัจจุบันคำนวณจากยอดโดเนทจริงในระบบตามช่วงวันที่กำหนด"
+                data-testid="goal-current-amount-display"
               />
             </div>
             <div className="flex flex-col gap-1.5">

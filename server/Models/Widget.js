@@ -79,7 +79,7 @@ const widgetSchema = new mongoose.Schema(
       title: { type: String, default: "เป้าหมายพัฒนาสตรีม" },
       theme: { type: String, default: "mana" },
       target: { type: Number, default: 10000 },
-      current: { type: Number, default: 3500 },
+      current: { type: Number, default: 0 },
       startDate: { type: String, default: "2026-09-01" },
       endDate: { type: String, default: "2026-09-30" },
     },

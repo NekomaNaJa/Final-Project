@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 import Widget from "../Models/Widget.js";
+import { calculateGoalCurrent } from "../utils/widgetHelpers.js";
 
 /**
  * ดึงข้อมูลการตั้งค่าวิดเจ็ตของผู้ใช้ปัจจุบัน (GET /api/widgets/me)
  * หากยังไม่มีข้อมูลใน DB จะสร้างค่าเริ่มต้นให้อัตโนมัติ
+ * และคำนวณยอด goal.current จากยอดบริจาคจริง (เฉพาะสถานะ approved)
  */
 export const getMyWidget = async (req, res, next) => {
   try {
@@ -24,9 +26,17 @@ export const getMyWidget = async (req, res, next) => {
       await widget.save();
     }
 
+    const widgetData =
+      typeof widget.toObject === "function" ? widget.toObject() : { ...widget };
+
+    widgetData.goal = {
+      ...widgetData.goal,
+      current: await calculateGoalCurrent(safeUserId, widgetData.goal),
+    };
+
     return res.status(200).json({
       message: "ดึงข้อมูลการตั้งค่าวิดเจ็ตสำเร็จ",
-      data: widget,
+      data: widgetData,
     });
   } catch (err) {
     next(err);
@@ -68,7 +78,8 @@ export const updateMyWidget = async (req, res, next) => {
     }
 
     if (goal && typeof goal === "object" && !Array.isArray(goal)) {
-      widget.goal = { ...widget.goal.toObject(), ...goal };
+      const { current: _ignoreCurrent, ...goalFields } = goal;
+      widget.goal = { ...widget.goal.toObject(), ...goalFields };
     }
 
     if (leaderboard && typeof leaderboard === "object" && !Array.isArray(leaderboard)) {
@@ -85,9 +96,17 @@ export const updateMyWidget = async (req, res, next) => {
 
     await widget.save();
 
+    const widgetData =
+      typeof widget.toObject === "function" ? widget.toObject() : { ...widget };
+
+    widgetData.goal = {
+      ...widgetData.goal,
+      current: await calculateGoalCurrent(safeUserId, widgetData.goal),
+    };
+
     return res.status(200).json({
       message: "บันทึกการตั้งค่าวิดเจ็ตสำเร็จ",
-      data: widget,
+      data: widgetData,
     });
   } catch (err) {
     next(err);
