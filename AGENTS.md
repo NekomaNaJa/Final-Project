@@ -31,8 +31,8 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (6 Suites, 107 Tests ผ่าน 100%)
-npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
+npm test              # รัน Jest + Supertest (8 Suites, 130 Tests ผ่าน 100%)
+npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97.4%)
 ```
 
 ### 2.2 ฝั่ง Client (Frontend)
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (24 Suites, 242 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (26 Suites, 270 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -112,7 +112,7 @@ server/
 │   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, updateDonationStatus)
 │   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page และ Overlay Config พร้อม Aggregation (getPublicStreamer, getPublicOverlayConfig)
 │   ├── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
-│   └── widgetController.js      → Logic จัดการการตั้งค่าวิดเจ็ต (getMyWidget, updateMyWidget)
+│   └── widgetController.js      → Logic จัดการการตั้งค่าวิดเจ็ต (getMyWidget, updateMyWidget), คำนวณ Goal สะสมอัตโนมัติ และ Socket.IO broadcast (widget-config-update)
 ├── middleware/
 │   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
 │   ├── errorHandler.js          → Error Handler กลาง จัดการ error รูปแบบ { message, data } และ Mongoose errors
@@ -136,11 +136,13 @@ server/
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
 │   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay (5 tests)
 │   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
-│   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests: GET/PUT /me, validation, token regeneration)
+│   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (3 tests)
+│   └── widgets.test.js          → ชุดทดสอบ Widgets Route (15 tests: GET/PUT /me, validation, token regeneration, real-time socket config sync)
 ├── utils/
-│   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
+│   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
+│   └── widgetHelpers.js         → Helper คำนวณยอดเงินสะสมของ Donate Goal อัตโนมัติจากประวัติการโดเนทจริง
 ├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler, 10MB payload limit)
-├── index.js                     → Entry Point ของเซิร์ฟเวอร์ Express + Socket.IO (Port 5000)
+├── index.js                     → Entry Point เซิร์ฟเวอร์ Express + Socket.IO (Port 5000, Multi-room Alert Deduplication)
 ├── jest.config.js               → การตั้งค่า Jest สำหรับ Node.js ESM และ Coverage
 └── package.json
 ```
@@ -281,17 +283,27 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
      - _เสียง & TTS_: เสียงแจ้งเตือน Presets (Mythic Horn, Dragon Roar, Ancient Bell, เสียง MP3 ของฉัน, ปิดเสียง), ตัวปรับระดับเสียง, TTS อ่านข้อความโดเนท (ไทย/อังกฤษ, ชาย/หญิง, ความเร็ว 0.5x–2.0x)
      - _ข้อความ_: Message Template `{user} {amount}`, Shine Effect, ฟอนต์ (Kanit, FC Vision), ขนาดตัวอักษร, Palette สี (ข้อความ, ชื่อ, จำนวนเงิน, สีขอบตัวอักษร), ขนาดขอบตัวอักษร
      - _เอฟเฟกต์ & Tiers_: แอนิเมชั่นเข้า/ออก, เวลาแสดงผล, ฟิลเตอร์ (Glow, Pulse, Shake, Glitch ฯลฯ), ระบบแสดงผลตามช่วงยอดเงิน (Amount Tiers) ปรับเสียงและเอฟเฟกต์แยกตามยอดเงิน
-  2. **Donate Goal**: ชื่อเป้าหมาย, ธีมสี (Mana, Crimson, Gold), ยอดเริ่มต้น/ยอดเป้าหมาย, กำหนดช่วงวันที่, หลอดความคืบหน้า Progress Bar เรืองแสง
-  3. **Leaderboard**: ชื่อหัวข้อ, สวิตช์แสดงยอดเงิน, กำหนดช่วงเวลา, ปรับจำนวนอันดับ 1–10 (Stepper +/-)
+     - _การทดสอบ Alert_: ปุ่ม "ทดสอบ Alert" อยู่เฉพาะในแท็บนี้ สามารถทดสอบแจ้งเตือนสดไปยัง OBS Studio และ Preview ได้ทันที
+  2. **Donate Goal**:
+     - ชื่อเป้าหมาย, ธีมสี (Mana, Crimson, Gold), ยอดเริ่มต้น/ยอดเป้าหมาย, กำหนดช่วงวันที่, หลอดความคืบหน้า Progress Bar เรืองแสง
+     - **คำนวณยอดสะสมอัตโนมัติ (Auto-calculated Current Amount)**: ระบบคำนวณยอดสะสม (`currentAmount`) จากประวัติการบริจาคที่สำเร็จจริง (`completed`) ในช่วงวันเวลาของเป้าหมายอัตโนมัติ และแสดงผลเป็น Read-only ป้องกันข้อมูลคลาดเคลื่อน
+  3. **Leaderboard**:
+     - ชื่อหัวข้อ, สวิตช์แสดงยอดเงิน, กำหนดช่วงเวลา, ปรับจำนวนอันดับ 1–10 (Stepper +/-)
+     - **ปรับปรุง Typography & ขยาย Layout**: ออกแบบฟอนต์และกรอบแสดงผลให้อ่านง่าย คมชัดสูงสุดเมื่อแสดงผลใน OBS Studio
+     - **ป้องกันข้อมูลทดสอบปนเปื้อน**: กรองการแจ้งเตือนทดสอบ (`isTest: true`) ไม่ให้นำมาบวกใน Leaderboard และ Goal จริง
   4. **Mission Donate**: จัดการช่องภารกิจสูงสุด 12 ช่อง (ชื่อภารกิจ + ราคา ฿) สำหรับนำไปแสดงผลบน Donor Page
-- **BrowserSourceCard**: แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, ปุ่มคัดลอก URL, และปุ่มทดสอบ Alert พร้อมจำลอง Web Audio API เสียงจริง
-- **OverlayAlertPage (`/overlay/alert/:token`)**:
-  - พื้นหลังโปร่งใส 100% สำหรับใส่ใน OBS Browser Source
-  - ระบบ **FIFO Alert Queue**: รองรับกรณีมีโดเนทเข้ามาพร้อมกันหรือต่อเนื่อง จัดการแสดงผลทีละรายการตามลำดับพร้อมพัก Cooldown 400ms ป้องกันเสียงและแอนิเมชั่นทับซ้อน
-  - กรองยอดเงินขั้นต่ำ (`minAmount`) อัตโนมัติ รายการที่ต่ำกว่าเกณฑ์จะไม่ถูกนำเข้าคิว
-  - Animation Lifecycle ครบ 3 เฟส: เข้า (`entering`) -> แสดงผล (`visible`) -> เลือนออก (`exiting`) -> ว่าง (`idle`)
-  - รองรับ Amount Tiers, Web Audio API Sound Presets & Custom MP3, และ Responsive Thai TTS
-  - ควบคุมการทดสอบผ่าน Footer Toolbar: ปุ่มทดสอบแจ้งเตือน, ปุ่มข้าม (`skipAlert`), ปุ่มล้างคิว (`clearQueue`) พร้อมตัวนับจำนวนคิวรอ
+- **BrowserSourceCard**:
+  - แสดงป้ายสถานะ `Live` / `ยังไม่ได้บันทึก`, Browser Source URL สำหรับ OBS, และปุ่มคัดลอก URL
+  - **แนะนำขนาดที่เหมาะสมใน OBS**: แสดงขนาดความกว้าง x สูงที่แนะนำใน OBS Properties (Alert: `800x600`, Goal: `600x120`, Leaderboard: `450x650`) เพื่อให้ภาพและตัวอักษรคมชัดสูงสุด ไม่แตกจากการลากยืดกรอบสีแดง
+  - **ปุ่มทดสอบเฉพาะแท็บ**: ปุ่ม "ทดสอบ Alert" จะแสดงเฉพาะในแท็บ Donate Alert เท่านั้น สำหรับแท็บ Goal และ Leaderboard ปุ่ม "คัดลอก URL" จะขยายเต็มพื้นที่
+- **ระบบซิงค์การตั้งค่าแบบเรียลไทม์ (Live OBS Config Sync)**:
+  - สตรีมเมอร์ปรับแต่งค่าในหน้า `WidgetPage` ระบบจะ Debounce และส่งสัญญาณ Socket.IO `widget-config-update` ไปอัปเดตหน้า OBS Browser Source อัตโนมัติทันทีโดยไม่ต้อง Refresh หรือลบใส่ Browser Source ใหม่ใน OBS Studio
+  - ระบบ **Persistent Reconnect & Multi-room Rejoining**: บันทึก Stream Room (`streamer_${token}` หรือชื่อสตรีมเมอร์) ไว้ใน Socket client เมื่อการเชื่อมต่อขาดหายหรือ Reconnect จะเข้าห้องเดิมทั้งหมดอัตโนมัติ ทำให้ OBS ทำงานต่อเนื่องไม่หลุด
+- **Overlays สำหรับ OBS Studio (Clean Stream Display)**:
+  - **OverlayAlertPage (`/overlay/alert/:token`)**: พื้นหลังโปร่งใส 100%, FIFO Alert Queue พร้อมคูลดาวน์ 400ms, กรอง `minAmount`, Tiers, Web Audio API Presets, และ Responsive Thai TTS
+  - **OverlayGoalPage (`/overlay/goal/:token`)**: พื้นหลังโปร่งใส 100%, แถบ Progress Bar เรืองแสง, ซิงค์ยอดเงินสะสมจริงและอัปเดตแบบเรียลไทม์
+  - **OverlayLeaderboardPage (`/overlay/leaderboard/:token`)**: พื้นหลังโปร่งใส 100%, แสดงอันดับผู้สนับสนุน 1-20 พร้อมมงกุฎและเหรียญรางวัล, ตัวอักษรคมชัด ไม่แตก
+  - **ไม่มีปุ่มทดสอบลอยบน Browser Source**: หน้า Overlay ทั้งหมดไม่มีปุ่มหรือแถบควบคุมใดๆ ลอยมารบกวนจอถ่ายทอดสด มอบประสบการณ์ระดับมืออาชีพ 100%
 
 #### 8) หน้าจัดการบัญชี (Account) — `/account`
 
@@ -336,7 +348,7 @@ client/src/
 │   └── socialPlatforms.js     → รายชื่อและไอคอนของแพลตฟอร์มโซเชียลมีเดีย
 ├── hooks/
 │   └── useJwtUser.js          → Custom hook ดึงข้อมูล user จาก JWT ใน localStorage
-├── pages/                     → หน้าหลักทั้ง 12 หน้า, NotFound, OverlayAlertPage.jsx, OverlayAlertPage.test.js
+├── pages/                     → หน้าหลักทั้ง 12 หน้า, NotFound, OverlayAlertPage, OverlayGoalPage, OverlayLeaderboardPage พร้อมไฟล์ `.test.js` ครบชุด
 ├── utils/
 │   ├── alertAudio.js          → ระบบเสียงแจ้งเตือน Web Audio API Synth, custom MP3, Google TTS HTTPS Direct, Web Speech API fallback
 │   ├── alertAudio.test.js     → ชุดทดสอบระบบเสียงและการสังเคราะห์เสียง TTS (23 tests)
@@ -345,8 +357,8 @@ client/src/
 │   ├── passwordValidation.test.js
 │   ├── sanitizeStorage.js     → ฟังก์ชันกรองและจัดเก็บข้อมูล localStorage ให้ปลอดภัย
 │   ├── sanitizeStorage.test.js
-│   ├── socket.js              → Socket.IO Client singleton (getSocket, joinStreamRoom, leaveStreamRoom, onDonationAlert, emitTestAlert, disconnectSocket)
-│   └── socket.test.js         → ชุดทดสอบ Socket.IO integration (9 tests)
+│   ├── socket.js              → Socket.IO Client singleton (getSocket, joinStreamRoom, leaveStreamRoom, onDonationAlert, emitTestAlert, onWidgetConfigUpdate, disconnectSocket, Auto-reconnect Registry)
+│   └── socket.test.js         → ชุดทดสอบ Socket.IO integration และ Reconnect Room Recovery (11 tests)
 ├── App.js                     → การกำหนดเส้นทาง URL Routing ทั้งหมด
 ├── App.test.js                → การทดสอบ Routing ภาพรวม
 ├── setupTests.js              → การตั้งค่า Jest polyfill (TextEncoder/TextDecoder)
@@ -365,8 +377,7 @@ client/src/
    - **ห้ามใส่ `overflow-x: hidden`** บน Container ชั้นนอกที่ครอบ Sidebar/Topbar เพราะจะทำให้คุณสมบัติ `position: sticky` ของเบราว์เซอร์ไม่ทำงาน
 4. **ความปลอดภัยของรหัสผ่าน**: ฟังก์ชัน `utils/passwordValidation.js` มีการใช้งานเหมือนกันทั้งใน `client/` และ `server/` หากมีการปรับเงื่อนไข ต้องอัปเดตทั้ง 2 ฝั่งให้ตรงกันเสมอ
 5. **การจัดการ State และ Storage**:
-   - หน้า **Account**, **Payment**, **DonatePage**, **DonorPage**, **Dashboard**, และ **HistoryPage** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — ห้ามอ่าน/เขียนข้อมูลหลักลง `localStorage` โดยตรงในหน้าเหล่านี้
-   - หน้า **Widget** ยังอ่านและบันทึกข้อมูลผ่านไฟล์กลาง `widgetStorage.js` และ `sanitizeStorage.js` (เตรียมสำหรับการย้ายขึ้น REST API ใน Phase 7)
+   - หน้า **Account**, **Payment**, **DonatePage**, **DonorPage**, **Dashboard**, **HistoryPage**, และ **Widget** ย้ายขึ้น MongoDB ผ่าน REST API (`api.js`) แล้วทั้งหมด — สำหรับหน้า Widget มีระบบ fallback ไปยัง `widgetStorage.js` และ `sanitizeStorage.js` กรณีออฟไลน์
    - ห้ามเรียก `localStorage` ตรงๆ ในทุกกรณี ให้ใช้ผ่าน `safeGetItem`/`safeSetItem` ใน `sanitizeStorage.js` เสมอ
 6. **Zero Warning Policy บน CI**: ตัวแปร `CI=true` บน GitHub Actions จะเปลี่ยน warning ทุกตัวเป็น fatal error ดังนั้นห้ามทิ้ง unused variables หรือ unused imports
 7. **การป้องกัน NoSQL Injection**: ทุก route ฝั่ง server ที่รับค่าจาก client ต้องทำตามกฎ 3 ขั้นตอนในหัวข้อ 4.4 อย่างเคร่งครัด
@@ -385,8 +396,8 @@ client/src/
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
-| **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57, #58, #59) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 26 Suites (258 Tests ผ่าน 100%, Coverage > 90.9%), Server: 7 Suites (120 Tests ผ่าน 100%, Coverage > 97.2%), รวม 378 Tests ผ่าน 100% |
+| **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 26 Suites (270 Tests ผ่าน 100%), Server: 8 Suites (130 Tests ผ่าน 100%, Coverage > 97.4%), รวม **34 Suites, 400 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities    |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
@@ -432,7 +443,7 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-> **Phase 1–7 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), Donation Pipeline, Dashboard Analytics & History Backoffice, และ Real-time Alert & OBS Widget System ครบวงจร (PR #57, #58, #59)
+> **Phase 1–7 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), Donation Pipeline, Dashboard Analytics & History Backoffice, และ Real-time Alert & OBS Widget System ครบวงจร (PR #57–#66)
 
 - **Phase 5: Deploy (เสร็จสมบูรณ์ ✅)**
   - Server ขึ้น **Render** (`https://final-project-xntd.onrender.com`) พร้อม Reverse Proxy (`trust proxy`), Dynamic Port และ CORS
@@ -470,7 +481,12 @@ client/src/
     - **Overlay Goal Page (`/overlay/goal/:token`)**: แถบความคืบหน้าเรืองแสงสำหรับ OBS, คำนวณยอดเงินสะสมจาก DB อัตโนมัติ พร้อมอัปเดตยอดเพิ่มแบบเรียลไทม์ผ่าน Socket.IO
     - **Overlay Leaderboard Page (`/overlay/leaderboard/:token`)**: อันดับผู้สนับสนุน 1-20 พร้อมมงกุฎ/เหรียญรางวัล, คำนวณ Top Donors จาก DB อัตโนมัติ พร้อม Re-ranking เรียลไทม์ผ่าน Socket.IO
     - **WidgetPage Integration**: เชื่อมต่อ `fetchWidgetConfig` และ `saveWidgetSettings` บันทึกขึ้น MongoDB พร้อม fallback ไปที่ localStorage
-  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 7 Suites 120 Tests, Client 26 Suites 258 Tests รวม **33 Suites, 378 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
+  - **ส่วนที่ 3: Live Config Sync, Auto Goal Calculation, Typography & Clean Stream Display (PR #60–#66)**
+    - **Auto Goal Calculation (`widgetHelpers.js`) (PR #60, #61)**: ระบบคำนวณยอดสะสมของ Donate Goal อัตโนมัติจากรายการโดเนทจริงที่สำเร็จ (`status === "completed"`) ในช่วงวันเวลาของเป้าหมาย พร้อมตั้งค่าฟิลด์ยอดเงินปัจจุบันเป็น Read-only ในหน้า UI เพื่อความแม่นยำ 100%
+    - **Real-time Live OBS Config Sync (PR #62, #63)**: เมื่อสตรีมเมอร์แก้ไขการตั้งค่าวิดเจ็ตใน `WidgetPage` (เช่น สี, ฟอนต์, เป้าหมาย, เสียง ฯลฯ) ระบบจะ Debounce และส่งสัญญาณ `widget-config-update` ผ่าน Socket.IO อัปเดตไปยัง OBS Browser Source แบบเรียลไทม์ทันทีโดยไม่ต้อง Refresh หรือเพิ่ม Browser Source ใหม่ใน OBS Studio
+    - **Persistent Reconnect & Multi-room Recovery (PR #64)**: พัฒนาระบบ Room Registry ใน Socket.IO Client singleton ให้จดจำห้องที่เข้าร่วม (`streamer_${token}` หรือชื่อสตรีมเมอร์) เมื่อเน็ตหลุดหรือ Reconnect Socket.IO จะเข้าห้องเดิมทั้งหมดอัตโนมัติ ทำให้ OBS รับข้อมูลต่อเนื่องไม่หลุด
+    - **Leaderboard Typography & Clean Stream Display (PR #65, #66)**: ปรับขนาดตัวอักษรและ Layout ของ Leaderboard ให้อ่านง่าย คมชัด ไม่แตกใน OBS Studio, แนะนำขนาด Properties ที่เหมาะสมสำหรับ OBS ใน BrowserSourceCard, แยกปุ่มทดสอบ Alert ให้อยู่เฉพาะแท็บ Alert เท่านั้น, กรองรายการทดสอบ (`isTest: true`) ไม่ให้นำมาบวกใน Leaderboard และ Goal จริง, และลบปุ่มทดสอบที่ลอยอยู่ด้านล่าง Browser Source ออกทั้งหมดเพื่อหน้าจอถ่ายทอดสดที่สะอาดตา 100%
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 8 Suites 130 Tests, Client 26 Suites 270 Tests รวม **34 Suites, 400 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 
 - **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
   - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน
