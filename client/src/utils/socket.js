@@ -72,3 +72,11 @@ export const emitTestAlert = (payload = {}) => {
   const s = getSocket();
   s.emit("test-alert", payload);
 };
+
+/**
+ * ส่งการอัปเดตการตั้งค่าวิดเจ็ตแบบเรียลไทม์ไปยัง OBS Studio Browser Source
+ */
+export const emitWidgetConfigUpdate = (payload = {}) => {
+  const s = getSocket();
+  s.emit("widget-config-update", payload);
+};

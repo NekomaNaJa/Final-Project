@@ -214,6 +214,42 @@ describe("Widget Routes (/api/widgets)", () => {
       expect(mockWidget.token).not.toBe("old-token");
     });
 
+    it("should emit widget-config-updated through req.io if available", async () => {
+      const mockIo = {
+        to: jest.fn().mockReturnThis(),
+        emit: jest.fn(),
+      };
+      app.set("io", mockIo);
+
+      const mockWidget = {
+        _id: "60c72b2f9b1d8b2bad876999",
+        userId: mockUserId,
+        token: "live-token-456",
+        alert: {},
+        goal: { title: "เป้าหมาย", target: 500 },
+        leaderboard: {},
+        mission: {},
+        save: jest.fn().mockResolvedValueOnce(true),
+      };
+
+      jest.spyOn(Widget, "findOne").mockResolvedValueOnce(mockWidget);
+
+      const res = await request(app)
+        .put("/api/widgets/me")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ goal: { target: 500 } });
+
+      expect(res.status).toBe(200);
+      expect(mockIo.to).toHaveBeenCalledWith("live-token-456");
+      expect(mockIo.emit).toHaveBeenCalledWith(
+        "widget-config-updated",
+        expect.objectContaining({ token: "live-token-456" })
+      );
+
+      // Clean up app io
+      app.set("io", null);
+    });
+
     it("should handle server error during update", async () => {
       jest.spyOn(Widget, "findOne").mockRejectedValueOnce(new Error("Update failure"));
 

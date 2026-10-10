@@ -58,6 +58,17 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("widget-config-update", (data) => {
+    const target = data?.token || data?.streamerId;
+    if (typeof target === "string" && target.trim()) {
+      const cleanTarget = String(target).trim();
+      io.to(cleanTarget).emit("widget-config-updated", data);
+      if (!cleanTarget.startsWith("streamer_")) {
+        io.to(`streamer_${cleanTarget}`).emit("widget-config-updated", data);
+      }
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id);
   });

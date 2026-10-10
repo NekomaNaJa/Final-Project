@@ -74,20 +74,24 @@ export const updateMyWidget = async (req, res, next) => {
     const { alert, goal, leaderboard, mission, regenerateToken } = req.body;
 
     if (alert && typeof alert === "object" && !Array.isArray(alert)) {
-      widget.alert = { ...widget.alert.toObject(), ...alert };
+      const prevAlert = typeof widget.alert?.toObject === "function" ? widget.alert.toObject() : widget.alert;
+      widget.alert = { ...prevAlert, ...alert };
     }
 
     if (goal && typeof goal === "object" && !Array.isArray(goal)) {
       const { current: _ignoreCurrent, ...goalFields } = goal;
-      widget.goal = { ...widget.goal.toObject(), ...goalFields };
+      const prevGoal = typeof widget.goal?.toObject === "function" ? widget.goal.toObject() : widget.goal;
+      widget.goal = { ...prevGoal, ...goalFields };
     }
 
     if (leaderboard && typeof leaderboard === "object" && !Array.isArray(leaderboard)) {
-      widget.leaderboard = { ...widget.leaderboard.toObject(), ...leaderboard };
+      const prevLb = typeof widget.leaderboard?.toObject === "function" ? widget.leaderboard.toObject() : widget.leaderboard;
+      widget.leaderboard = { ...prevLb, ...leaderboard };
     }
 
     if (mission && typeof mission === "object" && !Array.isArray(mission)) {
-      widget.mission = { ...widget.mission.toObject(), ...mission };
+      const prevMission = typeof widget.mission?.toObject === "function" ? widget.mission.toObject() : widget.mission;
+      widget.mission = { ...prevMission, ...mission };
     }
 
     if (regenerateToken === true) {
@@ -103,6 +107,19 @@ export const updateMyWidget = async (req, res, next) => {
       ...widgetData.goal,
       current: await calculateGoalCurrent(safeUserId, widgetData.goal),
     };
+
+    if (req.io && widget.token) {
+      const configPayload = {
+        token: widget.token,
+        alert: widget.alert,
+        goal: widgetData.goal,
+        leaderboard: widgetData.leaderboard,
+        mission: widgetData.mission,
+      };
+
+      req.io.to(widget.token).emit("widget-config-updated", configPayload);
+      req.io.to(`streamer_${widget.token}`).emit("widget-config-updated", configPayload);
+    }
 
     return res.status(200).json({
       message: "บันทึกการตั้งค่าวิดเจ็ตสำเร็จ",

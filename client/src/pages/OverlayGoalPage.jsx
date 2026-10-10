@@ -101,10 +101,22 @@ const OverlayGoalPage = () => {
       handleDonationReceived(data);
     };
 
+    const handleConfigUpdate = (data) => {
+      if (!data) return;
+      if (data.goal) {
+        setConfig((prev) => ({ ...prev, ...data.goal }));
+        if (typeof data.goal.current === "number") {
+          setCurrentAmount(data.goal.current);
+        }
+      }
+    };
+
     socket.on("donation-alert", handleDonation);
+    socket.on("widget-config-updated", handleConfigUpdate);
 
     return () => {
       socket.off("donation-alert", handleDonation);
+      socket.off("widget-config-updated", handleConfigUpdate);
       leaveStreamRoom(streamRoom);
     };
   }, [token, handleDonationReceived]);
