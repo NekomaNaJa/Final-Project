@@ -1145,5 +1145,36 @@ describe("Widget Components & Functions", () => {
 
       expect(screen.getByText("WIDGETS")).toBeInTheDocument();
     });
+
+    test("syncs widget config to OBS in real-time on live editing via debounced effect", async () => {
+      jest.useFakeTimers();
+      const mockPayload = btoa(JSON.stringify({ username: "live_sync_streamer", userId: "u_live_1" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Change input in alert panel
+      const minInput = screen.getByPlaceholderText("10");
+      fireEvent.change(minInput, { target: { value: "99" } });
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+
+      expect(mockSocketInstance.emit).toHaveBeenCalledWith(
+        "widget-config-update",
+        expect.objectContaining({ username: "live_sync_streamer" })
+      );
+
+      jest.useRealTimers();
+    });
   });
 });
