@@ -111,4 +111,22 @@ describe("Socket Utility (client/src/utils/socket.js)", () => {
     emitWidgetConfigUpdate(payload);
     expect(s.emit).toHaveBeenCalledWith("widget-config-update", payload);
   });
+
+  test("re-joins active rooms on socket connect event", () => {
+    let connectHandler;
+    const s = getSocket();
+    const calls = s.on.mock.calls;
+    const connectCall = calls.find((c) => c[0] === "connect");
+    if (connectCall) {
+      connectHandler = connectCall[1];
+    }
+    expect(connectHandler).toBeDefined();
+
+    joinStreamRoom("reconnect_room");
+    s.emit.mockClear();
+
+    connectHandler();
+    expect(s.emit).toHaveBeenCalledWith("join-stream", "reconnect_room");
+    expect(s.emit).toHaveBeenCalledWith("join-stream", "streamer_reconnect_room");
+  });
 });
