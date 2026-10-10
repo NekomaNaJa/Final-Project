@@ -28,14 +28,6 @@ const SAMPLE_ALERTS = [
   },
 ];
 
-const getSecureRandomIndex = (max) => {
-  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
-    const array = new Uint32Array(1);
-    window.crypto.getRandomValues(array);
-    return Number(array[0] % max);
-  }
-  return 0;
-};
 
 
 const OverlayAlertPage = () => {
@@ -52,13 +44,13 @@ const OverlayAlertPage = () => {
   });
   const [currentAlert, setCurrentAlert] = useState(null);
   const [stage, setStage] = useState("idle"); // "idle" | "entering" | "visible" | "exiting"
-  const [alertQueue, setAlertQueue] = useState([]);
 
   const configRef = useRef(config);
   const queueRef = useRef([]);
   const isProcessingRef = useRef(false);
   const activeTimersRef = useRef([]);
   const processAlertRef = useRef(null);
+  const lastAlertTimestampRef = useRef({ key: "", time: 0 });
 
   useEffect(() => {
     configRef.current = config;
@@ -206,7 +198,6 @@ const OverlayAlertPage = () => {
         if (queueRef.current.length > 0) {
           const nextAlert = queueRef.current[0];
           queueRef.current = queueRef.current.slice(1);
-          setAlertQueue([...queueRef.current]);
           if (processAlertRef.current) {
             processAlertRef.current(nextAlert);
           }
@@ -236,11 +227,21 @@ const OverlayAlertPage = () => {
         return;
       }
 
+      // ป้องกันการเล่นแจ้งเตือนซ้ำซ้อนภายใน 800ms
+      const alertKey = `${alertData.donorName}_${amount}_${alertData.message || ""}`;
+      const now = Date.now();
+      if (
+        lastAlertTimestampRef.current.key === alertKey &&
+        now - lastAlertTimestampRef.current.time < 800
+      ) {
+        return;
+      }
+      lastAlertTimestampRef.current = { key: alertKey, time: now };
+
       if (!isProcessingRef.current) {
         processAlert(alertData);
       } else {
         queueRef.current = [...queueRef.current, alertData];
-        setAlertQueue([...queueRef.current]);
       }
     },
     [processAlert]
@@ -253,32 +254,6 @@ const OverlayAlertPage = () => {
     },
     [enqueueAlert]
   );
-
-  // ล้างคิวทั้งหมดทันที
-  const clearQueue = useCallback(() => {
-    clearTimers();
-    queueRef.current = [];
-    setAlertQueue([]);
-    isProcessingRef.current = false;
-    setStage("idle");
-    setCurrentAlert(null);
-  }, [clearTimers]);
-
-  // ข้ามการแจ้งเตือนปัจจุบันไปยังรายการถัดไปในคิว
-  const skipAlert = useCallback(() => {
-    clearTimers();
-    setStage("idle");
-    setCurrentAlert(null);
-
-    if (queueRef.current.length > 0) {
-      const nextAlert = queueRef.current[0];
-      queueRef.current = queueRef.current.slice(1);
-      setAlertQueue([...queueRef.current]);
-      processAlert(nextAlert);
-    } else {
-      isProcessingRef.current = false;
-    }
-  }, [clearTimers, processAlert]);
 
   // เชื่อมต่อ Socket.IO สำหรับรับการแจ้งเตือนแบบเรียลไทม์ (OBS Studio Browser Source)
   useEffect(() => {
@@ -486,48 +461,6 @@ const OverlayAlertPage = () => {
           )}
         </section>
       )}
-
-      {/* แถบเครื่องมือจำลองการแจ้งเตือน (แสดงเฉพาะเมื่อดูบนเบราว์เซอร์ปกติหรือทดสอบ) */}
-      <footer
-        data-testid="overlay-test-controls"
-        className="pointer-events-auto fixed bottom-4 right-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#120f24]/85 p-2 text-xs text-white shadow-xl backdrop-blur-md opacity-40 hover:opacity-100 transition-opacity"
-      >
-        <span className="text-[11px] text-purple-300">
-          OBS Alert {stage !== "idle" ? `(${stage})` : ""}
-          {alertQueue.length > 0 && ` · คิวรอ: ${alertQueue.length}`}
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            const randomIndex = getSecureRandomIndex(SAMPLE_ALERTS.length);
-            enqueueAlert(SAMPLE_ALERTS[randomIndex]);
-          }}
-
-          className="rounded-lg bg-purple-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-purple-500 active:scale-95 transition-all cursor-pointer shadow-sm"
-        >
-          ทดสอบแจ้งเตือน
-        </button>
-        {isDisplaying && (
-          <button
-            type="button"
-            onClick={skipAlert}
-            className="rounded-lg bg-[#2e2648] px-2.5 py-1.5 text-[11px] font-semibold text-gray-300 hover:bg-[#3b325c] active:scale-95 transition-all cursor-pointer shadow-sm"
-            title="ข้ามแจ้งเตือนนี้ไปยังคิวถัดไป"
-          >
-            ข้าม
-          </button>
-        )}
-        {alertQueue.length > 0 && (
-          <button
-            type="button"
-            onClick={clearQueue}
-            className="rounded-lg bg-red-900/60 border border-red-500/30 px-2 py-1.5 text-[11px] font-semibold text-red-200 hover:bg-red-800/80 active:scale-95 transition-all cursor-pointer shadow-sm"
-            title="ล้างคิวทั้งหมด"
-          >
-            ล้างคิว ({alertQueue.length})
-          </button>
-        )}
-      </footer>
     </div>
   );
 };

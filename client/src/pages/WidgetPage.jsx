@@ -270,7 +270,7 @@ const WidgetPage = () => {
                 username={user?.username}
                 token={widgetToken}
                 isLive={isLive}
-                onTest={handleTest}
+                onTest={activeTab === "alert" ? handleTest : null}
               />
             </div>
           </div>

@@ -77,19 +77,24 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     expect(screen.queryByTestId("alert-display-card")).not.toBeInTheDocument();
   });
 
-  test("clicking 'ทดสอบแจ้งเตือน' button triggers alert lifecycle", () => {
+  test("receiving 'donation-alert' event triggers alert lifecycle", () => {
     render(
-      <MemoryRouter initialEntries={["/overlay/alert"]}>
+      <MemoryRouter initialEntries={["/overlay/alert/tok"]}>
         <Routes>
-          <Route path="/overlay/alert" element={<OverlayAlertPage />} />
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
         </Routes>
       </MemoryRouter>
     );
 
     expect(screen.queryByTestId("alert-display-card")).not.toBeInTheDocument();
 
-    const testBtn = screen.getByRole("button", { name: "ทดสอบแจ้งเตือน" });
-    fireEvent.click(testBtn);
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้สนับสนุนใจดี",
+        amount: 100,
+        message: "สู้ๆ ครับ",
+      });
+    });
 
     const card = screen.getByTestId("alert-display-card");
     expect(card).toBeInTheDocument();
@@ -208,26 +213,32 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
     expect(window.speechSynthesis.cancel).toHaveBeenCalled();
   });
 
-  test("FIFO queue: processes multiple alerts sequentially with queue counter and cooldown", () => {
+  test("FIFO queue: processes multiple alerts sequentially with cooldown", () => {
     render(
-      <MemoryRouter initialEntries={["/overlay/alert"]}>
+      <MemoryRouter initialEntries={["/overlay/alert/tok"]}>
         <Routes>
-          <Route path="/overlay/alert" element={<OverlayAlertPage />} />
+          <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
         </Routes>
       </MemoryRouter>
     );
 
-    const testBtn = screen.getByRole("button", { name: "ทดสอบแจ้งเตือน" });
-
-    // Click twice to trigger 1 active alert + 1 queued alert
+    // Trigger 2 alerts via socket
     act(() => {
-      fireEvent.click(testBtn);
-      fireEvent.click(testBtn);
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้สนับสนุน A",
+        amount: 100,
+        message: "ข้อความ 1",
+      });
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้สนับสนุน B",
+        amount: 200,
+        message: "ข้อความ 2",
+      });
     });
 
-    // 1st alert is entering, queue counter shows "คิวรอ: 1"
+    // 1st alert is entering
     expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
-    expect(screen.getByText(/คิวรอ: 1/)).toBeInTheDocument();
+    expect(screen.getByText("ผู้สนับสนุน A")).toBeInTheDocument();
 
     // Advance 1st alert to completion (0.8s in + 5s display + 0.8s out = 6600ms)
     act(() => {
@@ -242,53 +253,9 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
       jest.advanceTimersByTime(400);
     });
 
-    // 2nd alert is now entering and queue is empty
+    // 2nd alert is now entering
     expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
-    expect(screen.queryByText(/คิวรอ:/)).not.toBeInTheDocument();
-  });
-
-  test("skip and clearQueue buttons control active alert and queued items", () => {
-    render(
-      <MemoryRouter initialEntries={["/overlay/alert"]}>
-        <Routes>
-          <Route path="/overlay/alert" element={<OverlayAlertPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    const testBtn = screen.getByRole("button", { name: "ทดสอบแจ้งเตือน" });
-
-    // Enqueue 3 alerts: 1 active, 2 in queue
-    act(() => {
-      fireEvent.click(testBtn);
-      fireEvent.click(testBtn);
-      fireEvent.click(testBtn);
-    });
-
-    expect(screen.getByText(/คิวรอ: 2/)).toBeInTheDocument();
-
-    // Skip current alert -> immediately pops next alert from queue
-    const skipBtn = screen.getByRole("button", { name: "ข้าม" });
-    act(() => {
-      fireEvent.click(skipBtn);
-    });
-
-    expect(screen.getByTestId("alert-display-card")).toBeInTheDocument();
-    expect(screen.getByText(/คิวรอ: 1/)).toBeInTheDocument();
-
-    // Clear queue -> removes remaining queued item
-    const clearBtn = screen.getByRole("button", { name: /ล้างคิว/ });
-    act(() => {
-      fireEvent.click(clearBtn);
-    });
-
-    expect(screen.queryByText(/คิวรอ:/)).not.toBeInTheDocument();
-    expect(screen.queryByTestId("alert-display-card")).not.toBeInTheDocument();
-
-    // Skip when queue is empty sets isProcessing to false
-    act(() => {
-      fireEvent.click(skipBtn);
-    });
+    expect(screen.getByText("ผู้สนับสนุน B")).toBeInTheDocument();
   });
 
   test("filters out incoming donations below minAmount threshold", async () => {

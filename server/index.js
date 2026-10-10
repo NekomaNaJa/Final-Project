@@ -51,10 +51,11 @@ io.on("connection", (socket) => {
         message: data.message || "นี่คือข้อความทดสอบระบบแจ้งเตือน Donix Alert",
         isTest: true,
       };
-      io.to(cleanTarget).emit("donation-alert", payload);
+      const rooms = [cleanTarget];
       if (!cleanTarget.startsWith("streamer_")) {
-        io.to(`streamer_${cleanTarget}`).emit("donation-alert", payload);
+        rooms.push(`streamer_${cleanTarget}`);
       }
+      io.to(rooms).emit("donation-alert", payload);
     }
   });
 
@@ -65,12 +66,17 @@ io.on("connection", (socket) => {
       )
     );
 
+    const rooms = new Set();
     for (const target of targets) {
       const cleanTarget = String(target).trim();
-      io.to(cleanTarget).emit("widget-config-updated", data);
+      rooms.add(cleanTarget);
       if (!cleanTarget.startsWith("streamer_")) {
-        io.to(`streamer_${cleanTarget}`).emit("widget-config-updated", data);
+        rooms.add(`streamer_${cleanTarget}`);
       }
+    }
+
+    if (rooms.size > 0) {
+      io.to(Array.from(rooms)).emit("widget-config-updated", data);
     }
   });
 

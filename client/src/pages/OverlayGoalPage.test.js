@@ -149,27 +149,23 @@ describe("OverlayGoalPage Component", () => {
     expect(screen.getByText("50%")).toBeInTheDocument();
   });
 
-  test("preview buttons +100, +500, and reset update the goal correctly", () => {
+  test("updates goal on real incoming donation alert", () => {
     render(
-      <MemoryRouter initialEntries={["/overlay/goal"]}>
+      <MemoryRouter initialEntries={["/overlay/goal/goal_room"]}>
         <Routes>
-          <Route path="/overlay/goal" element={<OverlayGoalPage />} />
+          <Route path="/overlay/goal/:token" element={<OverlayGoalPage />} />
         </Routes>
       </MemoryRouter>
     );
 
-    const btn100 = screen.getByRole("button", { name: "+100 ฿" });
-    const btn500 = screen.getByRole("button", { name: "+500 ฿" });
-    const btnReset = screen.getByRole("button", { name: "รีเซ็ต" });
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "Supporter",
+        amount: 500,
+      });
+    });
 
-    fireEvent.click(btn100);
-    expect(screen.getByText(/100 ฿ เพิ่งเข้ามา!/)).toBeInTheDocument();
-
-    fireEvent.click(btn500);
     expect(screen.getByText(/500 ฿ เพิ่งเข้ามา!/)).toBeInTheDocument();
-
-    fireEvent.click(btnReset);
-    expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
   test("handles fetch failure gracefully", async () => {
