@@ -84,6 +84,26 @@ const WidgetPage = () => {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
+  // ส่งการอัปเดตแบบ Real-time ไปยัง OBS Browser Source ทันทีที่มีการปรับแต่งในหน้าเว็บ (Live Preview Sync)
+  useEffect(() => {
+    const activeToken = widgetToken;
+    const streamerId = user?.userId || user?._id || user?.id;
+    const username = user?.username;
+
+    if (!activeToken && !streamerId && !username) return;
+
+    const timer = setTimeout(() => {
+      emitWidgetConfigUpdate({
+        token: activeToken,
+        streamerId,
+        username,
+        ...config,
+      });
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [config, widgetToken, user]);
+
   const handleSave = async () => {
     try {
       const result = await saveWidgetSettings(config);
@@ -94,7 +114,8 @@ const WidgetPage = () => {
       if (activeToken) {
         emitWidgetConfigUpdate({
           token: activeToken,
-          streamerId: user?._id || user?.id,
+          streamerId: user?.userId || user?._id || user?.id,
+          username: user?.username,
           ...config,
         });
       }
@@ -105,7 +126,8 @@ const WidgetPage = () => {
       if (widgetToken) {
         emitWidgetConfigUpdate({
           token: widgetToken,
-          streamerId: user?._id || user?.id,
+          streamerId: user?.userId || user?._id || user?.id,
+          username: user?.username,
           ...config,
         });
       }

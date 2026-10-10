@@ -99,6 +99,11 @@ describe("OverlayAlertPage Component (Animation Lifecycle & Visuals)", () => {
   test("supports Amount Tiers image replacement when configured", async () => {
     const mockConfigWithTiers = {
       data: {
+        token: "tier_token_abc",
+        streamer: {
+          id: "streamer_alert_id",
+          username: "alert_streamer",
+        },
         alert: {
           animationIn: "zoomIn",
           animationOut: "zoomOut",

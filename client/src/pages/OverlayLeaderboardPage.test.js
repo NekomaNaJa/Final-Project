@@ -48,6 +48,11 @@ describe("OverlayLeaderboardPage Component", () => {
   test("fetches leaderboard config and donors from API when token is provided", async () => {
     const mockLeaderboardData = {
       data: {
+        token: "top_token_xyz",
+        streamer: {
+          id: "streamer_lb_id",
+          username: "lb_streamer",
+        },
         leaderboard: {
           title: "ผู้สนับสนุนยอดเยี่ยมแห่งปี",
           limit: 3,

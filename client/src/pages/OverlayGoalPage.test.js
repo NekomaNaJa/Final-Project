@@ -45,6 +45,11 @@ describe("OverlayGoalPage Component", () => {
   test("fetches goal config and initial amount from API when token is provided", async () => {
     const mockGoalData = {
       data: {
+        token: "live-goal-token-999",
+        streamer: {
+          id: "streamer-id-123",
+          username: "streamer_goal_boy",
+        },
         goal: {
           title: "เป้าหมายซื้อไมค์ใหม่",
           target: 20000,
