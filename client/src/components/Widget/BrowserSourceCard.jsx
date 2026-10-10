@@ -2,6 +2,12 @@ import React, { useState } from "react";
 import { Copy, Check, Play, Info } from "lucide-react";
 import { getBrowserSourceUrl } from "./widgetStorage";
 
+const RECOMMENDED_SIZES = {
+  alert: "800 x 600 px",
+  goal: "650 x 260 px",
+  leaderboard: "600 x 700 px",
+};
+
 const BrowserSourceCard = ({ type, username, token, isLive = true, onTest }) => {
   const [copied, setCopied] = useState(false);
   const targetId = token || username || "";
@@ -80,9 +86,17 @@ const BrowserSourceCard = ({ type, username, token, isLive = true, onTest }) => 
         )}
       </div>
 
+      {RECOMMENDED_SIZES[type] && (
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-[#2b2542] bg-[#110d22] text-[11px]">
+          <span className="text-[#8e87a2]">ขนาดที่แนะนำใน OBS:</span>
+          <span className="font-mono font-bold text-purple-300">
+            {RECOMMENDED_SIZES[type]}
+          </span>
+        </div>
+      )}
+
       <p className="text-[10px] leading-relaxed text-[#7e778d]">
-        คัดลอก URL นี้ไปวางในช่อง URL ของ Browser Source ในโปรแกรม OBS Studio / Streamlabs
-        (เมื่อแก้ไขในหน้าเว็บ ระบบจะซิงค์การแสดงผลไปยัง OBS แบบเรียลไทม์)
+        คัดลอก URL นี้ไปวางใน Browser Source ของ OBS Studio (แนะนำให้กำหนดขนาด Width x Height ในหน้า Properties ของ OBS โดยตรงแทนการลากยืดกรอบสีแดง เพื่อให้ตัวหนังสือคมชัดสูงสุด ไม่แตก)
       </p>
 
       {/* Buttons */}

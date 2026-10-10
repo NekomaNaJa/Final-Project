@@ -189,4 +189,26 @@ describe("OverlayGoalPage Component", () => {
 
     expect(screen.getByTestId("goal-display-card")).toBeInTheDocument();
   });
+
+  test("ignores test alerts when isTest flag is true", () => {
+    mockSocketInstance.__clearListeners();
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/goal/goal_room"]}>
+        <Routes>
+          <Route path="/overlay/goal/:token" element={<OverlayGoalPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "Test Bot",
+        amount: 500,
+        isTest: true,
+      });
+    });
+
+    expect(screen.queryByText(/เพิ่งเข้ามา!/)).not.toBeInTheDocument();
+  });
 });
