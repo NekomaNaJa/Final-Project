@@ -173,9 +173,22 @@ export const createDonation = async (req, res, next) => {
 
     if (safeSlipImage && (paymentMethod === "promptpay" || paymentMethod === "bank")) {
       const bankConfig = streamer.payment?.bank;
+      const promptpayConfig = streamer.payment?.promptpay;
+
+      const expectedAccountName =
+        bankConfig?.accountName ||
+        streamer.fullName ||
+        [streamer.firstName, streamer.lastName].filter(Boolean).join(" ").trim() ||
+        null;
+
+      const expectedAccountNumber =
+        paymentMethod === "bank"
+          ? bankConfig?.accountNumber
+          : promptpayConfig?.number;
+
       const verification = await slipVerificationService.verifySlipImage(safeSlipImage, effectiveAmount, {
-        expectedAccountName: paymentMethod === "bank" ? bankConfig?.accountName : null,
-        expectedAccountNumber: paymentMethod === "bank" ? bankConfig?.accountNumber : null,
+        expectedAccountName,
+        expectedAccountNumber,
       });
 
       if (verification?.success) {
@@ -194,14 +207,19 @@ export const createDonation = async (req, res, next) => {
           }
         }
 
-        // 7.2 ตรวจสอบชื่อผู้รับเงินในสลิป ให้ตรงกับชื่อบัญชีของสตรีมเมอร์
+        // 7.2 ตรวจสอบชื่อผู้รับเงินในสลิป ให้ตรงกับชื่อบัญชีของสตรีมเมอร์ (ทั้ง Bank และ PromptPay)
+        const streamerAccountDisplayName =
+          paymentMethod === "bank" && bankConfig?.accountName
+            ? bankConfig.accountName
+            : expectedAccountName || expectedAccountNumber || "สตรีมเมอร์";
+
         if (
-          paymentMethod === "bank" &&
-          bankConfig?.accountName &&
-          verification.recipientMatched === false
+          (expectedAccountName || expectedAccountNumber) &&
+          verification.recipientMatched === false &&
+          verification.accountNumberMatched !== true
         ) {
           return res.status(400).json({
-            message: `ชื่อผู้รับเงินในสลิปไม่ตรงกับชื่อบัญชีของสตรีมเมอร์ (${bankConfig.accountName})`,
+            message: `ชื่อผู้รับเงินในสลิปไม่ตรงกับชื่อบัญชีของสตรีมเมอร์ (${streamerAccountDisplayName})`,
             data: null,
           });
         }
@@ -278,7 +296,7 @@ export const createDonation = async (req, res, next) => {
     // กรณีไม่มีการอ่านสลิปและไม่ได้ระบุจำนวนเงินมา
     if (effectiveAmount === null || effectiveAmount <= 0) {
       return res.status(400).json({
-        message: "กรุณาระบุจำนวนเงิน หรือแนบสลิปที่อ่านจำนวนเงินได้",
+        message: "ข้อมูลไม่ถูกต้อง",
         data: null,
       });
     }
