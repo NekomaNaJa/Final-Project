@@ -75,6 +75,29 @@ describe("Thai Bank Slip & QR Parser Utility (Phase 8 OCR)", () => {
       expect(res.rawPayload).toBe(payload);
     });
 
+    it("should parse Thai Bank Mini QR (National ITMX standard, e.g. Krungthai Next)", () => {
+      const ktbPayload = "0038000600000101030060217Aef2fa337bfc849f35102TH9104F4C9";
+      const res = parseThaiSlipQr(ktbPayload);
+
+      expect(res.success).toBe(true);
+      expect(res.format).toBe("emvco");
+      expect(res.transRef).toBe("Aef2fa337bfc849f3");
+      expect(res.bankCode).toBe("006");
+      expect(res.bankName).toBe("ธนาคารกรุงไทย (KTB)");
+      expect(res.amount).toBeNull();
+    });
+
+    it("should parse Thai Bank Mini QR when sub02 is bank code and sub01 is transRef", () => {
+      // Tag 00 length 26: 0113MY_REF_NUMBER 0203014 (SCB)
+      const payload = "00260113MY_REF_NUMBER02030145102TH91041234";
+      const res = parseThaiSlipQr(payload);
+
+      expect(res.success).toBe(true);
+      expect(res.transRef).toBe("MY_REF_NUMBER");
+      expect(res.bankCode).toBe("014");
+      expect(res.bankName).toContain("SCB");
+    });
+
     it("should parse EMVCo QR when sub01 prefix is not a bank code and sub02 is bank code", () => {
       const payload = "00020130200109REF1234560203004540510.006304ABCD";
       const res = parseThaiSlipQr(payload);

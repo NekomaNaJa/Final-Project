@@ -225,8 +225,8 @@ export const createDonation = async (req, res, next) => {
 
     await donation.save();
 
-    // 9. Real-time Notification ผ่าน Socket.IO
-    if (req.io) {
+    // 9. Real-time Notification ผ่าน Socket.IO (เฉพาะรายการที่อนุมัติแล้วเท่านั้น)
+    if (req.io && initialStatus === "approved") {
       const alertPayload = {
         id: donation._id,
         donorName: donation.donorName,
