@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
 import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
@@ -310,7 +310,8 @@ const DonorPage = () => {
             {/* Payment Channel Selector Tabs */}
             <DonorPaymentTabs
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={isSubmitting ? () => {} : setActiveTab}
+              disabled={isSubmitting}
             />
 
             {/* Donor Name & Message Form Inputs */}
@@ -392,6 +393,36 @@ const DonorPage = () => {
             )}
           </div>
       </div>
+
+      {/* Processing / Verifying Donation Loading Modal */}
+      {isSubmitting && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="กำลังดำเนินการ"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-purple-500/40 bg-[#16122a] p-6 text-center space-y-4 shadow-2xl">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600/20 border border-purple-500/40 text-purple-400 mx-auto shadow-lg">
+              <Loader2 size={36} className="animate-spin text-purple-400" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white tracking-wide">
+                กำลังดำเนินการ
+              </h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                ระบบกำลังตรวจสอบข้อมูลและสลิปการโอนเงิน กรุณารอสักครู่...
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-purple-500/20 bg-[#1e1738]/80 p-3 text-xs text-purple-300 flex items-center justify-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
+              <span>กรุณาอย่าปิดหรือเปลี่ยนหน้าต่างในระหว่างนี้</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Donation Success Modal */}
       {submittedDonation && (

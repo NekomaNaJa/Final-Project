@@ -364,6 +364,11 @@ describe("Thai Bank Slip & QR Parser Utility (Phase 8 OCR)", () => {
     it("should return true if expected account has fewer than 4 digits", () => {
       expect(isAccountNumberMatched("โอนเงิน", "123")).toBe(true);
     });
+
+    it("should return true when recipient section has ending digits matching last 4", () => {
+      const slip = "ไปยัง นายทดสอบ บัญชีลงท้าย 7890 วันที่";
+      expect(isAccountNumberMatched(slip, "1234567890")).toBe(true);
+    });
   });
 
   describe("buildMockEmvQrPayload", () => {
