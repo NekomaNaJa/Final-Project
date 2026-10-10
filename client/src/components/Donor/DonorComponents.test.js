@@ -162,12 +162,15 @@ describe("Donor Components", () => {
           bankName="SCB"
           accountNumber="1234567890"
           accountName="นายสมหวัง"
+          minAmount={50}
         />
       );
 
       expect(screen.getByText("SCB")).toBeInTheDocument();
       expect(screen.getByText("1234567890")).toBeInTheDocument();
       expect(screen.getByText("นายสมหวัง")).toBeInTheDocument();
+      expect(screen.getByText("ยอดโดเนทขั้นต่ำ")).toBeInTheDocument();
+      expect(screen.getAllByText(/50 บาท/).length).toBeGreaterThanOrEqual(1);
 
       const copyBtn = screen.getByTitle("คัดลอกเลขที่บัญชี");
       fireEvent.click(copyBtn);

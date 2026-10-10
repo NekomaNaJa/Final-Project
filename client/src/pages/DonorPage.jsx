@@ -376,6 +376,7 @@ const DonorPage = () => {
                 bankName={streamerConfig.payment.bank.bankName}
                 accountNumber={streamerConfig.payment.bank.accountNumber}
                 accountName={streamerConfig.payment.bank.accountName}
+                minAmount={streamerConfig.minAmount}
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}
               />

@@ -6,6 +6,7 @@ const DonorBankForm = ({
   bankName = "ธนาคารไทยพาณิชย์ (SCB)",
   accountNumber = "4170606722",
   accountName = "มนต์ธร กอเจริญทรัพย์",
+  minAmount = 1,
   onSubmit,
   isSubmitting = false,
 }) => {
@@ -77,12 +78,22 @@ const DonorBankForm = ({
               </button>
             </div>
 
-            {/* Account Name */}
-            <div className="pt-1">
-              <p className="text-xs text-[#7e778d]">ชื่อเจ้าของบัญชี</p>
-              <p className="text-sm font-bold text-gray-100 mt-1">
-                {accountName || "ชื่อเจ้าของบัญชี"}
-              </p>
+            {/* Account Name & Min Amount */}
+            <div className="pt-1 flex items-end justify-between gap-2">
+              <div>
+                <p className="text-xs text-[#7e778d]">ชื่อเจ้าของบัญชี</p>
+                <p className="text-sm font-bold text-gray-100 mt-1">
+                  {accountName || "ชื่อเจ้าของบัญชี"}
+                </p>
+              </div>
+              {minAmount > 0 && (
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-[#7e778d]">ยอดโดเนทขั้นต่ำ</p>
+                  <p className="text-sm font-bold text-amber-400 mt-1">
+                    {Number(minAmount).toLocaleString()} บาท
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -90,6 +101,16 @@ const DonorBankForm = ({
         {/* Slip Upload Box */}
         <DonorSlipUpload onSlipSelected={(file) => setSlipFile(file)} />
       </div>
+
+      {/* Min Amount & Instruction Note */}
+      {minAmount > 0 && (
+        <div className="flex items-center justify-center gap-1.5 text-xs text-purple-200/90 bg-purple-900/20 border border-purple-500/20 rounded-xl py-2 px-3">
+          <span>⚠️ ยอดเงินในสลิปต้องไม่ต่ำกว่า</span>
+          <span className="font-bold text-amber-400">
+            {Number(minAmount).toLocaleString()} บาท
+          </span>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="pt-2">
