@@ -410,7 +410,9 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.message).toBe("อนุมัติรายการบริจาคสำเร็จ");
       expect(mockDonation.status).toBe("approved");
       expect(mockDonation.save).toHaveBeenCalled();
-      expect(mockTo).toHaveBeenCalledWith(`streamer_${mockUserId}`);
+      expect(mockTo).toHaveBeenCalledWith(
+        expect.arrayContaining([`streamer_${mockUserId}`])
+      );
       expect(mockEmit).toHaveBeenCalledWith("donation-alert", mockDonation);
     });
 
@@ -469,7 +471,9 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.data.ocrResult.verified).toBe(true);
       expect(res.body.data.ocrResult.bankName).toContain("KBANK");
 
-      expect(mockTo).toHaveBeenCalledWith(`streamer_${validStreamer._id}`);
+      expect(mockTo).toHaveBeenCalledWith(
+        expect.arrayContaining([`streamer_${validStreamer._id}`])
+      );
       expect(mockIoEmit).toHaveBeenCalledWith(
         "donation-alert",
         expect.objectContaining({

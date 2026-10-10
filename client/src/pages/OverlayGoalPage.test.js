@@ -207,4 +207,38 @@ describe("OverlayGoalPage Component", () => {
 
     expect(screen.queryByText(/เพิ่งเข้ามา!/)).not.toBeInTheDocument();
   });
+
+  test("ignores duplicate donation alerts for the same donation id", () => {
+    render(
+      <MemoryRouter initialEntries={["/overlay/goal/dedup_room"]}>
+        <Routes>
+          <Route path="/overlay/goal/:token" element={<OverlayGoalPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        id: "don_unique_123",
+        donorName: "Supporter",
+        amount: 50,
+      });
+    });
+
+    expect(screen.getByText("50")).toBeInTheDocument();
+    expect(screen.getByText(/\/ 10,000 บาท/)).toBeInTheDocument();
+
+    // Trigger duplicate event with same ID
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        id: "don_unique_123",
+        donorName: "Supporter",
+        amount: 50,
+      });
+    });
+
+    // Amount must still be 50, not duplicated to 100
+    expect(screen.getByText("50")).toBeInTheDocument();
+    expect(screen.queryByText("100")).not.toBeInTheDocument();
+  });
 });

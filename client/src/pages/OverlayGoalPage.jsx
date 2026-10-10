@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Target, Sparkles } from "lucide-react";
 import {
@@ -28,6 +28,7 @@ const OverlayGoalPage = () => {
   });
 
   const [recentGain, setRecentGain] = useState(null);
+  const processedDonationIdsRef = useRef(new Set());
 
   // ตั้งค่าพื้นหลังโปร่งใสสำหรับ OBS Studio Browser Source
   useEffect(() => {
@@ -43,48 +44,59 @@ const OverlayGoalPage = () => {
     };
   }, []);
 
-  // ดึงการตั้งค่าจาก API ด้วย token
-  useEffect(() => {
+  // ดึงการตั้งค่าจาก API ด้วย token (ฟังก์ชันซิงค์ยอดจาก DB)
+  const fetchGoalConfig = useCallback(async () => {
     if (!token) return;
+    try {
+      const safeToken = encodeURIComponent(String(token).trim());
+      const response = await fetch(
+        `${API_URL}/public/overlay/goal/${safeToken}`
+      );
+      if (!response.ok) return;
 
-    let isMounted = true;
-    const fetchGoalConfig = async () => {
-      try {
-        const safeToken = encodeURIComponent(String(token).trim());
-        const response = await fetch(
-          `${API_URL}/public/overlay/goal/${safeToken}`
-        );
-        if (!response.ok) return;
-
-        const result = await response.json();
-        if (isMounted && result?.data?.goal) {
-          setConfig((prev) => ({ ...prev, ...result.data.goal }));
-          if (typeof result.data.goal.current === "number") {
-            setCurrentAmount(result.data.goal.current);
-          }
-          if (result.data.token) {
-            joinStreamRoom(result.data.token);
-          }
-          if (result.data.streamer?.id) {
-            joinStreamRoom(result.data.streamer.id);
-          }
-          if (result.data.streamer?.username) {
-            joinStreamRoom(result.data.streamer.username);
-          }
+      const result = await response.json();
+      if (result?.data?.goal) {
+        setConfig((prev) => ({ ...prev, ...result.data.goal }));
+        if (typeof result.data.goal.current === "number") {
+          setCurrentAmount(result.data.goal.current);
         }
-      } catch {
-        // ใช้ค่าเริ่มต้นหรือแคชที่มีต่อไปหากเรียกเซิร์ฟเวอร์ไม่ได้
+        if (result.data.token) {
+          joinStreamRoom(result.data.token);
+        }
+        if (result.data.streamer?.id) {
+          joinStreamRoom(result.data.streamer.id);
+        }
+        if (result.data.streamer?.username) {
+          joinStreamRoom(result.data.streamer.username);
+        }
       }
-    };
-
-    void fetchGoalConfig();
-    return () => {
-      isMounted = false;
-    };
+    } catch {
+      // ใช้ค่าเริ่มต้นหรือแคชที่มีต่อไปหากเรียกเซิร์ฟเวอร์ไม่ได้
+    }
   }, [token]);
+
+  useEffect(() => {
+    void fetchGoalConfig();
+
+    // Auto-sync จาก DB เป็นระยะ (ทุก 30 วินาที) เพื่อการันตียอดเงินตรงกับระบบ 100%
+    const interval = setInterval(() => {
+      void fetchGoalConfig();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchGoalConfig]);
 
   // ประมวลผลเมื่อมียอดโดเนทใหม่เข้ามา
   const handleDonationReceived = useCallback((donation) => {
+    const donationId = donation?.id || donation?._id;
+    if (donationId) {
+      const idStr = String(donationId);
+      if (processedDonationIdsRef.current.has(idStr)) {
+        return; // ป้องกัน Event ซ้ำซ้อนจาก Socket หลายห้อง
+      }
+      processedDonationIdsRef.current.add(idStr);
+    }
+
     const added = Number(donation?.amount) || 0;
     if (added <= 0) return;
 
@@ -95,8 +107,13 @@ const OverlayGoalPage = () => {
       setRecentGain(null);
     }, 4000);
 
+    // Sync ยอดสะสมจริงจากฐานข้อมูลหลังรับโดเนท เพื่อป้องกันยอดคลาดเคลื่อน
+    window.setTimeout(() => {
+      void fetchGoalConfig();
+    }, 800);
+
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [fetchGoalConfig]);
 
   // เชื่อมต่อ Socket.IO ฟัง Event "donation-alert"
   useEffect(() => {
