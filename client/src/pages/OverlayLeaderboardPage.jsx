@@ -66,6 +66,9 @@ const OverlayLeaderboardPage = () => {
           if (Array.isArray(result.data.leaderboard.donors)) {
             setDonors(result.data.leaderboard.donors);
           }
+          if (result.data.token) joinStreamRoom(result.data.token);
+          if (result.data.streamer?.id) joinStreamRoom(result.data.streamer.id);
+          if (result.data.streamer?.username) joinStreamRoom(result.data.streamer.username);
         }
       } catch {
         // ใช้แคชเดิมต่อไปหากเชื่อมต่อ API ไม่ได้

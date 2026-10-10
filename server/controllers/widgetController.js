@@ -111,14 +111,28 @@ export const updateMyWidget = async (req, res, next) => {
     if (req.io && widget.token) {
       const configPayload = {
         token: widget.token,
+        streamerId: safeUserId,
+        username: req.user?.username,
         alert: widget.alert,
         goal: widgetData.goal,
         leaderboard: widgetData.leaderboard,
         mission: widgetData.mission,
       };
 
-      req.io.to(widget.token).emit("widget-config-updated", configPayload);
-      req.io.to(`streamer_${widget.token}`).emit("widget-config-updated", configPayload);
+      const targets = new Set(
+        [
+          widget.token,
+          safeUserId ? String(safeUserId) : null,
+          req.user?.username ? String(req.user.username) : null,
+        ].filter(Boolean)
+      );
+
+      for (const target of targets) {
+        req.io.to(target).emit("widget-config-updated", configPayload);
+        if (!target.startsWith("streamer_")) {
+          req.io.to(`streamer_${target}`).emit("widget-config-updated", configPayload);
+        }
+      }
     }
 
     return res.status(200).json({

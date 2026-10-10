@@ -117,6 +117,9 @@ const OverlayAlertPage = () => {
         const result = await response.json();
         if (isMounted && result?.data?.alert) {
           setConfig((prev) => ({ ...prev, ...result.data.alert }));
+          if (result.data.token) joinStreamRoom(result.data.token);
+          if (result.data.streamer?.id) joinStreamRoom(result.data.streamer.id);
+          if (result.data.streamer?.username) joinStreamRoom(result.data.streamer.username);
         }
       } catch {
         // หากเชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ให้ใช้ค่าเริ่มต้นต่อไป

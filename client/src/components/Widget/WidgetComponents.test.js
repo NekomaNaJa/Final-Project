@@ -211,6 +211,13 @@ describe("Widget Components & Functions", () => {
       expect(screen.getByText("ยังไม่ได้บันทึก")).toBeInTheDocument();
     });
 
+    test("renders loading placeholder when token and username are missing", () => {
+      render(<BrowserSourceCard type="alert" />);
+      expect(screen.getByText("กำลังโหลด Token วิดเจ็ต...")).toBeInTheDocument();
+      const copyBtn = screen.getByRole("button", { name: /คัดลอก/ });
+      expect(copyBtn).toBeDisabled();
+      fireEvent.click(copyBtn);
+    });
 
     test("renders mission type disclaimer without url copy", () => {
       render(

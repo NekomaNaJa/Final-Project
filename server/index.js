@@ -59,8 +59,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("widget-config-update", (data) => {
-    const target = data?.token || data?.streamerId;
-    if (typeof target === "string" && target.trim()) {
+    const targets = new Set(
+      [data?.token, data?.streamerId, data?.username].filter(
+        (t) => typeof t === "string" && t.trim()
+      )
+    );
+
+    for (const target of targets) {
       const cleanTarget = String(target).trim();
       io.to(cleanTarget).emit("widget-config-updated", data);
       if (!cleanTarget.startsWith("streamer_")) {

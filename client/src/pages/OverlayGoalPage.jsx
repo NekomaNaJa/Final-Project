@@ -62,6 +62,15 @@ const OverlayGoalPage = () => {
           if (typeof result.data.goal.current === "number") {
             setCurrentAmount(result.data.goal.current);
           }
+          if (result.data.token) {
+            joinStreamRoom(result.data.token);
+          }
+          if (result.data.streamer?.id) {
+            joinStreamRoom(result.data.streamer.id);
+          }
+          if (result.data.streamer?.username) {
+            joinStreamRoom(result.data.streamer.username);
+          }
         }
       } catch {
         // ใช้ค่าเริ่มต้นหรือแคชที่มีต่อไปหากเรียกเซิร์ฟเวอร์ไม่ได้
