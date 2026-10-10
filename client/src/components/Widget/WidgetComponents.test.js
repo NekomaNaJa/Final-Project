@@ -219,6 +219,29 @@ describe("Widget Components & Functions", () => {
       fireEvent.click(copyBtn);
     });
 
+    test("does not render test button for goal and leaderboard widget types", () => {
+      const handleTest = jest.fn();
+      const { rerender } = render(
+        <BrowserSourceCard
+          type="goal"
+          username="streamer1"
+          token="tok_123"
+          onTest={handleTest}
+        />
+      );
+      expect(screen.queryByRole("button", { name: /ทดสอบ Alert/ })).not.toBeInTheDocument();
+
+      rerender(
+        <BrowserSourceCard
+          type="leaderboard"
+          username="streamer1"
+          token="tok_123"
+          onTest={handleTest}
+        />
+      );
+      expect(screen.queryByRole("button", { name: /ทดสอบ Alert/ })).not.toBeInTheDocument();
+    });
+
     test("renders mission type disclaimer without url copy", () => {
       render(
         <BrowserSourceCard

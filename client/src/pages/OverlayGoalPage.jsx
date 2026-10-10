@@ -212,35 +212,6 @@ const OverlayGoalPage = () => {
           )}
         </div>
       </div>
-
-      {/* Floating Preview Controls (สำหรับทดสอบในเบราว์เซอร์หรือ OBS) */}
-      <footer
-        data-testid="overlay-test-controls"
-        className="pointer-events-auto fixed bottom-4 right-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#120f24]/85 p-2 text-xs text-white shadow-xl backdrop-blur-md opacity-40 hover:opacity-100 transition-opacity"
-      >
-        <span className="text-[11px] text-purple-300">OBS Goal</span>
-        <button
-          type="button"
-          onClick={() => handleDonationReceived({ amount: 100 })}
-          className="rounded-lg bg-purple-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-purple-500 cursor-pointer active:scale-95 transition-all shadow-sm"
-        >
-          +100 ฿
-        </button>
-        <button
-          type="button"
-          onClick={() => handleDonationReceived({ amount: 500 })}
-          className="rounded-lg bg-pink-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-pink-500 cursor-pointer active:scale-95 transition-all shadow-sm"
-        >
-          +500 ฿
-        </button>
-        <button
-          type="button"
-          onClick={() => setCurrentAmount(0)}
-          className="rounded-lg bg-[#2e2648] px-2 py-1 text-[11px] font-semibold text-gray-300 hover:bg-[#3b325c] cursor-pointer"
-        >
-          รีเซ็ต
-        </button>
-      </footer>
     </div>
   );
 };

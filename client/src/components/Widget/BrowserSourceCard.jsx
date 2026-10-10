@@ -100,25 +100,27 @@ const BrowserSourceCard = ({ type, username, token, isLive = true, onTest }) => 
       </p>
 
       {/* Buttons */}
-      <div className="grid grid-cols-2 gap-2.5 pt-1">
+      <div className={type === "alert" && onTest ? "grid grid-cols-2 gap-2.5 pt-1" : "pt-1"}>
         <button
           type="button"
           onClick={handleCopy}
           disabled={!targetId}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-[#2e2648] bg-[#1a1630] py-2.5 px-3 text-xs font-semibold text-white hover:border-purple-500/50 hover:bg-[#251d45] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#2e2648] bg-[#1a1630] py-2.5 px-3 text-xs font-semibold text-white hover:border-purple-500/50 hover:bg-[#251d45] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
         >
           {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
           <span>{copied ? "คัดลอกแล้ว!" : "คัดลอก URL"}</span>
         </button>
 
-        <button
-          type="button"
-          onClick={onTest}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] py-2.5 px-3 text-xs font-bold text-white shadow-[0_0_16px_rgba(139,92,246,0.35)] active:scale-95 transition-all cursor-pointer"
-        >
-          <Play size={14} />
-          <span>ทดสอบ Alert</span>
-        </button>
+        {type === "alert" && onTest && (
+          <button
+            type="button"
+            onClick={onTest}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] py-2.5 px-3 text-xs font-bold text-white shadow-[0_0_16px_rgba(139,92,246,0.35)] active:scale-95 transition-all cursor-pointer"
+          >
+            <Play size={14} />
+            <span>ทดสอบ Alert</span>
+          </button>
+        )}
       </div>
     </section>
   );

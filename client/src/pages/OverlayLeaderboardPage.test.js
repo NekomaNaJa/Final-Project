@@ -129,20 +129,24 @@ describe("OverlayLeaderboardPage Component", () => {
     expect(mockSocketInstance.emit).toHaveBeenCalledWith("leave-stream", "lb_room");
   });
 
-  test("preview button simulates test donation correctly", () => {
+  test("updates ranking on incoming real donation alert", () => {
     render(
-      <MemoryRouter initialEntries={["/overlay/leaderboard"]}>
+      <MemoryRouter initialEntries={["/overlay/leaderboard/lb_room"]}>
         <Routes>
           <Route
-            path="/overlay/leaderboard"
+            path="/overlay/leaderboard/:token"
             element={<OverlayLeaderboardPage />}
           />
         </Routes>
       </MemoryRouter>
     );
 
-    const testBtn = screen.getByRole("button", { name: "ทดสอบ +1,000 ฿" });
-    fireEvent.click(testBtn);
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้สนับสนุน VIP",
+        amount: 1000,
+      });
+    });
 
     expect(screen.getByText("ผู้สนับสนุน VIP")).toBeInTheDocument();
     expect(screen.getByText("1,000 ฿")).toBeInTheDocument();

@@ -274,26 +274,6 @@ const OverlayLeaderboardPage = () => {
           )}
         </div>
       </div>
-
-      {/* Floating Preview Controls */}
-      <footer
-        data-testid="overlay-test-controls"
-        className="pointer-events-auto fixed bottom-4 right-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#120f24]/85 p-2 text-xs text-white shadow-xl backdrop-blur-md opacity-40 hover:opacity-100 transition-opacity"
-      >
-        <span className="text-[11px] text-purple-300">OBS Leaderboard</span>
-        <button
-          type="button"
-          onClick={() =>
-            handleDonationReceived({
-              donorName: "ผู้สนับสนุน VIP",
-              amount: 1000,
-            })
-          }
-          className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-500 cursor-pointer active:scale-95 transition-all shadow-sm"
-        >
-          ทดสอบ +1,000 ฿
-        </button>
-      </footer>
     </div>
   );
 };
