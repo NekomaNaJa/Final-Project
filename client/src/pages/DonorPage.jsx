@@ -120,6 +120,7 @@ const DonorPage = () => {
   const [submittedDonation, setSubmittedDonation] = useState(null);
   const [errorFeedback, setErrorFeedback] = useState(null);
   const [streamerNotFound, setStreamerNotFound] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   // Fetch updated public data from API when available
   useEffect(() => {
@@ -222,6 +223,15 @@ const DonorPage = () => {
     setMessage("");
     setDonorName("Anonymous");
     setErrorFeedback(null);
+    setResetKey((prev) => prev + 1);
+
+    if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
+      try {
+        window.location.reload();
+      } catch {
+        // Fallback for testing environments where navigation is not supported
+      }
+    }
   };
 
   return (
@@ -343,6 +353,7 @@ const DonorPage = () => {
             ) : activeTab === "promptpay" ? (
               /* State 2: PromptPay Form with dynamic QR */
               <DonorPromptPayForm
+                key={`promptpay-${resetKey}`}
                 minAmount={streamerConfig.minAmount}
                 promptpayNumber={streamerConfig.payment.promptpay.number}
                 onSubmit={handleDonationSubmit}
@@ -351,6 +362,7 @@ const DonorPage = () => {
             ) : activeTab === "bank" ? (
               /* State 3: Bank Form */
               <DonorBankForm
+                key={`bank-${resetKey}`}
                 bankName={streamerConfig.payment.bank.bankName}
                 accountNumber={streamerConfig.payment.bank.accountNumber}
                 accountName={streamerConfig.payment.bank.accountName}
@@ -360,6 +372,7 @@ const DonorPage = () => {
             ) : (
               /* State 4: TrueMoney Form */
               <DonorTrueMoneyForm
+                key={`truemoney-${resetKey}`}
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}
               />
