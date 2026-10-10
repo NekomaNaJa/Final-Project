@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Trophy, Crown, Medal, Sparkles } from "lucide-react";
 import {
@@ -32,6 +32,7 @@ const OverlayLeaderboardPage = () => {
 
   const [donors, setDonors] = useState(DEFAULT_SAMPLE_DONORS);
   const [lastUpdatedDonor, setLastUpdatedDonor] = useState(null);
+  const processedDonationIdsRef = useRef(new Set());
 
   // ตั้งค่าพื้นหลังโปร่งใสสำหรับ OBS Browser Source
   useEffect(() => {
@@ -47,43 +48,54 @@ const OverlayLeaderboardPage = () => {
     };
   }, []);
 
-  // ดึงการตั้งค่าและอันดับผู้สนับสนุนจาก API
-  useEffect(() => {
+  // ดึงการตั้งค่าและอันดับผู้สนับสนุนจาก API (ฟังก์ชันซิงค์ข้อมูลจริงจาก DB)
+  const fetchLeaderboardConfig = useCallback(async () => {
     if (!token) return;
+    try {
+      const safeToken = encodeURIComponent(String(token).trim());
+      const response = await fetch(
+        `${API_URL}/public/overlay/leaderboard/${safeToken}`
+      );
+      if (!response.ok) return;
 
-    let isMounted = true;
-    const fetchLeaderboardConfig = async () => {
-      try {
-        const safeToken = encodeURIComponent(String(token).trim());
-        const response = await fetch(
-          `${API_URL}/public/overlay/leaderboard/${safeToken}`
-        );
-        if (!response.ok) return;
-
-        const result = await response.json();
-        if (isMounted && result?.data?.leaderboard) {
-          setConfig((prev) => ({ ...prev, ...result.data.leaderboard }));
-          if (Array.isArray(result.data.leaderboard.donors)) {
-            setDonors(result.data.leaderboard.donors);
-          }
-          if (result.data.token) joinStreamRoom(result.data.token);
-          if (result.data.streamer?.id) joinStreamRoom(result.data.streamer.id);
-          if (result.data.streamer?.username) joinStreamRoom(result.data.streamer.username);
+      const result = await response.json();
+      if (result?.data?.leaderboard) {
+        setConfig((prev) => ({ ...prev, ...result.data.leaderboard }));
+        if (Array.isArray(result.data.leaderboard.donors)) {
+          setDonors(result.data.leaderboard.donors);
         }
-      } catch {
-        // ใช้แคชเดิมต่อไปหากเชื่อมต่อ API ไม่ได้
+        if (result.data.token) joinStreamRoom(result.data.token);
+        if (result.data.streamer?.id) joinStreamRoom(result.data.streamer.id);
+        if (result.data.streamer?.username) joinStreamRoom(result.data.streamer.username);
       }
-    };
-
-    void fetchLeaderboardConfig();
-    return () => {
-      isMounted = false;
-    };
+    } catch {
+      // ใช้แคชเดิมต่อไปหากเชื่อมต่อ API ไม่ได้
+    }
   }, [token]);
+
+  useEffect(() => {
+    void fetchLeaderboardConfig();
+
+    // Auto-sync จาก DB เป็นระยะ (ทุก 30 วินาที) เพื่อการันตีอันดับและยอดเงินตรงกับระบบ 100%
+    const interval = setInterval(() => {
+      void fetchLeaderboardConfig();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchLeaderboardConfig]);
 
   // ประมวลผลเมื่อมีโดเนทใหม่เข้ามาในระบบ
   const handleDonationReceived = useCallback(
     (alertData) => {
+      const donationId = alertData?.id || alertData?._id;
+      if (donationId) {
+        const idStr = String(donationId);
+        if (processedDonationIdsRef.current.has(idStr)) {
+          return;
+        }
+        processedDonationIdsRef.current.add(idStr);
+      }
+
       const donorName = alertData?.donorName || "ผู้สนับสนุนใจดี";
       const amount = Number(alertData?.amount) || 0;
       if (amount <= 0) return;
@@ -119,9 +131,14 @@ const OverlayLeaderboardPage = () => {
 
       setLastUpdatedDonor(donorName);
       const timer = window.setTimeout(() => setLastUpdatedDonor(null), 4000);
+
+      window.setTimeout(() => {
+        void fetchLeaderboardConfig();
+      }, 800);
+
       return () => window.clearTimeout(timer);
     },
-    [config?.limit]
+    [config?.limit, fetchLeaderboardConfig]
   );
 
   // เชื่อมต่อ Socket.IO ฟัง Event "donation-alert"

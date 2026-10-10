@@ -239,12 +239,18 @@ export const createDonation = async (req, res, next) => {
         ocrResult: donation.ocrResult,
       };
 
-      req.io.to(`streamer_${streamer._id}`).emit("donation-alert", alertPayload);
-      req.io.to(String(streamer._id)).emit("donation-alert", alertPayload);
-      if (streamer.username) {
-        req.io.to(`streamer_${streamer.username}`).emit("donation-alert", alertPayload);
-        req.io.to(String(streamer.username)).emit("donation-alert", alertPayload);
-      }
+      const targetRooms = Array.from(
+        new Set(
+          [
+            `streamer_${streamer._id}`,
+            String(streamer._id),
+            streamer.username ? `streamer_${streamer.username}` : null,
+            streamer.username ? String(streamer.username) : null,
+          ].filter(Boolean)
+        )
+      );
+
+      req.io.to(targetRooms).emit("donation-alert", alertPayload);
     }
 
     const responseMessage =
@@ -605,8 +611,11 @@ export const updateDonationStatus = async (req, res, next) => {
     await donation.save();
 
     if (safeStatus === "approved" && req.io) {
-      req.io.to(`streamer_${donation.streamerId}`).emit("donation-alert", donation);
-      req.io.to(String(donation.streamerId)).emit("donation-alert", donation);
+      const targetRooms = [
+        `streamer_${donation.streamerId}`,
+        String(donation.streamerId),
+      ];
+      req.io.to(targetRooms).emit("donation-alert", donation);
     }
 
     return res.json({

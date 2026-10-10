@@ -258,4 +258,41 @@ describe("OverlayLeaderboardPage Component", () => {
 
     expect(screen.getByText("ยังไม่มีผู้สนับสนุนในรอบนี้")).toBeInTheDocument();
   });
+
+  test("ignores duplicate donation alerts for the same donation id", () => {
+    render(
+      <MemoryRouter initialEntries={["/overlay/leaderboard/dedup_lb"]}>
+        <Routes>
+          <Route
+            path="/overlay/leaderboard/:token"
+            element={<OverlayLeaderboardPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        id: "don_lb_unique_999",
+        donorName: "SuperFan",
+        amount: 6000,
+      });
+    });
+
+    expect(screen.getByText("SuperFan")).toBeInTheDocument();
+    expect(screen.getByText("6,000 ฿")).toBeInTheDocument();
+
+    // Trigger duplicate event with same ID
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        id: "don_lb_unique_999",
+        donorName: "SuperFan",
+        amount: 6000,
+      });
+    });
+
+    // Amount must still be 6000, not 12000
+    expect(screen.getByText("6,000 ฿")).toBeInTheDocument();
+    expect(screen.queryByText("12,000 ฿")).not.toBeInTheDocument();
+  });
 });
