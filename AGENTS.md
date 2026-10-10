@@ -397,11 +397,11 @@ client/src/
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
 | **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 26 Suites (270 Tests ผ่าน 100%), Server: 8 Suites (130 Tests ผ่าน 100%, Coverage > 97.4%), รวม **34 Suites, 400 Tests ผ่าน 100%** |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 26 Suites (272 Tests ผ่าน 100%), Server: 10 Suites (157 Tests ผ่าน 100%, Coverage > 97.5%), รวม **36 Suites, 429 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities    |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
-| **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
+| **OCR Slip Verification**    | ✅ สมบูรณ์       | พัฒนาเสร็จสิ้นใน Phase 8 — In-House QR & Slip Verification Engine (Zero-Cost), ตรวจจับสลิปมาตรฐาน PromptPay / EMVCo, ป้องกันสลิปซ้ำด้วย Unique Sparse Index บน `transRef`, ตรวจสอบยอดเงิน และระบบ Auto-Approve แจ้งเตือน OBS ทันที |
 
 ---
 
@@ -488,7 +488,25 @@ client/src/
     - **Leaderboard Typography & Clean Stream Display (PR #65, #66)**: ปรับขนาดตัวอักษรและ Layout ของ Leaderboard ให้อ่านง่าย คมชัด ไม่แตกใน OBS Studio, แนะนำขนาด Properties ที่เหมาะสมสำหรับ OBS ใน BrowserSourceCard, แยกปุ่มทดสอบ Alert ให้อยู่เฉพาะแท็บ Alert เท่านั้น, กรองรายการทดสอบ (`isTest: true`) ไม่ให้นำมาบวกใน Leaderboard และ Goal จริง, และลบปุ่มทดสอบที่ลอยอยู่ด้านล่าง Browser Source ออกทั้งหมดเพื่อหน้าจอถ่ายทอดสดที่สะอาดตา 100%
   - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 8 Suites 130 Tests, Client 26 Suites 270 Tests รวม **34 Suites, 400 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 
-- **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
-  - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน
-  - ป้องกันสลิปซ้ำด้วย unique index ของ Transaction Reference
+- **Phase 8: In-House OCR & Slip Verification Engine (เสร็จสมบูรณ์ ✅)**
+  - **Zero-Cost & Offline-First Slip Engine (`slipParser.js`, `slipVerificationService.js`)**:
+    - พัฒนาระบบตรวจสอบสลิปภายในระบบด้วย pure JavaScript (`jsqr` + `jimp`) โดยไม่มีค่าบริการ API ภายนอก (Zero-Cost) และรันบน CI/CD ได้ 100%
+    - **PromptPay / EMVCo Slip QR Parser**: ถอดรหัสโครงสร้าง TLV (Tag-Length-Value) มาตรฐานสลิปธนาคารไทย ดึงรหัสอ้างอิงธุรกรรม (`transRef`), จำนวนเงิน (`amount`), และรหัสธนาคารต้นทาง/ปลายทาง (`bankCode`) พร้อมจับคู่รายชื่อ 12 ธนาคารไทยหลัก
+    - รองรับ Fallback รูปแบบอื่น: JSON payload, URL Verification parameter, Key-Value query string, และ OCR Text regular expression extractor
+    - **Multi-pass Image Preprocessing**: สแกนภาพสลิปแบบหลายรอบ (Original image, Auto-resizing สำหรับภาพขนาดใหญ่ > 800px, Greyscale & Contrast enhancement) เพื่อเพิ่มโอกาสการถอดรหัสแม้ภาพมืดหรือแสงน้อย
+  - **Duplicate Slip Prevention (ป้องกันการใช้สลิปซ้ำ 100%)**:
+    - กำหนด Sparse Unique Index บนฟิลด์ `transRef` ในโมเดล `Donation`:
+      `{ transRef: 1 }, { unique: true, sparse: true, partialFilterExpression: { transRef: { $type: "string" } } }`
+    - ตรวจสอบซ้ำใน `createDonation` หากพบว่า `transRef` เคยถูกบันทึกสำเร็จในระบบแล้ว จะปฏิเสธคำขอทันทีด้วย HTTP 400 (`"สลิปนี้ถูกใช้งานไปแล้ว..."`)
+    - ตรวจสอบความถูกต้องของยอดเงิน (Amount Mismatch): หากยอดเงินในสลิปน้อยกว่ายอดเงินบริจาคที่แจ้ง ระบบจะปฏิเสธด้วย HTTP 400
+  - **Real-time Auto-Approve & OBS Broadcast**:
+    - เมื่อสลิปถูกต้องตามเงื่อนไข (ยอดเงินตรงและสลิปไม่ซ้ำ) ระบบจะปรับสถานะเป็น `approved` ทันที และส่ง Event `donation-alert` ผ่าน Socket.IO ตรงไปยัง OBS Studio Overlay
+    - สตรีมเมอร์สามารถเปิด/ปิดการอนุมัติอัตโนมัติได้ผ่านสวิตช์ `autoApproveSlip` ในหน้าตั้งค่า `DonatePage` หากปิด ระบบจะเก็บเป็น `pending` พร้อมผลตรวจ OCR เพื่อให้สตรีมเมอร์ตรวจสอบด้วยตนเอง
+    - กรณีรูปสลิปไม่สามารถอ่าน QR Code ได้ ระบบจะบันทึกสถานะเป็น `pending` แบบ Graceful Fallback เพื่อให้สตรีมเมอร์ตรวจสอบภาพใน `SlipModal` ต่อไป
+  - **Frontend Integration (`SlipModal.jsx`, `DonationHistoryTable.jsx`, `DecorateSection.jsx`, `DonorPage.jsx`)**:
+    - **`SlipModal.jsx`**: แสดงแบนเนอร์ผลการตรวจสอบ OCR สีเขียวเรืองแสง (`✓ สลิปผ่านการตรวจสอบอัตโนมัติ (OCR Verified)`), แสดงรหัสอ้างอิง `transRef`, ชื่อธนาคาร, และแสตมป์ "ตรวจสอบแล้ว"
+    - **`DonationHistoryTable.jsx`**: เพิ่มป้ายแท็ก `OCR` สีเขียวข้างสถานะรายการบริจาคที่ผ่านการตรวจสอบอัตโนมัติ
+    - **`DecorateSection.jsx`**: เพิ่มสวิตช์เปิด/ปิด "ระบบตรวจสอบสลิปอัตโนมัติ (Auto-Approve OCR)" ซิงค์กับ MongoDB ผ่าน `PUT /api/users/donation-page`
+    - **`DonorPage.jsx`**: แสดงสถานะอนุมัติทันทีในหน้า Modal ขอบคุณเมื่อสลิปผ่านการตรวจสอบอัตโนมัติ
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 157 Tests Coverage > 97.5%, Client 26 Suites 272 Tests รวม **36 Suites, 429 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 

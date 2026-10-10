@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
+import { verifySlipImage } from "../services/slipVerificationService.js";
 
 const THAI_DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const THAI_MONTHS = [
@@ -136,20 +137,95 @@ export const createDonation = async (req, res, next) => {
         ? String(slipImage)
         : null;
 
-    // 7. บันทึกลงฐานข้อมูล MongoDB
+    // 7. ตรวจสอบสลิปด้วย OCR / QR Slip Verification Engine (Phase 8)
+    let ocrResult = {
+      verified: false,
+      method: "none",
+      transRef: null,
+      amount: null,
+      bank: null,
+      bankName: null,
+      message: null,
+      rawPayload: null,
+    };
+    let initialStatus = "pending";
+    let safeTransRef = null;
+
+    if (safeSlipImage && (paymentMethod === "promptpay" || paymentMethod === "bank")) {
+      const verification = await verifySlipImage(safeSlipImage, amount);
+      if (verification?.success) {
+        safeTransRef = verification.transRef ? String(verification.transRef).trim() : null;
+
+        // 7.1 ป้องกันสลิปซ้ำ (Duplicate Slip Prevention)
+        if (safeTransRef) {
+          const duplicate = await Donation.findOne({
+            transRef: { $eq: safeTransRef },
+          });
+          if (duplicate) {
+            return res.status(400).json({
+              message: `สลิปนี้ถูกใช้งานไปแล้ว (รหัสอ้างอิง: ${safeTransRef}) ไม่สามารถใช้ซ้ำได้`,
+              data: null,
+            });
+          }
+        }
+
+        // 7.2 ตรวจสอบยอดเงินในสลิป (Amount Mismatch Check)
+        if (typeof verification.amount === "number" && verification.amount < amount) {
+          return res.status(400).json({
+            message: `ยอดเงินในสลิป (${verification.amount} บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (${amount} บาท)`,
+            data: null,
+          });
+        }
+
+        // 7.3 ตรวจสอบการตั้งค่า Auto-Approve ของสตรีมเมอร์ (ค่าเริ่มต้น: true)
+        const autoApprove = streamer.donationPage?.autoApproveSlip !== false;
+        if (autoApprove) {
+          initialStatus = "approved";
+        }
+
+        ocrResult = {
+          verified: true,
+          method: verification.method || "qr",
+          transRef: safeTransRef,
+          amount: verification.amount || null,
+          bank: verification.bankCode || null,
+          bankName: verification.bankName || null,
+          message: autoApprove
+            ? "ตรวจสอบสลิปและอนุมัติอัตโนมัติสำเร็จ"
+            : "สลิปถูกต้องตามเงื่อนไข (รอการยืนยันจากสตรีมเมอร์)",
+          rawPayload: verification.rawPayload || null,
+        };
+      } else {
+        // หากไม่สามารถอ่าน QR Code ได้ ให้เก็บสถานะเป็น pending เพื่อให้สตรีมเมอร์ตรวจเอง
+        ocrResult = {
+          verified: false,
+          method: "none",
+          transRef: null,
+          amount: null,
+          bank: null,
+          bankName: null,
+          message: verification?.message || "ไม่สามารถอ่าน QR Code หรือข้อความบนสลิปได้อัตโนมัติ",
+          rawPayload: null,
+        };
+      }
+    }
+
+    // 8. บันทึกลงฐานข้อมูล MongoDB
     const donation = new Donation({
       streamerId: streamer._id,
       donorName: safeDonorName,
       amount,
       message: safeMessage,
       paymentMethod,
-      status: "pending",
+      status: initialStatus,
       slipImage: safeSlipImage,
+      transRef: safeTransRef,
+      ocrResult,
     });
 
     await donation.save();
 
-    // 8. Real-time Notification ผ่าน Socket.IO (เตรียมสำหรับ Phase 7)
+    // 9. Real-time Notification ผ่าน Socket.IO
     if (req.io) {
       const alertPayload = {
         id: donation._id,
@@ -159,6 +235,8 @@ export const createDonation = async (req, res, next) => {
         paymentMethod: donation.paymentMethod,
         status: donation.status,
         createdAt: donation.createdAt,
+        transRef: donation.transRef,
+        ocrResult: donation.ocrResult,
       };
 
       req.io.to(`streamer_${streamer._id}`).emit("donation-alert", alertPayload);
@@ -169,8 +247,13 @@ export const createDonation = async (req, res, next) => {
       }
     }
 
+    const responseMessage =
+      initialStatus === "approved"
+        ? "การบริจาคสำเร็จและสลิปผ่านการตรวจสอบอัตโนมัติ"
+        : "สร้างรายการโดเนทสำเร็จ";
+
     return res.status(201).json({
-      message: "สร้างรายการโดเนทสำเร็จ",
+      message: responseMessage,
       data: donation,
     });
   } catch (err) {

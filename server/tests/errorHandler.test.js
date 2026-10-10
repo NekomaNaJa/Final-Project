@@ -38,6 +38,22 @@ describe("ErrorHandler Middleware", () => {
     expect(res.body.data).toBeNull();
   });
 
+  it("should handle Mongoose duplicate key error specifically for transRef", async () => {
+    testApp.get("/test-duplicate-transref", () => {
+      const err = new Error("E11000 duplicate key error collection: donix.donations index: transRef_1");
+      err.code = 11000;
+      err.keyPattern = { transRef: 1 };
+      throw err;
+    });
+    testApp.use(errorHandler);
+
+    const res = await request(testApp).get("/test-duplicate-transref");
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("สลิปนี้ถูกใช้งานไปแล้วในระบบ ไม่สามารถใช้ซ้ำได้");
+    expect(res.body.data).toBeNull();
+  });
+
   it("should handle Mongoose ValidationError", async () => {
     testApp.get("/test-validation", () => {
       const err = new Error("Validation failed");

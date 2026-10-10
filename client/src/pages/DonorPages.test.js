@@ -255,6 +255,39 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();
     });
 
+    test("submits donation and displays auto-approved status and transRef when slip is verified by OCR", async () => {
+      createDonation.mockResolvedValueOnce({
+        id: "don_approved_999",
+        status: "approved",
+        transRef: "REF_AUTO_APPROVE_888",
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/Streamer1"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ธนาคาร"));
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText("✓ ตรวจสอบสลิปและอนุมัติสำเร็จ (Approved)")
+      ).toBeInTheDocument();
+      expect(screen.getByText("REF_AUTO_APPROVE_888")).toBeInTheDocument();
+    });
+
     test("loads streamer data from fetchPublicStreamer and updates state", async () => {
       fetchPublicStreamer.mockResolvedValueOnce({
         username: "ApiStreamer",

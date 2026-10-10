@@ -332,4 +332,92 @@ describe("HistoryPage", () => {
     fireEvent.click(backdropBtn);
     expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
   });
+
+  test("displays OCR verification banner and transRef in SlipModal when present", () => {
+    const mockDonation = {
+      _id: "don-ocr-01",
+      donorName: "OCR Donor",
+      amount: 500,
+      slipImage: "https://example.com/slip.jpg",
+      status: "approved",
+      transRef: "REF_AUTO_12345",
+      ocrResult: {
+        verified: true,
+        bankName: "ธนาคารกสิกรไทย (KBANK)",
+      },
+    };
+
+    render(
+      <SlipModal
+        isOpen={true}
+        donation={mockDonation}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("สลิปผ่านการตรวจสอบอัตโนมัติ (OCR Verified)")
+    ).toBeInTheDocument();
+    expect(screen.getByText("ตรวจสอบแล้ว")).toBeInTheDocument();
+    expect(screen.getByText("REF_AUTO_12345")).toBeInTheDocument();
+    expect(screen.getByText(/ธนาคารกสิกรไทย/)).toBeInTheDocument();
+  });
+
+  test("displays manual review notice in SlipModal when slipImage is present but OCR is unverified", () => {
+    const mockDonation = {
+      _id: "don-ocr-unverified",
+      donorName: "Manual Donor",
+      amount: 100,
+      slipImage: "https://example.com/slip.jpg",
+      status: "pending",
+      transRef: null,
+      ocrResult: {
+        verified: false,
+        message: "ไม่พบ QR Code บนสลิป กรุณาตรวจสอบรูปภาพด้วยตนเอง",
+      },
+    };
+
+    render(
+      <SlipModal
+        isOpen={true}
+        donation={mockDonation}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("รอการตรวจสอบด้วยตนเอง")).toBeInTheDocument();
+    expect(
+      screen.getByText("ไม่พบ QR Code บนสลิป กรุณาตรวจสอบรูปภาพด้วยตนเอง")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("ตรวจสอบแล้ว")).not.toBeInTheDocument();
+  });
+
+  test("renders OCR badge in DonationHistoryTable when donation has ocrResult verified or transRef", async () => {
+    const { default: DonationHistoryTable } = await import(
+      "../components/Histor/DonationHistoryTable"
+    );
+
+    const history = [
+      {
+        id: "don-ocr-table-1",
+        time: "15:30",
+        name: "OCR Supporter",
+        message: "สลิปพร้อมเพย์",
+        amount: 500,
+        paymentMethod: "promptpay",
+        status: "approved",
+        transRef: "PROMPT_REF_9999",
+        ocrResult: {
+          verified: true,
+          transRef: "PROMPT_REF_9999",
+        },
+      },
+    ];
+
+    render(<DonationHistoryTable history={history} />);
+
+    expect(screen.getByText("OCR")).toBeInTheDocument();
+    expect(screen.getByText("อนุมัติแล้ว")).toBeInTheDocument();
+    expect(screen.getByTitle(/PROMPT_REF_9999/)).toBeInTheDocument();
+  });
 });

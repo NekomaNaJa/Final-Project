@@ -40,6 +40,23 @@ const donationSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    transRef: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
+    ocrResult: {
+      verified: { type: Boolean, default: false },
+      method: { type: String, default: null },
+      transRef: { type: String, default: null },
+      amount: { type: Number, default: null },
+      bank: { type: String, default: null },
+      bankName: { type: String, default: null },
+      date: { type: String, default: null },
+      message: { type: String, default: null },
+      rawPayload: { type: String, default: null },
+    },
     missionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Mission",
@@ -59,6 +76,16 @@ const donationSchema = new mongoose.Schema(
 // Compound index for querying streamer donations ordered by newest first
 donationSchema.index({ streamerId: 1, createdAt: -1 });
 donationSchema.index({ streamerId: 1, status: 1 });
+
+// Unique sparse index on transRef to prevent duplicate slips across the system
+donationSchema.index(
+  { transRef: 1 },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: { transRef: { $type: "string" } },
+  }
+);
 
 const Donation = mongoose.model("Donation", donationSchema);
 
