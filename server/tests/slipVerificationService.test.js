@@ -107,14 +107,14 @@ describe("Slip Verification Service (Phase 8 OCR)", () => {
 
     const mockText = `
       โอนเงินสำเร็จ
-      ไปยัง นาย มนต์ธร กฤตยาพงศ์
+      ไปยัง นาย สมชาย ใจดี
       บัญชี xxx-x-xx123-4
       รหัสอ้างอิง: OCRREF998877
       จำนวนเงิน: 250.00 บาท
     `;
 
     const res = await verifySlipImage(base64, 250, {
-      expectedAccountName: "มนต์ธร กฤตยาพงศ์",
+      expectedAccountName: "สมชาย ใจดี",
       expectedAccountNumber: "0987651234",
       mockOcrText: mockText,
     });
@@ -134,13 +134,13 @@ describe("Slip Verification Service (Phase 8 OCR)", () => {
 
     const mockText = `
       โอนเงินสำเร็จ
-      ไปยัง นาย สมชาย สบายดี
+      ไปยัง นาย ตั้งใจ ตั้งมั่น
       รหัสอ้างอิง: OCRREF112233
       จำนวนเงิน: 100.00 บาท
     `;
 
     const res = await verifySlipImage(base64, 100, {
-      expectedAccountName: "มนต์ธร กฤตยาพงศ์",
+      expectedAccountName: "สมชาย ใจดี",
       mockOcrText: mockText,
     });
 

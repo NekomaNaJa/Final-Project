@@ -4,7 +4,7 @@ import DonorSlipUpload from "./DonorSlipUpload";
 
 const DonorPromptPayForm = ({
   minAmount = 1,
-  promptpayNumber = "0812345678",
+  promptpayNumber = "",
   onSubmit,
   isSubmitting = false,
 }) => {
@@ -25,8 +25,12 @@ const DonorPromptPayForm = ({
   // Update PromptPay QR code whenever amount or promptpayNumber changes
   useEffect(() => {
     const validAmount = Number(amount) >= minAmount ? Number(amount) : minAmount || 1;
-    const cleanNumber = promptpayNumber.replace(/[^0-9]/g, "") || "0812345678";
-    setQrUrl(`https://promptpay.io/${cleanNumber}/${validAmount}.png`);
+    const cleanNumber = promptpayNumber ? promptpayNumber.replace(/[^0-9]/g, "") : "";
+    if (cleanNumber) {
+      setQrUrl(`https://promptpay.io/${cleanNumber}/${validAmount}.png`);
+    } else {
+      setQrUrl("");
+    }
   }, [amount, promptpayNumber, minAmount]);
 
   const handleBlur = () => {

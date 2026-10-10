@@ -3,9 +3,9 @@ import { Landmark, Copy, Check } from "lucide-react";
 import DonorSlipUpload from "./DonorSlipUpload";
 
 const DonorBankForm = ({
-  bankName = "ธนาคารไทยพาณิชย์ (SCB)",
-  accountNumber = "4170606722",
-  accountName = "มนต์ธร กอเจริญทรัพย์",
+  bankName = "",
+  accountNumber = "",
+  accountName = "",
   minAmount = 1,
   onSubmit,
   isSubmitting = false,
