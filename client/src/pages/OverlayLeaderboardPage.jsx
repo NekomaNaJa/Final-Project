@@ -132,7 +132,7 @@ const OverlayLeaderboardPage = () => {
     joinStreamRoom(streamRoom);
 
     const handleDonation = (data) => {
-      if (!data) return;
+      if (!data || data.isTest) return;
       handleDonationReceived(data);
     };
 
@@ -171,95 +171,107 @@ const OverlayLeaderboardPage = () => {
   return (
     <div
       data-testid="overlay-leaderboard-container"
-      className="relative flex h-screen w-screen flex-col items-center justify-center overflow-hidden bg-transparent p-6 select-none"
+      className="relative flex h-screen w-screen flex-col items-center justify-center overflow-hidden bg-transparent p-6 select-none font-sans antialiased"
     >
       <div
         data-testid="leaderboard-display-card"
-        className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0c0a18]/90 p-5 shadow-2xl backdrop-blur-xl transition-all"
+        className="w-full max-w-xl rounded-3xl border border-white/15 bg-[#0c0a18]/95 p-6 sm:p-7 shadow-2xl backdrop-blur-2xl transition-all"
         style={{
-          boxShadow: "0 0 40px rgba(124, 58, 237, 0.35)",
+          boxShadow: "0 0 50px rgba(124, 58, 237, 0.4)",
         }}
       >
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
-              <Trophy size={20} />
+        <div className="mb-5 flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+              <Trophy size={26} />
             </div>
             <div>
-              <h1 className="text-base font-extrabold text-white tracking-wide">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide">
                 {config.title || "TOP SUPPORTERS"}
               </h1>
-              <p className="text-[10px] text-purple-300 font-semibold">
+              <p className="text-xs sm:text-sm text-purple-300 font-semibold mt-0.5">
                 อันดับสูงสุด {limit} ท่าน
               </p>
             </div>
           </div>
 
           {lastUpdatedDonor && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 animate-pulse bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
-              <Sparkles size={11} /> อัปเดตล่าสุด
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 animate-pulse bg-amber-400/15 border border-amber-400/30 px-3 py-1 rounded-full shadow-xs">
+              <Sparkles size={13} /> อัปเดตล่าสุด
             </span>
           )}
         </div>
 
         {/* Donors List */}
-        <div className="space-y-2">
-          {displayedDonors.map((donor, index) => {
-            const isFirst = index === 0;
-            const isSecond = index === 1;
-            const isThird = index === 2;
-            const isRecent = donor.name === lastUpdatedDonor;
-            const amountVal = Number(donor.amount || donor.totalAmount) || 0;
+        <div className="space-y-2.5">
+          {displayedDonors.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center rounded-2xl border border-dashed border-white/10 bg-[#120e24]/60 space-y-2">
+              <Trophy size={36} className="text-gray-500/50 mb-1" />
+              <p className="text-base font-bold text-gray-300">
+                ยังไม่มีผู้สนับสนุนในรอบนี้
+              </p>
+              <p className="text-xs text-gray-400">
+                เมื่อมียอดโดเนทเข้ามา รายชื่อจะปรากฏที่นี่แบบเรียลไทม์
+              </p>
+            </div>
+          ) : (
+            displayedDonors.map((donor, index) => {
+              const isFirst = index === 0;
+              const isSecond = index === 1;
+              const isThird = index === 2;
+              const isRecent = donor.name === lastUpdatedDonor;
+              const amountVal = Number(donor.amount || donor.totalAmount) || 0;
 
-            let cardStyle = "border-[#251e3d] bg-[#141026] text-gray-300";
-            if (isFirst) {
-              cardStyle =
-                "border-amber-500/40 bg-amber-950/25 text-white shadow-[0_0_16px_rgba(234,179,8,0.2)]";
-            } else if (isSecond) {
-              cardStyle = "border-gray-400/40 bg-gray-800/25 text-white";
-            } else if (isThird) {
-              cardStyle = "border-amber-700/40 bg-amber-950/15 text-white";
-            }
+              let cardStyle = "border-[#2b2346] bg-[#141026] text-gray-200";
+              if (isFirst) {
+                cardStyle =
+                  "border-amber-500/50 bg-amber-950/35 text-white shadow-[0_0_20px_rgba(234,179,8,0.25)] ring-1 ring-amber-400/30";
+              } else if (isSecond) {
+                cardStyle = "border-gray-400/50 bg-gray-800/35 text-white shadow-sm";
+              } else if (isThird) {
+                cardStyle = "border-amber-700/50 bg-amber-950/25 text-white shadow-sm";
+              }
 
-            return (
-              <div
-                key={`${donor.name}-${index}`}
-                className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs transition-all duration-300 ${cardStyle} ${
-                  isRecent ? "ring-2 ring-purple-400 scale-[1.02]" : ""
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  {/* Rank Icon or Number */}
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center">
-                    {isFirst ? (
-                      <Crown size={18} className="text-amber-400 animate-bounce" />
-                    ) : isSecond ? (
-                      <Medal size={18} className="text-gray-300" />
-                    ) : isThird ? (
-                      <Medal size={18} className="text-amber-600" />
-                    ) : (
-                      <span className="font-extrabold text-[12px] text-gray-500">
-                        {index + 1}
-                      </span>
-                    )}
+              return (
+                <div
+                  key={`${donor.name}-${index}`}
+                  className={`flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 ${cardStyle} ${
+                    isRecent ? "ring-2 ring-purple-400 scale-[1.02]" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {/* Rank Icon or Number */}
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+                      {isFirst ? (
+                        <Crown size={22} className="text-amber-400 animate-bounce" />
+                      ) : isSecond ? (
+                        <Medal size={22} className="text-gray-300" />
+                      ) : isThird ? (
+                        <Medal size={22} className="text-amber-600" />
+                      ) : (
+                        <span className="font-black text-sm text-gray-400">
+                          {index + 1}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Donor Name */}
+                    <span className="truncate font-bold text-base sm:text-lg text-white tracking-wide">
+                      {donor.name}
+                    </span>
                   </div>
 
-                  {/* Donor Name */}
-                  <span className="truncate font-bold text-sm text-white">
-                    {donor.name}
-                  </span>
+                  {/* Amount */}
+                  {config.showAmount !== false && (
+                    <span className="font-black text-amber-300 font-mono text-base sm:text-lg ml-3 shrink-0">
+                      {amountVal.toLocaleString()} ฿
+                    </span>
+                  )}
                 </div>
-
-                {/* Amount */}
-                {config.showAmount !== false && (
-                  <span className="font-extrabold text-amber-300 font-mono text-xs ml-2 shrink-0">
-                    {amountVal.toLocaleString()} ฿
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 

@@ -106,7 +106,7 @@ const OverlayGoalPage = () => {
     joinStreamRoom(streamRoom);
 
     const handleDonation = (data) => {
-      if (!data) return;
+      if (!data || data.isTest) return;
       handleDonationReceived(data);
     };
 

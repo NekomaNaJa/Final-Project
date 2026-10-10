@@ -196,4 +196,62 @@ describe("OverlayLeaderboardPage Component", () => {
 
     expect(screen.getByText("ยอดนักบริจาคประจำเดือน")).toBeInTheDocument();
   });
+
+  test("ignores test alerts when isTest flag is true", () => {
+    mockSocketInstance.__clearListeners();
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/leaderboard/lb_room"]}>
+        <Routes>
+          <Route
+            path="/overlay/leaderboard/:token"
+            element={<OverlayLeaderboardPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("donation-alert", {
+        donorName: "ผู้ทดสอบบอท",
+        amount: 500,
+        isTest: true,
+      });
+    });
+
+    expect(screen.queryByText("ผู้ทดสอบบอท")).not.toBeInTheDocument();
+  });
+
+  test("renders empty state when donors list is empty", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          token: "tok",
+          leaderboard: {
+            title: "TOP DONORS",
+            limit: 5,
+            donors: [],
+          },
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/leaderboard/tok"]}>
+        <Routes>
+          <Route
+            path="/overlay/leaderboard/:token"
+            element={<OverlayLeaderboardPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("ยังไม่มีผู้สนับสนุนในรอบนี้")).toBeInTheDocument();
+  });
 });

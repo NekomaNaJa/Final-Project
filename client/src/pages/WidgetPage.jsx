@@ -138,7 +138,7 @@ const WidgetPage = () => {
 
   const handleTest = () => {
     setPlaying(true);
-    const donorName = user?.nickname || user?.username || "สตรีมเมอร์";
+    const donorName = "ผู้สนับสนุนใจดี (ทดสอบ)";
     if (activeTab === "alert") {
       // ส่ง Real-time Test Alert ไปยัง OBS Studio Browser Source
       if (user?.username) {
