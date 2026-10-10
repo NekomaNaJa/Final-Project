@@ -110,27 +110,33 @@ server/
 ├── controllers/
 │   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
 │   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, updateDonationStatus)
-│   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page (getPublicStreamer)
-│   └── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
+│   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page และ Overlay Config พร้อม Aggregation (getPublicStreamer, getPublicOverlayConfig)
+│   ├── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
+│   └── widgetController.js      → Logic จัดการการตั้งค่าวิดเจ็ต (getMyWidget, updateMyWidget)
 ├── middleware/
 │   ├── protect.js               → ตรวจสอบ JWT Bearer Token และใส่ req.user
 │   ├── errorHandler.js          → Error Handler กลาง จัดการ error รูปแบบ { message, data } และ Mongoose errors
 │   └── rateLimiter.js           → จำกัดอัตราการเรียก API (authLimiter, apiLimiter)
 ├── Models/
+│   ├── Blacklist.js             → Blacklist Schema สำหรับรายชื่อผู้ใช้ที่ถูกบล็อก
 │   ├── Donation.js              → Central Donation Schema & Indexes
-│   └── User.js                  → Central User Schema
+│   ├── Mission.js               → Mission Schema สำหรับภารกิจโดเนท
+│   ├── User.js                  → Central User Schema
+│   └── Widget.js                → Central Widget Schema (alert, goal, leaderboard, mission, token)
 ├── routes/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
 │   ├── donations.js             → เส้นทาง /api/donations (POST /, GET /, GET /stats, PATCH /:id)
-│   ├── public.js                → เส้นทาง /api/public (GET /:username)
-│   └── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
+│   ├── public.js                → เส้นทาง /api/public (GET /:username, GET /overlay/:widgetType/:token)
+│   ├── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
+│   └── widgets.js               → เส้นทาง /api/widgets (GET /me, PUT /me)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
 │   ├── donations.test.js        → ชุดทดสอบ Donations Route (24 tests: POST /, GET /, GET /stats, PATCH /:id, Socket.IO)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
-│   ├── public.test.js           → ชุดทดสอบ Public Route (5 tests)
-│   └── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
+│   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay (5 tests)
+│   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests: GET/PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
+│   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests: GET/PUT /me, validation, token regeneration)
 ├── utils/
 │   └── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 ├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler, 10MB payload limit)
@@ -379,11 +385,11 @@ client/src/
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
-| **Phase 7 — Real-time Alert & OBS Widget** | ✅ สมบูรณ์ (PR #57) | OBS Overlay Alert Page, FIFO Queue, Cooldown 400ms, Web Audio API Sound Presets, Google TTS Direct HTTPS, Real-time Socket.IO (`donation-alert`, `test-alert`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 24 Suites (242 Tests ผ่าน 100%, Coverage > 91%), Server: 6 Suites (107 Tests ผ่าน 100%, Coverage > 97%), รวม 349 Tests ผ่าน 100% |
+| **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57, #58, #59) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 26 Suites (258 Tests ผ่าน 100%, Coverage > 90.9%), Server: 7 Suites (120 Tests ผ่าน 100%, Coverage > 97.2%), รวม 378 Tests ผ่าน 100% |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง                   |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities    |
-| **Database Models**          | ✅ สมบูรณ์       | มี `User` และ `Donation` Model แล้ว, เตรียมเพิ่ม `Widget`, `Mission` ตามแผนงาน                              |
+| **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
 | **OCR Slip Verification**    | 📋 ตามแผนงาน     | เตรียมพัฒนาใน Phase 8 (ระบบตรวจสอบสลิปอัตโนมัติ)                                                           |
 
 ---
@@ -426,7 +432,7 @@ client/src/
 
 ## 11. แผนงานระยะถัดไป (Upcoming Phases)
 
-> **Phase 1–7 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), Donation Pipeline, Dashboard Analytics & History Backoffice, และ Real-time Alert & OBS Widget System (PR #57)
+> **Phase 1–7 เสร็จสมบูรณ์แล้ว** ✅ — Backend Foundation, Auth, Frontend Pages, Widget System, REST API Migration (Account/Payment/DonatePage), Cloud Deployment (Render + Vercel + MongoDB Atlas), Donation Pipeline, Dashboard Analytics & History Backoffice, และ Real-time Alert & OBS Widget System ครบวงจร (PR #57, #58, #59)
 
 - **Phase 5: Deploy (เสร็จสมบูรณ์ ✅)**
   - Server ขึ้น **Render** (`https://final-project-xntd.onrender.com`) พร้อม Reverse Proxy (`trust proxy`), Dynamic Port และ CORS
@@ -448,19 +454,23 @@ client/src/
     - เพิ่มคอมโพเนนต์ `SlipModal` ให้สตรีมเมอร์กดดูสลิปขยายใหญ่และกดอนุมัติ/ปฏิเสธได้ทันที
     - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 107 Tests, Client 185 Tests ผ่าน 100%) และผ่าน SonarCloud Quality Gate
 
-- **Phase 7: Real-time Alert & OBS Widget System (เสร็จสมบูรณ์ ✅ - PR #57)**
-  - **Step 1: Preset & Visual Upgrades**: ปรับขนาดและรายการฟอนต์ให้เหลือ Kanit และ FC Vision, รองรับ Dynamic Template TTS `{user}` และ `{amount}`, เพิ่มปุ่มทดสอบแอนิเมชันและพรีวิวทันทีเมื่อเปลี่ยนตัวเลือก
-  - **Step 2: Persistent Uploads**: แปลงไฟล์รูปภาพแสดงผล (JPG/PNG/GIF) และไฟล์เสียงแจ้งเตือน MP3 เป็น Data URL บันทึกลง Storage ป้องกันข้อมูลหายเมื่อรีเฟรชหน้าเว็บ
-  - **Step 3: Minimum Donation Sync**: ซิงค์ค่ายอดโดเนทขั้นต่ำ (`minAmount`) ระหว่างการตั้งค่าวิดเจ็ตและหน้ารับเงิน (`DonorPage`), ล็อกไม่ให้ผู้สนับสนุนกรอกยอดต่ำกว่าขั้นต่ำพร้อมระบบแก้ไขเลขอัตโนมัติเมื่อหลุดโฟกัส
-  - **Step 4: FIFO Alert Queue & Sound Sync**: ระบบคิวการแจ้งเตือนแบบ FIFO (`alertQueue`) บน `OverlayAlertPage` พร้อมคูลดาวน์ 400ms, กรองยอดเงินที่ต่ำกว่า `minAmount`, ปุ่มข้ามแจ้งเตือนและล้างคิว
-  - **Step 5: Real-time Socket.IO Integration**: เชื่อมต่อ `socket.io-client` ทั้งฝั่ง Client และ Server (`client/src/utils/socket.js`), จัดการห้องสตรีมเมอร์ (`join-stream`), รับอีเวนต์ `donation-alert` แบบเรียลไทม์บน OBS Browser Source, และปุ่มส่ง `test-alert` จากหน้า `WidgetPage` ไปแสดงผลบน OBS Studio ทันที
-  - **Step 6: Security Hardening & Quality Gate Optimization**:
-    - **SSRF Protection**: ตัด TTS Proxy endpoint บน Express API ออก และเปลี่ยนมาใช้ Direct HTTPS Stream พร้อม `no-referrer` ป้องกันความเสี่ยง Server-Side Request Forgery
-    - **CSPRNG**: แทนที่ `Math.random()` ด้วย `window.crypto.getRandomValues()` ใน `OverlayAlertPage.jsx` ขจัดความเสี่ยงด้านความปลอดภัย
-    - **Promise Handling**: กำกับ Floating Promises ด้วย `void` ป้องกัน unhandled rejections
-    - **Refactoring & Clean Code**: ลด Cognitive Complexity ของฟังก์ชันจัดการเสียงใน `alertAudio.js`
-    - **Quality Gate Passed**: ผลักดัน Coverage บน New Code ให้ผ่านเกณฑ์ SonarCloud (≥ 80.0%) และ Lines Coverage รวมทั้ง Client สูงถึง **91.17%**
-  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 6 Suites 107 Tests, Client 24 Suites 242 Tests รวม **30 Suites, 349 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
+- **Phase 7: Real-time Alert & OBS Widget System (เสร็จสมบูรณ์ ✅ - PR #57, #58, #59)**
+  - **ส่วนที่ 1: Real-time Alert, FIFO Queue & OBS Alert Overlay (PR #57, #58)**
+    - **Overlay Alert Page (`/overlay/alert/:token`)**: พื้นหลังโปร่งใสสำหรับ OBS Studio, รองรับพารามิเตอร์ `demo=1` สำหรับทดสอบ
+    - **FIFO Alert Queue**: ระบบคิวแจ้งเตือนแบบ FIFO พร้อมคูลดาวน์ 400ms ป้องกันแอนิเมชั่นและเสียงซ้อนทับ พร้อมปุ่มข้ามและล้างคิว
+    - **Audio & TTS Engine**: รองรับ Web Audio API Synth Presets (Mythic Horn, Dragon Roar, Ancient Bell), Custom MP3 Base64, Google TTS HTTPS Direct แบบ `no-referrer`, และ Web Speech API fallback
+    - **Socket.IO Real-time Alert**: เชื่อมต่อห้องสตรีมเมอร์ (`join-stream`), รับอีเวนต์ `donation-alert` และปุ่มยิง `test-alert` จากหน้า `WidgetPage` ไปยัง OBS Studio แบบเรียลไทม์
+    - **Security Hardening**: กำจัดความเสี่ยง SSRF, แทนที่ `Math.random()` ด้วย CSPRNG (`crypto.getRandomValues`), ป้องกัน Floating Promises ด้วย `void`, และลด Cognitive Complexity
+  - **ส่วนที่ 2: Widget Config REST API, Goal/Leaderboard Overlays & MongoDB Models (PR #59)**
+    - **Database Schemas**: สร้าง `Widget`, `Mission`, `Blacklist` Models ใน MongoDB Atlas
+    - **REST API Endpoints**:
+      - `GET /api/widgets/me` (ดึงการตั้งค่าของผู้ใช้ปัจจุบัน)
+      - `PUT /api/widgets/me` (บันทึก/อัปเดตการตั้งค่า และ regenerate token)
+      - `GET /api/public/overlay/:widgetType/:token` (ดึงการตั้งค่าสาธารณะ พร้อม Donation Aggregation สำหรับ Goal และ Leaderboard)
+    - **Overlay Goal Page (`/overlay/goal/:token`)**: แถบความคืบหน้าเรืองแสงสำหรับ OBS, คำนวณยอดเงินสะสมจาก DB อัตโนมัติ พร้อมอัปเดตยอดเพิ่มแบบเรียลไทม์ผ่าน Socket.IO
+    - **Overlay Leaderboard Page (`/overlay/leaderboard/:token`)**: อันดับผู้สนับสนุน 1-20 พร้อมมงกุฎ/เหรียญรางวัล, คำนวณ Top Donors จาก DB อัตโนมัติ พร้อม Re-ranking เรียลไทม์ผ่าน Socket.IO
+    - **WidgetPage Integration**: เชื่อมต่อ `fetchWidgetConfig` และ `saveWidgetSettings` บันทึกขึ้น MongoDB พร้อม fallback ไปที่ localStorage
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 7 Suites 120 Tests, Client 26 Suites 258 Tests รวม **33 Suites, 378 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
 
 - **Phase 8: OCR Slip Verification (ระบบตรวจสอบสลิปอัตโนมัติ — ตัวเลือกเสริม)**
   - เชื่อมต่อ OCR ตรวจสอบยอดเงิน วันที่ และเลขอ้างอิงธุรกรรมจากสลิปโอนเงิน
