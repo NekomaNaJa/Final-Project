@@ -7,7 +7,7 @@ import app from "../app.js";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
 import { buildMockEmvQrPayload } from "../utils/slipParser.js";
-import slipVerificationService from "../services/slipVerificationService.js";
+import slipVerificationService, { terminateOcrWorker } from "../services/slipVerificationService.js";
 
 const validStreamer = {
   _id: "60c72b2f9b1d8b2bad876543",
@@ -797,5 +797,9 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.status).toBe(400);
       expect(res.body.message).toContain("ยอดเงินในสลิป (5 บาท) ต่ำกว่ายอดเงินขั้นต่ำที่กำหนด (15 บาท)");
     });
+  });
+
+  afterAll(async () => {
+    await terminateOcrWorker();
   });
 });
