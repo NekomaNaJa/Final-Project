@@ -134,10 +134,6 @@ describe("Donation Route (POST /api/donations)", () => {
     jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
     jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
 
-    const mockIoEmit = jest.fn();
-    const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
-    app.set("io", { to: mockTo });
-
     const res = await request(app)
       .post("/api/donations")
       .send({
@@ -146,7 +142,6 @@ describe("Donation Route (POST /api/donations)", () => {
         amount: 100,
         message: "สู้ๆ นะครับ คำหยาบ อย่าไปยอมแพ้",
         paymentMethod: "promptpay",
-        slipImage: "data:image/png;base64,sampleimagebase64",
       });
 
     expect(res.status).toBe(201);
@@ -156,14 +151,6 @@ describe("Donation Route (POST /api/donations)", () => {
     // Bad word filtered
     expect(res.body.data.message).toBe("สู้ๆ นะครับ *** อย่าไปยอมแพ้");
     expect(res.body.data.status).toBe("pending");
-    expect(res.body.data.slipImage).toBe("data:image/png;base64,sampleimagebase64");
-
-    // Socket alert emitted
-    expect(mockTo).toHaveBeenCalledWith(`streamer_${validStreamer._id}`);
-    expect(mockIoEmit).toHaveBeenCalledWith("donation-alert", expect.any(Object));
-
-    // Clear mock io on app
-    app.set("io", null);
   });
 
   it("should return 500 when saving donation fails", async () => {
@@ -588,6 +575,10 @@ describe("Donations Routes (Analytics & Management)", () => {
       jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
       jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
 
+      const mockIoEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
+      app.set("io", { to: mockTo });
+
       // 1x1 blank PNG data URI that has no QR code
       const blankImageUri =
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
@@ -609,6 +600,69 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.data.ocrResult.verified).toBe(false);
       expect(res.body.data.ocrResult.method).toBe("none");
       expect(res.body.data.ocrResult.message).toContain("ไม่พบ QR Code บนสลิป");
+
+      // Verify no socket alert was emitted for pending unapproved donation
+      expect(mockIoEmit).not.toHaveBeenCalled();
+      app.set("io", null);
+    });
+
+    it("should auto-approve donation and prevent duplicates when Thai Bank Mini QR (Krungthai NEXT format) is submitted", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+
+      const mockIoEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
+      app.set("io", { to: mockTo });
+
+      // Krungthai Next standard Mini QR
+      const ktbPayload = "0038000600000101030060217Aef2fa337bfc849f35102TH9104F4C9";
+      const slipDataUri = await QRCode.toDataURL(ktbPayload, { width: 350, margin: 2 });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ผู้สนับสนุนกรุงไทย",
+          amount: 30,
+          paymentMethod: "promptpay",
+          slipImage: slipDataUri,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.status).toBe("approved");
+      expect(res.body.data.transRef).toBe("Aef2fa337bfc849f3");
+      expect(res.body.data.ocrResult.verified).toBe(true);
+      expect(res.body.data.ocrResult.bankName).toContain("กรุงไทย");
+      expect(mockIoEmit).toHaveBeenCalledWith(
+        "donation-alert",
+        expect.objectContaining({
+          status: "approved",
+          transRef: "Aef2fa337bfc849f3",
+        })
+      );
+
+      // Duplicate prevention test: attempting to submit the same slip again
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce({
+        _id: "existing_ktb_don",
+        transRef: "Aef2fa337bfc849f3",
+      });
+
+      const dupRes = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 30,
+          paymentMethod: "promptpay",
+          slipImage: slipDataUri,
+        });
+
+      expect(dupRes.status).toBe(400);
+      expect(dupRes.body.message).toContain("สลิปนี้ถูกใช้งานไปแล้ว");
+      expect(dupRes.body.message).toContain("Aef2fa337bfc849f3");
+
+      app.set("io", null);
     });
   });
 });

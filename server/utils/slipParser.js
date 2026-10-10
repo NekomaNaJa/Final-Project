@@ -72,33 +72,47 @@ export const parseThaiSlipQr = (rawPayload) => {
 
   const payload = rawPayload.trim();
 
-  // 1. ตรวจสอบมาตรฐาน EMVCo Slip Verify QR Code (ขึ้นต้นด้วย 000201)
-  if (payload.startsWith("000201")) {
+  // 1. ตรวจสอบมาตรฐาน EMVCo / PromptPay Mini QR (ขึ้นต้นด้วย Tag 00 เช่น 000201 หรือ 0038...)
+  if (/^00\d{2}/.test(payload)) {
     const rootTags = parseEmvTlv(payload);
 
-    // ดึง Application Template ที่บรรจุข้อมูลสลิป (Tag 29, 30 หรือ 31)
-    const slipTemplateStr = rootTags["30"] || rootTags["29"] || rootTags["31"];
     let transRef = null;
     let bankCode = null;
 
-    if (slipTemplateStr) {
-      const subTags = parseEmvTlv(slipTemplateStr);
-      // Sub-tag 01 มักบรรจุ Sending Bank (3 หลัก) + Transaction Reference
-      const sub01 = subTags["01"] || "";
-      if (sub01.length >= 6) {
-        const potentialBank = sub01.substring(0, 3);
-        if (THAI_BANKS[potentialBank]) {
-          bankCode = potentialBank;
-          transRef = sub01.substring(3);
-        } else {
+    // 1.1 รูปแบบ Thai Bank Mini QR (Tag 00 เป็น Nested TLV บรรจุ Version, Bank Code, TransRef)
+    if (rootTags["00"] && rootTags["00"] !== "01") {
+      const sub = parseEmvTlv(rootTags["00"]);
+      if (sub["01"] && THAI_BANKS[sub["01"]]) {
+        bankCode = sub["01"];
+        transRef = sub["02"] || null;
+      } else if (sub["02"] && THAI_BANKS[sub["02"]]) {
+        bankCode = sub["02"];
+        transRef = sub["01"] || null;
+      }
+    }
+
+    // 1.2 รูปแบบ Full EMVCo (Application Template Tag 29, 30 หรือ 31)
+    if (!transRef) {
+      const slipTemplateStr = rootTags["30"] || rootTags["29"] || rootTags["31"];
+      if (slipTemplateStr) {
+        const subTags = parseEmvTlv(slipTemplateStr);
+        // Sub-tag 01 มักบรรจุ Sending Bank (3 หลัก) + Transaction Reference
+        const sub01 = subTags["01"] || "";
+        if (sub01.length >= 6) {
+          const potentialBank = sub01.substring(0, 3);
+          if (THAI_BANKS[potentialBank]) {
+            bankCode = potentialBank;
+            transRef = sub01.substring(3);
+          } else {
+            transRef = sub01;
+          }
+        } else if (sub01) {
           transRef = sub01;
         }
-      } else if (sub01) {
-        transRef = sub01;
-      }
 
-      if (!bankCode && subTags["02"] && THAI_BANKS[subTags["02"]]) {
-        bankCode = subTags["02"];
+        if (!bankCode && subTags["02"] && THAI_BANKS[subTags["02"]]) {
+          bankCode = subTags["02"];
+        }
       }
     }
 
