@@ -753,6 +753,47 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.message).toContain("ชื่อผู้รับเงินในสลิปไม่ตรงกับชื่อบัญชีของสตรีมเมอร์ (โปร เกมเมอร์)");
     });
 
+    it("should reject promptpay donation when recipient name in slip does not match streamer account", async () => {
+      const promptpayStreamer = {
+        ...validStreamer,
+        payment: {
+          ...validStreamer.payment,
+          promptpay: {
+            enabled: true,
+            number: "0812345678",
+          },
+          bank: {
+            enabled: true,
+            accountName: "สมชาย ใจดี",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(promptpayStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "qr",
+        transRef: "MISMATCH_PROMPTPAY_001",
+        amount: 50,
+        recipientMatched: false,
+        accountNumberMatched: false,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 50,
+          paymentMethod: "promptpay",
+          slipImage: "data:image/png;base64,mockslip",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("ชื่อผู้รับเงินในสลิปไม่ตรงกับชื่อบัญชีของสตรีมเมอร์");
+    });
+
     it("should reject bank donation without amount when slip image cannot be parsed", async () => {
       jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
 

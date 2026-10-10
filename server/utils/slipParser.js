@@ -330,6 +330,24 @@ export const parseSlipText = (text) => {
 };
 
 /**
+ * สกัดส่วนข้อความที่เป็นข้อมูลผู้รับเงิน (Recipient Section) จากสลิป
+ * @param {string} slipText
+ * @returns {string}
+ */
+export const extractRecipientSection = (slipText) => {
+  if (typeof slipText !== "string") return "";
+
+  // ค้นหาส่วนของข้อความหลังคำว่า "ไปยัง", "ถึง", "ผู้รับเงิน", "To" จนถึงหัวข้อถัดไป
+  const m = slipText.match(
+    /(?:ไปยัง|ถึง|ผู้รับเงิน|ผู้รับโอน|โอนไปยัง|โอนไปที่|to\s*:?)([\s\S]{1,250}?)(?:จำนวนเงิน|ยอดเงิน|วันที่|รหัสอ้างอิง|ค่าธรรมเนียม|amount|date|ref|$)/i
+  );
+  if (m && m[1]) {
+    return m[1];
+  }
+  return slipText;
+};
+
+/**
  * ตรวจสอบว่าชื่อผู้รับเงินในสลิปตรงกับชื่อบัญชีของสตรีมเมอร์หรือไม่
  * @param {string} slipText - ข้อความที่อ่านได้จากภาพสลิป
  * @param {string} expectedAccountName - ชื่อบัญชีของสตรีมเมอร์
@@ -348,21 +366,48 @@ export const isRecipientNameMatched = (slipText, expectedAccountName) => {
       .toLowerCase();
 
   const cleanExpected = clean(expectedAccountName);
-  const cleanSlip = clean(slipText);
-
   if (!cleanExpected || cleanExpected.length < 2) return true;
 
-  // 1. ตรวจสอบแบบตรงกันทั้งก้อน
-  if (cleanSlip.includes(cleanExpected)) {
-    return true;
-  }
-
-  // 2. ตรวจสอบแยกชื่อหรือนามสกุล (กรณีสลิปย่อชื่อ เช่น "มนต์ธร ก.")
   const parts = expectedAccountName
     .trim()
     .split(/\s+/)
     .map(clean)
     .filter((p) => p.length >= 2);
+
+  // 1. ลองตัดหาเฉพาะส่วนของผู้รับเงิน (Recipient Section)
+  const recipientSection = extractRecipientSection(slipText);
+  const cleanRecipient = clean(recipientSection);
+
+  // ถ้าตัดส่วนผู้รับเงินออกมาได้ ให้ตรวจในส่วนผู้รับเงินเป็นหลัก
+  if (recipientSection !== slipText) {
+    if (cleanRecipient.includes(cleanExpected)) return true;
+    if (parts.length > 0 && cleanRecipient.includes(parts[0])) return true;
+    return false;
+  }
+
+  // 2. หากไม่พบคำว่า "ไปยัง" ให้ระวังกรณีชื่อสตรีมเมอร์อยู่ในส่วน "จาก" (ผู้โอน)
+  const fromMatch = slipText.match(
+    /(?:จาก|ผู้โอน|from\s*:?)([\s\S]{1,120}?)(?:ไปยัง|ถึง|to\b|$)/i
+  );
+  if (fromMatch && fromMatch[1]) {
+    const cleanFrom = clean(fromMatch[1]);
+    const afterFrom = slipText.slice(slipText.indexOf(fromMatch[0]) + fromMatch[0].length);
+    const cleanAfterFrom = clean(afterFrom);
+
+    // ถ้าชื่อสตรีมเมอร์อยู่ในส่วน "จาก" แต่ไม่อยู่ในส่วนหลัง "จาก" แสดงว่าเป็นผู้โอน ไม่ใช่ผู้รับ!
+    if (
+      (cleanFrom.includes(cleanExpected) || (parts.length > 0 && cleanFrom.includes(parts[0]))) &&
+      !(cleanAfterFrom.includes(cleanExpected) || (parts.length > 0 && cleanAfterFrom.includes(parts[0])))
+    ) {
+      return false;
+    }
+  }
+
+  // 3. ตรวจสอบในข้อความทั้งหมด
+  const cleanSlip = clean(slipText);
+  if (cleanSlip.includes(cleanExpected)) {
+    return true;
+  }
 
   if (parts.length > 0 && cleanSlip.includes(parts[0])) {
     return true;
@@ -384,10 +429,29 @@ export const isAccountNumberMatched = (slipText, expectedAccountNumber) => {
 
   const digits = expectedAccountNumber.replace(/[^0-9]/g, "");
   if (digits.length < 4) return true;
-
   const last4 = digits.slice(-4);
-  const cleanSlipDigits = slipText.replace(/[^0-9]/g, "");
-  return cleanSlipDigits.includes(last4);
+
+  // ค้นหาส่วนผู้รับเงินก่อน เพื่อไม่ให้ชนกับเลขบัญชีผู้โอนหรือเลขอ้างอิง
+  const recipientSection = extractRecipientSection(slipText);
+
+  // ค้นหารูปแบบเลขบัญชีหรือเบอร์โทร เช่น xxx-xxx672-2, 081-xxx-5678, 123-456789-0
+  const accountPattern = /(?:[0-9xX*#\-]{8,20})/g;
+  const matches = recipientSection.match(accountPattern) || [];
+
+  for (const match of matches) {
+    const cleanMatch = match.replace(/[^0-9]/g, "");
+    if (cleanMatch.endsWith(last4) || cleanMatch.slice(-4) === last4) {
+      return true;
+    }
+  }
+
+  // หากไม่มี match เป็นก้อนบัญชี แต่ส่วนผู้รับเงินมีเลข 4 ตัวท้ายอยู่เดี่ยวๆ หรือมีเลขท้ายตรงกัน
+  const recDigits = recipientSection.replace(/[^0-9]/g, "");
+  if (recDigits.length >= 4 && recDigits.endsWith(last4)) {
+    return true;
+  }
+
+  return false;
 };
 
 /**

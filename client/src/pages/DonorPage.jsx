@@ -232,9 +232,11 @@ const DonorPage = () => {
     setErrorFeedback(null);
     setResetKey((prev) => prev + 1);
 
-    if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
+    if (typeof window !== "undefined") {
       try {
-        window.location.reload();
+        if (typeof window.location?.reload === "function") {
+          window.location.reload();
+        }
       } catch {
         // Fallback for testing environments where navigation is not supported
       }

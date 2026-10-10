@@ -3,6 +3,7 @@ import {
   getBankNameByCode,
   parseThaiSlipQr,
   parseSlipText,
+  extractRecipientSection,
   isRecipientNameMatched,
   isAccountNumberMatched,
   buildMockEmvQrPayload,
@@ -293,8 +294,54 @@ describe("Thai Bank Slip & QR Parser Utility (Phase 8 OCR)", () => {
       expect(isRecipientNameMatched(slip, "มนต์ธร กฤตยาพงศ์")).toBe(false);
     });
 
+    it("should return false when streamer name is only in the sender field (จาก) and recipient is someone else", () => {
+      const senderSlip = `
+        SCB โอนเงินสำเร็จ
+        จาก นาย มนต์ธร กอเจริญทรัพย์
+        xxx-xxx672-2
+        ไปยัง นาย ตั้งใจ ตั้งมั่น
+        xxx-xxx999-9
+        จำนวนเงิน 100.00 บาท
+      `;
+      expect(isRecipientNameMatched(senderSlip, "มนต์ธร กอเจริญทรัพย์")).toBe(false);
+    });
+
+    it("should return false when slip is e-wallet top-up and recipient is not streamer", () => {
+      const topUpSlip = `
+        SCB เติมเงินสำเร็จ
+        จาก นาย มนต์ธร กอเจริญทรัพย์
+        xxx-xxx672-2
+        ไปยัง เติมเงินพร้อมเพย์
+        006990407877235
+        จำนวนเงิน 200.00 บาท
+      `;
+      expect(isRecipientNameMatched(topUpSlip, "มนต์ธร กอเจริญทรัพย์")).toBe(false);
+    });
+
+    it("should return false when slip has from label but no to label and streamer is sender", () => {
+      const fromOnlySlip = "จาก นาย มนต์ธร กอเจริญทรัพย์ โอนสำเร็จ ยอดเงิน 50 บาท";
+      expect(isRecipientNameMatched(fromOnlySlip, "มนต์ธร กอเจริญทรัพย์")).toBe(false);
+    });
+
+    it("should match when slip has no from or to keywords but contains expected name", () => {
+      const plainSlip = "โอนสำเร็จ มนต์ธร กฤตยาพงศ์ 100 บาท";
+      expect(isRecipientNameMatched(plainSlip, "มนต์ธร กฤตยาพงศ์")).toBe(true);
+
+      const plainPartialSlip = "โอนสำเร็จ มนต์ธร ก. 100 บาท";
+      expect(isRecipientNameMatched(plainPartialSlip, "มนต์ธร กฤตยาพงศ์")).toBe(true);
+
+      const plainMismatchSlip = "โอนสำเร็จ สมชาย สบายดี 100 บาท";
+      expect(isRecipientNameMatched(plainMismatchSlip, "มนต์ธร กฤตยาพงศ์")).toBe(false);
+    });
+
     it("should return true when expectedAccountName has fewer than 2 characters after cleaning", () => {
       expect(isRecipientNameMatched("ข้อความใดๆ", " ")).toBe(true);
+    });
+  });
+
+  describe("extractRecipientSection", () => {
+    it("should return empty string for non-string input", () => {
+      expect(extractRecipientSection(null)).toBe("");
     });
   });
 

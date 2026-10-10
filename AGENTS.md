@@ -31,8 +31,8 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (10 Suites, 184 Tests ผ่าน 100%)
-npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97.59%)
+npm test              # รัน Jest + Supertest (10 Suites, 190 Tests ผ่าน 100%)
+npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
 ### 2.2 ฝั่ง Client (Frontend)
@@ -133,16 +133,16 @@ server/
 │   └── slipVerificationService.js → In-house Zero-Cost Slip QR & OCR Verification Engine (Jimp + jsQR + Tesseract.js Worker Lifecycle)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
-│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching (34 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching (35 tests)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
 │   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (5 tests)
-│   ├── slipParser.test.js       → ชุดทดสอบ Thai Slip & QR Parser Utility (26 tests)
+│   ├── slipParser.test.js       → ชุดทดสอบ Thai Slip & QR Parser Utility (31 tests)
 │   ├── slipVerificationService.test.js → ชุดทดสอบ Zero-Cost QR/OCR Engine (8 tests)
 │   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (3 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (15 tests)
-│   ── รวมฝั่ง Server: 10 Test Suites, 184 Tests ผ่าน 100% (Coverage > 97.59%)
+│   ── รวมฝั่ง Server: 10 Test Suites, 190 Tests ผ่าน 100% (Coverage > 97%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -795,9 +795,9 @@ stateDiagram-v2
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **10 Suites** | **184 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **10 Suites** | **190 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 | **Client (Frontend React SPA)** | **26 Suites** | **277 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **36 Suites** | **461 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **36 Suites** | **467 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |

@@ -143,7 +143,7 @@ export const verifySlipImage = async (slipImage, expectedAmount, options = {}) =
   const shouldRunOcr =
     !skipOcr &&
     !rawText &&
-    (!parsedQr?.amount || expectedAccountName || !parsedQr?.success);
+    (!parsedQr?.amount || expectedAccountName || expectedAccountNumber || !parsedQr?.success);
 
   if (shouldRunOcr) {
     try {
