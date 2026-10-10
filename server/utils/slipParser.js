@@ -82,24 +82,12 @@ export const parseThaiSlipQr = (rawPayload) => {
     // 1.1 รูปแบบ Thai Bank Mini QR (Tag 00 เป็น Nested TLV บรรจุ Version, Bank Code, TransRef)
     if (rootTags["00"] && rootTags["00"] !== "01") {
       const sub = parseEmvTlv(rootTags["00"]);
-      if (sub && Object.keys(sub).length > 0) {
-        if (sub["01"] && THAI_BANKS[sub["01"]]) {
-          bankCode = sub["01"];
-          transRef = sub["02"] || null;
-        } else if (sub["02"] && THAI_BANKS[sub["02"]]) {
-          bankCode = sub["02"];
-          transRef = sub["01"] || null;
-        } else {
-          const val1 = sub["01"] || "";
-          const val2 = sub["02"] || "";
-          if (val1.length > val2.length) {
-            transRef = val1;
-            bankCode = val2.length === 3 ? val2 : null;
-          } else {
-            transRef = val2;
-            bankCode = val1.length === 3 ? val1 : null;
-          }
-        }
+      if (sub["01"] && THAI_BANKS[sub["01"]]) {
+        bankCode = sub["01"];
+        transRef = sub["02"] || null;
+      } else if (sub["02"] && THAI_BANKS[sub["02"]]) {
+        bankCode = sub["02"];
+        transRef = sub["01"] || null;
       }
     }
 
