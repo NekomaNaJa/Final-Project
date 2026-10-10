@@ -276,15 +276,41 @@ export const parseSlipText = (text) => {
     transRef = refMatch[1].trim();
   }
 
-  // ค้นหายอดเงิน (เช่น "จำนวนเงิน: 100.00 บาท")
-  const amountMatch = text.match(
-    /(?:จำนวนเงิน|ยอดเงิน|Amount)[:\s]*([0-9,.]+)\s*(?:บาท|THB)?/i
+  // 1. ค้นหายอดเงินรูปแบบมีป้ายกำกับ (เช่น "จำนวนเงิน: 100.00 บาท", "Amount: 50.00 THB")
+  const m1 = text.match(
+    /(?:จำนวนเงิน|ยอดเงิน|โอนเงินจำนวน|Amount)[:\s]*([0-9,]+\.?[0-9]*)\s*(?:บาท|THB)?/i
   );
-  if (amountMatch && amountMatch[1]) {
-    const cleanNum = amountMatch[1].replaceAll(",", "");
+  if (m1 && m1[1]) {
+    const cleanNum = m1[1].replaceAll(",", "");
     const parsed = Number.parseFloat(cleanNum);
     if (!Number.isNaN(parsed) && parsed > 0) {
       amount = parsed;
+    }
+  }
+
+  // 2. ค้นหายอดเงินแบบหลายบรรทัด (เช่น "จำนวนเงิน \n 50.00 บาท")
+  if (!amount) {
+    const m2 = text.match(
+      /(?:จำนวนเงิน|ยอดเงิน|Amount)[\s\S]{1,30}?([0-9,]+\.[0-9]{2})/i
+    );
+    if (m2 && m2[1]) {
+      const cleanNum = m2[1].replaceAll(",", "");
+      const parsed = Number.parseFloat(cleanNum);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        amount = parsed;
+      }
+    }
+  }
+
+  // 3. ค้นหายอดเงินเดี่ยวพร้อมสกุลเงิน (เช่น "50.00 บาท")
+  if (!amount) {
+    const m3 = text.match(/(?:^|\s)([0-9,]+\.[0-9]{2})\s*(?:บาท|THB|baht)/i);
+    if (m3 && m3[1]) {
+      const cleanNum = m3[1].replaceAll(",", "");
+      const parsed = Number.parseFloat(cleanNum);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        amount = parsed;
+      }
     }
   }
 
@@ -301,6 +327,67 @@ export const parseSlipText = (text) => {
     amount,
     bankName,
   };
+};
+
+/**
+ * ตรวจสอบว่าชื่อผู้รับเงินในสลิปตรงกับชื่อบัญชีของสตรีมเมอร์หรือไม่
+ * @param {string} slipText - ข้อความที่อ่านได้จากภาพสลิป
+ * @param {string} expectedAccountName - ชื่อบัญชีของสตรีมเมอร์
+ * @returns {boolean}
+ */
+export const isRecipientNameMatched = (slipText, expectedAccountName) => {
+  if (typeof slipText !== "string" || typeof expectedAccountName !== "string") {
+    return false;
+  }
+
+  // ลบคำนำหน้าชื่อไทยและอักขระพิเศษเพื่อการเปรียบเทียบที่แม่นยำ
+  const clean = (str) =>
+    str
+      .replace(/นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|บจก\.|บมจ\.|หจก\.|mr\.|mrs\.|ms\./gi, "")
+      .replace(/[\s\-_.,/]/g, "")
+      .toLowerCase();
+
+  const cleanExpected = clean(expectedAccountName);
+  const cleanSlip = clean(slipText);
+
+  if (!cleanExpected || cleanExpected.length < 2) return true;
+
+  // 1. ตรวจสอบแบบตรงกันทั้งก้อน
+  if (cleanSlip.includes(cleanExpected)) {
+    return true;
+  }
+
+  // 2. ตรวจสอบแยกชื่อหรือนามสกุล (กรณีสลิปย่อชื่อ เช่น "มนต์ธร ก.")
+  const parts = expectedAccountName
+    .trim()
+    .split(/\s+/)
+    .map(clean)
+    .filter((p) => p.length >= 2);
+
+  if (parts.length > 0 && cleanSlip.includes(parts[0])) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * ตรวจสอบเลขบัญชีในสลิป (ตรวจสอบ 4 หลักสุดท้าย)
+ * @param {string} slipText - ข้อความที่อ่านได้จากภาพสลิป
+ * @param {string} expectedAccountNumber - เลขบัญชีของสตรีมเมอร์
+ * @returns {boolean}
+ */
+export const isAccountNumberMatched = (slipText, expectedAccountNumber) => {
+  if (typeof slipText !== "string" || typeof expectedAccountNumber !== "string") {
+    return false;
+  }
+
+  const digits = expectedAccountNumber.replace(/[^0-9]/g, "");
+  if (digits.length < 4) return true;
+
+  const last4 = digits.slice(-4);
+  const cleanSlipDigits = slipText.replace(/[^0-9]/g, "");
+  return cleanSlipDigits.includes(last4);
 };
 
 /**

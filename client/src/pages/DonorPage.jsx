@@ -186,8 +186,13 @@ const DonorPage = () => {
     setErrorFeedback(null);
 
     const min = Number(streamerConfig.minAmount) || 1;
-    const numericAmount = Number(donationData?.amount);
-    if (Number.isNaN(numericAmount) || numericAmount < min) {
+    const isBank = (donationData?.method || activeTab) === "bank";
+    const numericAmount =
+      donationData?.amount !== undefined && donationData?.amount !== null
+        ? Number(donationData.amount)
+        : null;
+
+    if (!isBank && (numericAmount === null || Number.isNaN(numericAmount) || numericAmount < min)) {
       setErrorFeedback(`จำนวนเงินต้องไม่ต่ำกว่า ${min} บาท`);
       setIsSubmitting(false);
       return;
@@ -208,6 +213,7 @@ const DonorPage = () => {
         donorName,
         message,
         ...donationData,
+        amount: res?.data?.amount || res?.amount || donationData?.amount || min,
         donationId: res?.id || res?._id,
         status: res?.status || "pending",
         transRef: res?.transRef,
@@ -367,7 +373,6 @@ const DonorPage = () => {
               /* State 3: Bank Form */
               <DonorBankForm
                 key={`bank-${resetKey}`}
-                minAmount={streamerConfig.minAmount}
                 bankName={streamerConfig.payment.bank.bankName}
                 accountNumber={streamerConfig.payment.bank.accountNumber}
                 accountName={streamerConfig.payment.bank.accountName}

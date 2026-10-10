@@ -7,6 +7,7 @@ import app from "../app.js";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
 import { buildMockEmvQrPayload } from "../utils/slipParser.js";
+import slipVerificationService from "../services/slipVerificationService.js";
 
 const validStreamer = {
   _id: "60c72b2f9b1d8b2bad876543",
@@ -667,6 +668,134 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(dupRes.body.message).toContain("Aef2fa337bfc849f3");
 
       app.set("io", null);
+    });
+
+    it("should accept bank donation without amount, auto-detect amount from slip and approve", async () => {
+      const bankStreamer = {
+        ...validStreamer,
+        payment: {
+          ...validStreamer.payment,
+          bank: {
+            enabled: true,
+            accountNumber: "1234567890",
+            accountName: "โปร เกมเมอร์",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(bankStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "ocr",
+        transRef: "BANK_OCR_999888",
+        amount: 80,
+        bankCode: "014",
+        bankName: "ธนาคารไทยพาณิชย์ (SCB)",
+        recipientMatched: true,
+        accountNumberMatched: true,
+        rawPayload: null,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ผู้โอนธนาคาร",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,mockbankslippng",
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.message).toBe("การบริจาคสำเร็จและสลิปผ่านการตรวจสอบอัตโนมัติ");
+      expect(res.body.data.amount).toBe(80);
+      expect(res.body.data.status).toBe("approved");
+      expect(res.body.data.transRef).toBe("BANK_OCR_999888");
+      expect(res.body.data.ocrResult.verified).toBe(true);
+    });
+
+    it("should reject bank donation when recipient name in slip does not match streamer account", async () => {
+      const bankStreamer = {
+        ...validStreamer,
+        payment: {
+          ...validStreamer.payment,
+          bank: {
+            enabled: true,
+            accountNumber: "1234567890",
+            accountName: "โปร เกมเมอร์",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(bankStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "ocr",
+        transRef: "MISMATCH_RECIPIENT_001",
+        amount: 100,
+        bankCode: "004",
+        recipientMatched: false, // Name does not match!
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,mockbankslippng",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("ชื่อผู้รับเงินในสลิปไม่ตรงกับชื่อบัญชีของสตรีมเมอร์ (โปร เกมเมอร์)");
+    });
+
+    it("should reject bank donation without amount when slip image cannot be parsed", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: false,
+        method: "none",
+        message: "ไม่พบ QR Code หรือข้อความ",
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,corruptpng",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("ไม่สามารถอ่านจำนวนเงินหรือข้อมูลจากรูปภาพสลิปได้");
+    });
+
+    it("should reject bank donation when extracted amount is less than minAmount", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer); // minAmount is 15
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "ocr",
+        transRef: "LOW_AMOUNT_001",
+        amount: 5, // 5 < 15
+        recipientMatched: true,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,lowamountpng",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("ยอดเงินในสลิป (5 บาท) ต่ำกว่ายอดเงินขั้นต่ำที่กำหนด (15 บาท)");
     });
   });
 });

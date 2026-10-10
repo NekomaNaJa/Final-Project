@@ -3,6 +3,8 @@ import {
   getBankNameByCode,
   parseThaiSlipQr,
   parseSlipText,
+  isRecipientNameMatched,
+  isAccountNumberMatched,
   buildMockEmvQrPayload,
   THAI_BANKS,
 } from "../utils/slipParser.js";
@@ -245,6 +247,75 @@ describe("Thai Bank Slip & QR Parser Utility (Phase 8 OCR)", () => {
       expect(res.transRef).toBe("REF_ABC_12345");
       expect(res.amount).toBe(250.50);
       expect(res.bankName).toContain("SCB");
+    });
+
+    it("should extract multiline amount from slip text", () => {
+      const sampleText = `
+        โอนเงินสำเร็จ
+        จำนวนเงิน
+        75.00
+        บาท
+      `;
+      const res = parseSlipText(sampleText);
+      expect(res.amount).toBe(75);
+    });
+
+    it("should extract standalone amount with currency suffix", () => {
+      const sampleText = `
+        ทำรายการสำเร็จ
+        500.00 บาท
+      `;
+      const res = parseSlipText(sampleText);
+      expect(res.amount).toBe(500);
+    });
+  });
+
+  describe("isRecipientNameMatched", () => {
+    it("should return false for invalid or empty inputs", () => {
+      expect(isRecipientNameMatched(null, "นายสมชาย")).toBe(false);
+      expect(isRecipientNameMatched("นายสมชาย", null)).toBe(false);
+      expect(isRecipientNameMatched(123, "นายสมชาย")).toBe(false);
+    });
+
+    it("should match when recipient name is present regardless of Thai title prefix", () => {
+      const slip = "ไปยัง นาย มนต์ธร กฤตยาพงศ์ ธนาคารไทยพาณิชย์";
+      expect(isRecipientNameMatched(slip, "มนต์ธร กฤตยาพงศ์")).toBe(true);
+      expect(isRecipientNameMatched(slip, "นาย มนต์ธร กฤตยาพงศ์")).toBe(true);
+    });
+
+    it("should match when recipient surname is abbreviated in slip", () => {
+      const slip = "ไปยัง มนต์ธร ก. SCB Easy";
+      expect(isRecipientNameMatched(slip, "มนต์ธร กฤตยาพงศ์")).toBe(true);
+    });
+
+    it("should return false when recipient name does not match at all", () => {
+      const slip = "ไปยัง นาย สมชาย สบายดี กสิกรไทย";
+      expect(isRecipientNameMatched(slip, "มนต์ธร กฤตยาพงศ์")).toBe(false);
+    });
+
+    it("should return true when expectedAccountName has fewer than 2 characters after cleaning", () => {
+      expect(isRecipientNameMatched("ข้อความใดๆ", " ")).toBe(true);
+    });
+  });
+
+  describe("isAccountNumberMatched", () => {
+    it("should return false for invalid inputs", () => {
+      expect(isAccountNumberMatched(null, "1234567890")).toBe(false);
+      expect(isAccountNumberMatched("xxx-1234", null)).toBe(false);
+    });
+
+    it("should return true when last 4 digits match", () => {
+      const slip = "โอนไปยังบัญชี xxx-x-xx789-0";
+      expect(isAccountNumberMatched(slip, "1234567890")).toBe(true);
+    });
+
+    it("should return false when last 4 digits do not match", () => {
+      const slip = "โอนไปยังบัญชี xxx-x-xx111-1";
+      expect(isAccountNumberMatched(slip, "1234567890")).toBe(false);
+    });
+
+    it("should return true if expected account has fewer than 4 digits", () => {
+      expect(isAccountNumberMatched("โอนเงิน", "123")).toBe(true);
     });
   });
 
