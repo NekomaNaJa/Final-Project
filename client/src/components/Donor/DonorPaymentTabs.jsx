@@ -51,7 +51,7 @@ const tabs = [
   },
 ];
 
-const DonorPaymentTabs = ({ activeTab, onTabChange }) => {
+const DonorPaymentTabs = ({ activeTab, onTabChange, disabled = false }) => {
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
 
   return (
@@ -64,8 +64,11 @@ const DonorPaymentTabs = ({ activeTab, onTabChange }) => {
             <button
               key={tab.id}
               type="button"
-              onClick={() => onTabChange(tab.id)}
+              disabled={disabled}
+              onClick={() => !disabled && onTabChange(tab.id)}
               className={`flex items-center justify-center gap-2.5 rounded-xl py-3 px-3 text-sm sm:text-base font-bold transition-all ${
+                disabled ? "opacity-60 cursor-not-allowed" : ""
+              } ${
                 isActive
                   ? "border border-purple-500/50 bg-[#251d45] text-white shadow-[0_0_16px_rgba(139,92,246,0.35)]"
                   : "border border-transparent text-gray-400 hover:bg-white/5 hover:text-white"

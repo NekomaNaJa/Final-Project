@@ -67,6 +67,22 @@ describe("Donor Components", () => {
       fireEvent.click(screen.getByText("ธนาคาร"));
       expect(handleTabChange).toHaveBeenCalledWith("bank");
     });
+
+    test("disables tab buttons and prevents tab change when disabled is true", () => {
+      const handleTabChange = jest.fn();
+      render(
+        <DonorPaymentTabs
+          activeTab="promptpay"
+          onTabChange={handleTabChange}
+          disabled={true}
+        />
+      );
+
+      const bankBtn = screen.getByRole("button", { name: /ธนาคาร/i });
+      expect(bankBtn).toBeDisabled();
+      fireEvent.click(bankBtn);
+      expect(handleTabChange).not.toHaveBeenCalled();
+    });
   });
 
   describe("DonorPromptPayForm", () => {

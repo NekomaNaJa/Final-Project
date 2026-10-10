@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
 import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
@@ -16,7 +16,57 @@ const fileToBase64 = (file) => {
       return;
     }
     const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
+    reader.onloadend = () => {
+      const dataUrl = reader.result;
+      if (
+        process.env.NODE_ENV === "test" ||
+        typeof window === "undefined" ||
+        typeof Image === "undefined" ||
+        typeof document === "undefined" ||
+        typeof dataUrl !== "string"
+      ) {
+        resolve(dataUrl);
+        return;
+      }
+      try {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxDim = 1200;
+            if (img.width <= maxDim && img.height <= maxDim) {
+              resolve(dataUrl);
+              return;
+            }
+            const canvas = document.createElement("canvas");
+            let w = img.width;
+            let h = img.height;
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              h = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(dataUrl);
+              return;
+            }
+            ctx.drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL("image/jpeg", 0.85);
+            resolve(compressed || dataUrl);
+          } catch {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      } catch {
+        resolve(dataUrl);
+      }
+    };
     reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
@@ -310,7 +360,8 @@ const DonorPage = () => {
             {/* Payment Channel Selector Tabs */}
             <DonorPaymentTabs
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={isSubmitting ? () => {} : setActiveTab}
+              disabled={isSubmitting}
             />
 
             {/* Donor Name & Message Form Inputs */}
@@ -392,6 +443,36 @@ const DonorPage = () => {
             )}
           </div>
       </div>
+
+      {/* Processing / Verifying Donation Loading Modal */}
+      {isSubmitting && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="กำลังดำเนินการ"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-purple-500/40 bg-[#16122a] p-6 text-center space-y-4 shadow-2xl">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-600/20 border border-purple-500/40 text-purple-400 mx-auto shadow-lg">
+              <Loader2 size={36} className="animate-spin text-purple-400" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-white tracking-wide">
+                กำลังดำเนินการ
+              </h3>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                ระบบกำลังตรวจสอบข้อมูลและสลิปการโอนเงิน กรุณารอสักครู่...
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-purple-500/20 bg-[#1e1738]/80 p-3 text-xs text-purple-300 flex items-center justify-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
+              <span>กรุณาอย่าปิดหรือเปลี่ยนหน้าต่างในระหว่างนี้</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Donation Success Modal */}
       {submittedDonation && (

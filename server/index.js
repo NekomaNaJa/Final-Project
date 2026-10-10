@@ -87,6 +87,13 @@ io.on("connection", (socket) => {
 
 connectDB();
 
+// Warm up Tesseract OCR engine in background to prevent first-request cold start
+import("./services/slipVerificationService.js")
+  .then(({ getTesseractWorker }) => getTesseractWorker())
+  .catch((err) => {
+    console.warn("OCR worker warmup notice:", err.message);
+  });
+
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
