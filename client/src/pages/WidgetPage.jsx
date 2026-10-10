@@ -17,7 +17,7 @@ import {
 } from "../components/Widget/widgetStorage";
 import { fetchWidgetConfig, saveWidgetSettings } from "../utils/api";
 import { playAlertSound, speakAlertText } from "../utils/alertAudio";
-import { emitTestAlert } from "../utils/socket";
+import { emitTestAlert, emitWidgetConfigUpdate } from "../utils/socket";
 
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
@@ -87,13 +87,28 @@ const WidgetPage = () => {
   const handleSave = async () => {
     try {
       const result = await saveWidgetSettings(config);
+      const activeToken = result?.token || widgetToken;
       if (result?.token) {
         setWidgetToken(result.token);
+      }
+      if (activeToken) {
+        emitWidgetConfigUpdate({
+          token: activeToken,
+          streamerId: user?._id || user?.id,
+          ...config,
+        });
       }
       saveWidgetConfig(config);
       setSavedConfig(config);
     } catch {
       // Fallback บันทึกลง localStorage หากเกิดข้อผิดพลาด
+      if (widgetToken) {
+        emitWidgetConfigUpdate({
+          token: widgetToken,
+          streamerId: user?._id || user?.id,
+          ...config,
+        });
+      }
       saveWidgetConfig(config);
       setSavedConfig(config);
     }

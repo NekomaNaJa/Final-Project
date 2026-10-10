@@ -291,10 +291,19 @@ const OverlayAlertPage = () => {
       enqueueAlert(alertData);
     };
 
+    const handleConfigUpdate = (data) => {
+      if (!data) return;
+      if (data.alert) {
+        setConfig((prev) => ({ ...prev, ...data.alert }));
+      }
+    };
+
     socket.on("donation-alert", handleDonationAlert);
+    socket.on("widget-config-updated", handleConfigUpdate);
 
     return () => {
       socket.off("donation-alert", handleDonationAlert);
+      socket.off("widget-config-updated", handleConfigUpdate);
       leaveStreamRoom(streamRoom);
     };
   }, [token, enqueueAlert]);

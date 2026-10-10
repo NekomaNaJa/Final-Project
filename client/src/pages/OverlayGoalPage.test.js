@@ -117,6 +117,33 @@ describe("OverlayGoalPage Component", () => {
     );
   });
 
+  test("updates goal target and current in real time when widget-config-updated event arrives", () => {
+    mockSocketInstance.__clearListeners();
+    mockSocketInstance.emit.mockClear();
+
+    render(
+      <MemoryRouter initialEntries={["/overlay/goal/streamer_room"]}>
+        <Routes>
+          <Route path="/overlay/goal/:token" element={<OverlayGoalPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    act(() => {
+      mockSocketInstance.__trigger("widget-config-updated", {
+        goal: {
+          target: 100,
+          current: 50,
+          title: "เป้าหมาย 100 บาท",
+        },
+      });
+    });
+
+    expect(screen.getByText("เป้าหมาย 100 บาท")).toBeInTheDocument();
+    expect(screen.getByText(/\/ 100 บาท/)).toBeInTheDocument();
+    expect(screen.getByText("50%")).toBeInTheDocument();
+  });
+
   test("preview buttons +100, +500, and reset update the goal correctly", () => {
     render(
       <MemoryRouter initialEntries={["/overlay/goal"]}>

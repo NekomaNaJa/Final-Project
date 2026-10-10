@@ -133,10 +133,19 @@ const OverlayLeaderboardPage = () => {
       handleDonationReceived(data);
     };
 
+    const handleConfigUpdate = (data) => {
+      if (!data) return;
+      if (data.leaderboard) {
+        setConfig((prev) => ({ ...prev, ...data.leaderboard }));
+      }
+    };
+
     socket.on("donation-alert", handleDonation);
+    socket.on("widget-config-updated", handleConfigUpdate);
 
     return () => {
       socket.off("donation-alert", handleDonation);
+      socket.off("widget-config-updated", handleConfigUpdate);
       leaveStreamRoom(streamRoom);
     };
   }, [token, handleDonationReceived]);
