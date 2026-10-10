@@ -337,6 +337,17 @@ describe("Thai Bank Slip & QR Parser Utility (Phase 8 OCR)", () => {
     it("should return true when expectedAccountName has fewer than 2 characters after cleaning", () => {
       expect(isRecipientNameMatched("ข้อความใดๆ", " ")).toBe(true);
     });
+
+    it("should match Thai names resiliently even when OCR drops thanthakhat or floating vowels", () => {
+      const ocrSlip = "โอนสำเร็จ ไปยัง นาย มนตธร กอเจรญทรพย จำนวนเงิน 12 บาท";
+      expect(isRecipientNameMatched(ocrSlip, "มนต์ธร กอเจริญทรัพย์")).toBe(true);
+    });
+
+    it("should extract recipient section after arrow in Krungsri/KMA style slips", () => {
+      const arrowSlip = "ผู้โอน MONTHORN\n↓\nนาย มนต์ธร กอเจริญทรัพย์\nจำนวนเงิน 12.00 THB";
+      expect(extractRecipientSection(arrowSlip)).toContain("นาย มนต์ธร กอเจริญทรัพย์");
+      expect(isRecipientNameMatched(arrowSlip, "มนต์ธร กอเจริญทรัพย์")).toBe(true);
+    });
   });
 
   describe("extractRecipientSection", () => {
