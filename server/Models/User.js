@@ -99,6 +99,7 @@ const userSchema = new mongoose.Schema(
       filteredWords: { type: [String], default: [] },
       coverImage: { type: String, default: null },
       backgroundImage: { type: String, default: null },
+      autoApproveSlip: { type: Boolean, default: true },
     },
   },
   { timestamps: true },

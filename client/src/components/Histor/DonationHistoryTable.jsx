@@ -50,6 +50,9 @@ const formatRow = (row) => {
       : d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
   }
 
+  const transRef = row.transRef || row.ocrResult?.transRef || null;
+  const ocrVerified = Boolean(row.ocrResult?.verified || transRef);
+
   return {
     raw: row,
     id,
@@ -59,6 +62,8 @@ const formatRow = (row) => {
     channel,
     statusLabel,
     statusBadgeClass,
+    transRef,
+    ocrVerified,
     time: time || "-",
   };
 };
@@ -107,11 +112,21 @@ const DonationHistoryTable = ({
                 <p className="truncate text-gray-500">{row.message}</p>
                 <p className="font-semibold text-purple-400">{row.amount}</p>
                 <p className="text-gray-500">{row.channel}</p>
-                <span
-                  className={`w-fit rounded-full px-2.5 py-1 text-[10px] font-medium ${row.statusBadgeClass}`}
-                >
-                  {row.statusLabel}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    className={`w-fit rounded-full px-2.5 py-1 text-[10px] font-medium ${row.statusBadgeClass}`}
+                  >
+                    {row.statusLabel}
+                  </span>
+                  {row.ocrVerified && (
+                    <span
+                      title={`สลิปผ่านการตรวจอัตโนมัติ${row.transRef ? ` (Ref: ${row.transRef})` : ""}`}
+                      className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/30"
+                    >
+                      OCR
+                    </span>
+                  )}
+                </div>
               </>
             );
 

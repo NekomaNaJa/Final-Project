@@ -207,6 +207,8 @@ const DonorPage = () => {
         message,
         ...donationData,
         donationId: res?.id || res?._id,
+        status: res?.status || "pending",
+        transRef: res?.transRef,
       });
     } catch (err) {
       setErrorFeedback(err?.message || "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท");
@@ -398,10 +400,26 @@ const DonorPage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">สถานะ:</span>
-                <span className="font-medium text-amber-400">
-                  รอสตรีมเมอร์ตรวจสอบสลิป (Pending)
+                <span
+                  className={`font-semibold ${
+                    submittedDonation.status === "approved"
+                      ? "text-emerald-400"
+                      : "text-amber-400"
+                  }`}
+                >
+                  {submittedDonation.status === "approved"
+                    ? "✓ ตรวจสอบสลิปและอนุมัติสำเร็จ (Approved)"
+                    : "รอสตรีมเมอร์ตรวจสอบสลิป (Pending)"}
                 </span>
               </div>
+              {submittedDonation.transRef && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">รหัสอ้างอิง:</span>
+                  <span className="font-mono text-purple-300">
+                    {submittedDonation.transRef}
+                  </span>
+                </div>
+              )}
             </div>
 
             {streamerConfig.thankYouMessage && (

@@ -374,6 +374,7 @@ export const updateDonationPage = async (req, res, next) => {
       filteredWords,
       coverImage,
       backgroundImage,
+      autoApproveSlip,
     } = data;
 
     if (welcomeMessage !== undefined) {
@@ -475,6 +476,9 @@ export const updateDonationPage = async (req, res, next) => {
         : null;
     }
 
+    if (autoApproveSlip !== undefined) {
+      user.donationPage.autoApproveSlip = Boolean(autoApproveSlip);
+    }
 
     await user.save();
 

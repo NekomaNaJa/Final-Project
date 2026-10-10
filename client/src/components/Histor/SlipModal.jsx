@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { X, Check, AlertCircle, FileText, ZoomIn, Maximize2, ExternalLink } from "lucide-react";
+import {
+  X,
+  Check,
+  AlertCircle,
+  FileText,
+  ZoomIn,
+  Maximize2,
+  ExternalLink,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 
 const channelNames = {
   promptpay: "PromptPay (พร้อมเพย์)",
@@ -62,6 +72,11 @@ const SlipModal = ({
         minute: "2-digit",
       })
     : raw.time || "—";
+
+  const transRef = raw.transRef || raw.ocrResult?.transRef;
+  const ocrVerified = Boolean(raw.ocrResult?.verified || transRef);
+  const bankName = raw.ocrResult?.bankName || raw.ocrResult?.bank;
+  const ocrMessage = raw.ocrResult?.message;
 
   return (
     <>
@@ -129,12 +144,58 @@ const SlipModal = ({
             )}
           </div>
 
+          {/* OCR Verification Banner */}
+          {raw.slipImage && (
+            <div
+              className={`mb-4 flex items-center justify-between p-3 rounded-xl border text-xs ${
+                ocrVerified
+                  ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-200"
+                  : "bg-amber-950/30 border-amber-500/25 text-amber-200"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-1.5 rounded-lg ${
+                    ocrVerified
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "bg-amber-500/20 text-amber-400"
+                  }`}
+                >
+                  {ocrVerified ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                </div>
+                <div>
+                  <p className="font-semibold text-white">
+                    {ocrVerified
+                      ? "สลิปผ่านการตรวจสอบอัตโนมัติ (OCR Verified)"
+                      : "รอการตรวจสอบด้วยตนเอง"}
+                  </p>
+                  <p className="text-[11px] opacity-80">
+                    {ocrVerified
+                      ? `เลขอ้างอิง: ${transRef || "—"}${bankName ? ` (${bankName})` : ""}`
+                      : ocrMessage || "ไม่พบ QR Code บนสลิป กรุณาตรวจสอบรูปภาพด้วยตนเอง"}
+                  </p>
+                </div>
+              </div>
+              {ocrVerified && (
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-[10px] font-bold text-emerald-300 border border-emerald-500/40">
+                  ตรวจสอบแล้ว
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Details Grid */}
           <div className="space-y-2.5 rounded-xl bg-white/5 p-4 text-xs">
             <div className="flex justify-between">
               <span className="text-gray-400">ผู้สนับสนุน:</span>
               <span className="font-semibold text-white">{donorName}</span>
             </div>
+            {transRef && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">รหัสอ้างอิง (Ref):</span>
+                <span className="font-mono font-semibold text-purple-300">{transRef}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-400">จำนวนเงิน:</span>
               <span className="font-bold text-purple-400 text-sm">{amount}</span>

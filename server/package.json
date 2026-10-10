@@ -20,7 +20,9 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
+    "jimp": "^1.6.1",
     "jsonwebtoken": "^9.0.3",
+    "jsqr": "^1.4.0",
     "mongoose": "^9.9.4",
     "socket.io": "^4.8.3"
   },
@@ -28,6 +30,7 @@
     "cross-env": "^10.1.0",
     "jest": "^30.5.2",
     "nodemon": "^3.1.14",
+    "qrcode": "^1.5.4",
     "supertest": "^7.3.1"
   }
 }

@@ -332,4 +332,34 @@ describe("HistoryPage", () => {
     fireEvent.click(backdropBtn);
     expect(screen.queryByAltText("สลิปหลักฐานการโอนขนาดเต็ม")).not.toBeInTheDocument();
   });
+
+  test("displays OCR verification banner and transRef in SlipModal when present", () => {
+    const mockDonation = {
+      _id: "don-ocr-01",
+      donorName: "OCR Donor",
+      amount: 500,
+      slipImage: "https://example.com/slip.jpg",
+      status: "approved",
+      transRef: "REF_AUTO_12345",
+      ocrResult: {
+        verified: true,
+        bankName: "ธนาคารกสิกรไทย (KBANK)",
+      },
+    };
+
+    render(
+      <SlipModal
+        isOpen={true}
+        donation={mockDonation}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("สลิปผ่านการตรวจสอบอัตโนมัติ (OCR Verified)")
+    ).toBeInTheDocument();
+    expect(screen.getByText("ตรวจสอบแล้ว")).toBeInTheDocument();
+    expect(screen.getByText("REF_AUTO_12345")).toBeInTheDocument();
+    expect(screen.getByText(/ธนาคารกสิกรไทย/)).toBeInTheDocument();
+  });
 });

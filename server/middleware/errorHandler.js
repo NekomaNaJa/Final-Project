@@ -11,8 +11,11 @@ const errorHandler = (err, req, res, _next) => {
 
   // Mongoose duplicate key error (E11000)
   if (err.code === 11000) {
+    const isTransRef = Boolean(err.keyPattern?.transRef);
     return res.status(400).json({
-      message: "ข้อมูลนี้ถูกใช้งานแล้วในระบบ",
+      message: isTransRef
+        ? "สลิปนี้ถูกใช้งานไปแล้วในระบบ ไม่สามารถใช้ซ้ำได้"
+        : "ข้อมูลนี้ถูกใช้งานแล้วในระบบ",
       data: null,
     });
   }

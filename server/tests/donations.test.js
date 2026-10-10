@@ -2,30 +2,32 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { jest } from "@jest/globals";
+import QRCode from "qrcode";
 import app from "../app.js";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
+import { buildMockEmvQrPayload } from "../utils/slipParser.js";
+
+const validStreamer = {
+  _id: "60c72b2f9b1d8b2bad876543",
+  username: "pro_gamer",
+  isLive: true,
+  donationPage: {
+    minAmount: 15,
+    disableFilter: false,
+    filteredWords: ["คำหยาบ"],
+  },
+  payment: {
+    promptpay: { enabled: true, number: "0812345678" },
+    bank: { enabled: true, accountNumber: "123456" },
+    truemoney: { enabled: false },
+  },
+};
 
 describe("Donation Route (POST /api/donations)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
-  const validStreamer = {
-    _id: "60c72b2f9b1d8b2bad876543",
-    username: "pro_gamer",
-    isLive: true,
-    donationPage: {
-      minAmount: 15,
-      disableFilter: false,
-      filteredWords: ["คำหยาบ"],
-    },
-    payment: {
-      promptpay: { enabled: true, number: "0812345678" },
-      bank: { enabled: true, accountNumber: "123456" },
-      truemoney: { enabled: false },
-    },
-  };
 
   it("should return 400 if required fields are missing or wrong types", async () => {
     const res = await request(app)
@@ -443,6 +445,143 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.status).toBe(200);
       expect(res.body.message).toBe("ปฏิเสธรายการบริจาคสำเร็จ");
       expect(mockDonation.status).toBe("rejected");
+    });
+  });
+
+  describe("Phase 8 OCR Slip Verification & Auto-Approve", () => {
+    it("should auto-approve donation and emit socket alert when valid PromptPay QR slip is submitted", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null); // No duplicate slip found
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+
+      const mockIoEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
+      app.set("io", { to: mockTo });
+
+      const payload = buildMockEmvQrPayload({
+        transRef: "PHASE8_VALID_REF_001",
+        amount: 200,
+        bankCode: "004",
+      });
+      const validSlipDataUri = await QRCode.toDataURL(payload, { width: 350, margin: 2 });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ผู้สนับสนุนใจดี",
+          amount: 200,
+          paymentMethod: "promptpay",
+          slipImage: validSlipDataUri,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.message).toBe("การบริจาคสำเร็จและสลิปผ่านการตรวจสอบอัตโนมัติ");
+      expect(res.body.data.status).toBe("approved");
+      expect(res.body.data.transRef).toBe("PHASE8_VALID_REF_001");
+      expect(res.body.data.ocrResult.verified).toBe(true);
+      expect(res.body.data.ocrResult.bankName).toContain("KBANK");
+
+      expect(mockTo).toHaveBeenCalledWith(`streamer_${validStreamer._id}`);
+      expect(mockIoEmit).toHaveBeenCalledWith(
+        "donation-alert",
+        expect.objectContaining({
+          status: "approved",
+          transRef: "PHASE8_VALID_REF_001",
+        })
+      );
+
+      app.set("io", null);
+    });
+
+    it("should reject donation with 400 when duplicate slip transRef is detected", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      // Mock existing donation with the same transRef
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce({
+        _id: "existing_donation_id",
+        transRef: "DUP_SLIP_REF_999",
+      });
+
+      const payload = buildMockEmvQrPayload({
+        transRef: "DUP_SLIP_REF_999",
+        amount: 100,
+        bankCode: "014",
+      });
+      const dupSlipDataUri = await QRCode.toDataURL(payload, { width: 350, margin: 2 });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 100,
+          paymentMethod: "promptpay",
+          slipImage: dupSlipDataUri,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("สลิปนี้ถูกใช้งานไปแล้ว");
+      expect(res.body.message).toContain("DUP_SLIP_REF_999");
+    });
+
+    it("should reject donation with 400 when slip amount is less than donation amount", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+
+      const payload = buildMockEmvQrPayload({
+        transRef: "MISMATCH_REF_777",
+        amount: 50, // Slip is 50 THB
+        bankCode: "002",
+      });
+      const mismatchSlipDataUri = await QRCode.toDataURL(payload, { width: 350, margin: 2 });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 150, // Claims to donate 150 THB
+          paymentMethod: "promptpay",
+          slipImage: mismatchSlipDataUri,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("ยอดเงินในสลิป (50 บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (150 บาท)");
+    });
+
+    it("should keep status as pending when streamer has disabled autoApproveSlip", async () => {
+      const streamerWithoutAutoApprove = {
+        ...validStreamer,
+        donationPage: {
+          ...validStreamer.donationPage,
+          autoApproveSlip: false,
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(streamerWithoutAutoApprove);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+
+      const payload = buildMockEmvQrPayload({
+        transRef: "MANUAL_REVIEW_REF_123",
+        amount: 100,
+        bankCode: "006",
+      });
+      const slipDataUri = await QRCode.toDataURL(payload, { width: 350, margin: 2 });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 100,
+          paymentMethod: "promptpay",
+          slipImage: slipDataUri,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.message).toBe("สร้างรายการโดเนทสำเร็จ");
+      expect(res.body.data.status).toBe("pending");
+      expect(res.body.data.transRef).toBe("MANUAL_REVIEW_REF_123");
+      expect(res.body.data.ocrResult.verified).toBe(true);
+      expect(res.body.data.ocrResult.message).toContain("รอการยืนยันจากสตรีมเมอร์");
     });
   });
 });

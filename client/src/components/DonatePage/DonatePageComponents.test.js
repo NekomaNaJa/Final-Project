@@ -199,6 +199,26 @@ describe("DonatePage Components & Page", () => {
       const saved = JSON.parse(localStorage.getItem("donix_donate_config"));
       expect(saved.minAmount).toBe(50);
     });
+
+    test("handles toggling autoApproveSlip switch", () => {
+      const handleSave = jest.fn();
+      render(<DecorateSection initialData={{ autoApproveSlip: true }} onSave={handleSave} />);
+
+      const toggleBtn = screen.getByRole("switch");
+      expect(toggleBtn).toHaveAttribute("aria-checked", "true");
+
+      fireEvent.click(toggleBtn);
+      expect(toggleBtn).toHaveAttribute("aria-checked", "false");
+
+      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
+      fireEvent.click(saveBtn);
+
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoApproveSlip: false,
+        })
+      );
+    });
   });
 
   describe("MessageFilterSection", () => {

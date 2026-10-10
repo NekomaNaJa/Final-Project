@@ -22,6 +22,9 @@ const DecorateSection = ({ initialData, onSave }) => {
   const [backgroundImage, setBackgroundImage] = useState(
     initialData?.backgroundImage ?? saved.backgroundImage ?? null
   );
+  const [autoApproveSlip, setAutoApproveSlip] = useState(
+    initialData?.autoApproveSlip ?? (saved.autoApproveSlip !== undefined ? saved.autoApproveSlip : true)
+  );
 
   useEffect(() => {
     if (initialData) {
@@ -40,6 +43,9 @@ const DecorateSection = ({ initialData, onSave }) => {
       if (initialData.backgroundImage !== undefined) {
         setBackgroundImage(initialData.backgroundImage || null);
       }
+      if (initialData.autoApproveSlip !== undefined) {
+        setAutoApproveSlip(Boolean(initialData.autoApproveSlip));
+      }
     }
   }, [initialData]);
 
@@ -54,6 +60,7 @@ const DecorateSection = ({ initialData, onSave }) => {
       minAmount: cleanMin,
       coverImage: typeof coverImage === "string" ? coverImage : null,
       backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
+      autoApproveSlip: Boolean(autoApproveSlip),
     };
     if (onSave) {
       onSave({
@@ -62,6 +69,7 @@ const DecorateSection = ({ initialData, onSave }) => {
         minAmount: cleanMin,
         coverImage: typeof coverImage === "string" ? coverImage : null,
         backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
+        autoApproveSlip: Boolean(autoApproveSlip),
       });
     } else {
       safeSetItem("donix_donate_config", config);
@@ -124,6 +132,34 @@ const DecorateSection = ({ initialData, onSave }) => {
           label="รูปภาพพื้นหลัง"
           onImageSelect={(file) => setBackgroundImage(file)}
         />
+      </div>
+
+      {/* Auto-Approve Slip with OCR Verification */}
+      <div className="flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-white/5">
+        <div className="space-y-0.5 pr-4">
+          <label htmlFor="decorate-auto-approve-slip" className="text-xs font-semibold text-white cursor-pointer">
+            ระบบตรวจสอบสลิปอัตโนมัติ (Auto-Approve OCR)
+          </label>
+          <p className="text-[11px] text-gray-400">
+            สแกน QR Code ตรวจสอบยอดเงิน และป้องกันสลิปซ้ำอัตโนมัติ พร้อมแจ้งเตือน OBS ทันทีเมื่อถูกต้อง
+          </p>
+        </div>
+        <button
+          id="decorate-auto-approve-slip"
+          type="button"
+          role="switch"
+          aria-checked={autoApproveSlip}
+          onClick={() => setAutoApproveSlip(!autoApproveSlip)}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#110d22] ${
+            autoApproveSlip ? "bg-purple-600" : "bg-white/20"
+          }`}
+        >
+          <span
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+              autoApproveSlip ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </button>
       </div>
     </SettingsCard>
   );
