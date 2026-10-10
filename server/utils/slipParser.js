@@ -337,13 +337,22 @@ export const parseSlipText = (text) => {
 export const extractRecipientSection = (slipText) => {
   if (typeof slipText !== "string") return "";
 
-  // ค้นหาส่วนของข้อความหลังคำว่า "ไปยัง", "ถึง", "ผู้รับเงิน", "To" จนถึงหัวข้อถัดไป
+  // 1. ค้นหาส่วนของข้อความหลังคำว่า "ไปยัง", "ถึง", "ผู้รับเงิน", "To" จนถึงหัวข้อถัดไป
   const m = slipText.match(
     /(?:ไปยัง|ถึง|ผู้รับเงิน|ผู้รับโอน|โอนไปยัง|โอนไปที่|to\s*:?)([\s\S]{1,250}?)(?:จำนวนเงิน|ยอดเงิน|วันที่|รหัสอ้างอิง|ค่าธรรมเนียม|amount|date|ref|$)/i
   );
   if (m && m[1]) {
     return m[1];
   }
+
+  // 2. ค้นหาหลังสัญลักษณ์ลูกศร เช่น ↓ ในสลิป Krungsri / KMA
+  const arrowMatch = slipText.match(
+    /(?:[↓▼]|->|-->)([\s\S]{1,250}?)(?:จำนวนเงิน|ยอดเงิน|วันที่|รหัสอ้างอิง|ค่าธรรมเนียม|amount|date|ref|$)/i
+  );
+  if (arrowMatch && arrowMatch[1]) {
+    return arrowMatch[1];
+  }
+
   return slipText;
 };
 
@@ -365,8 +374,14 @@ export const isRecipientNameMatched = (slipText, expectedAccountName) => {
       .replace(/[\s\-_.,/]/g, "")
       .toLowerCase();
 
+  // ตัดสระลอยและวรรณยุกต์ออกเพื่อป้องกันกรณี OCR อ่านตกหล่นไม้การันต์ (ทัณฑฆาต) หรือสระลอย
+  const stripVowels = (str) =>
+    clean(str).replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, "");
+
   const cleanExpected = clean(expectedAccountName);
   if (!cleanExpected || cleanExpected.length < 2) return true;
+
+  const strippedExpected = stripVowels(expectedAccountName);
 
   const parts = expectedAccountName
     .trim()
@@ -374,46 +389,49 @@ export const isRecipientNameMatched = (slipText, expectedAccountName) => {
     .map(clean)
     .filter((p) => p.length >= 2);
 
+  const strippedParts = expectedAccountName
+    .trim()
+    .split(/\s+/)
+    .map(stripVowels)
+    .filter((p) => p.length >= 2);
+
+  const checkTextMatch = (text) => {
+    const c = clean(text);
+    const s = stripVowels(text);
+    if (c.includes(cleanExpected) || s.includes(strippedExpected)) return true;
+    if (
+      parts.length > 0 &&
+      (c.includes(parts[0]) || s.includes(strippedParts[0]))
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   // 1. ลองตัดหาเฉพาะส่วนของผู้รับเงิน (Recipient Section)
   const recipientSection = extractRecipientSection(slipText);
-  const cleanRecipient = clean(recipientSection);
 
   // ถ้าตัดส่วนผู้รับเงินออกมาได้ ให้ตรวจในส่วนผู้รับเงินเป็นหลัก
   if (recipientSection !== slipText) {
-    if (cleanRecipient.includes(cleanExpected)) return true;
-    if (parts.length > 0 && cleanRecipient.includes(parts[0])) return true;
+    if (checkTextMatch(recipientSection)) return true;
     return false;
   }
 
   // 2. หากไม่พบคำว่า "ไปยัง" ให้ระวังกรณีชื่อสตรีมเมอร์อยู่ในส่วน "จาก" (ผู้โอน)
   const fromMatch = slipText.match(
-    /(?:จาก|ผู้โอน|from\s*:?)([\s\S]{1,120}?)(?:ไปยัง|ถึง|to\b|$)/i
+    /(?:จาก|ผู้โอน|from\s*:?)([\s\S]{1,120}?)(?:ไปยัง|ถึง|to|[↓▼]|$)/i
   );
   if (fromMatch && fromMatch[1]) {
-    const cleanFrom = clean(fromMatch[1]);
     const afterFrom = slipText.slice(slipText.indexOf(fromMatch[0]) + fromMatch[0].length);
-    const cleanAfterFrom = clean(afterFrom);
 
     // ถ้าชื่อสตรีมเมอร์อยู่ในส่วน "จาก" แต่ไม่อยู่ในส่วนหลัง "จาก" แสดงว่าเป็นผู้โอน ไม่ใช่ผู้รับ!
-    if (
-      (cleanFrom.includes(cleanExpected) || (parts.length > 0 && cleanFrom.includes(parts[0]))) &&
-      !(cleanAfterFrom.includes(cleanExpected) || (parts.length > 0 && cleanAfterFrom.includes(parts[0])))
-    ) {
+    if (checkTextMatch(fromMatch[1]) && !checkTextMatch(afterFrom)) {
       return false;
     }
   }
 
   // 3. ตรวจสอบในข้อความทั้งหมด
-  const cleanSlip = clean(slipText);
-  if (cleanSlip.includes(cleanExpected)) {
-    return true;
-  }
-
-  if (parts.length > 0 && cleanSlip.includes(parts[0])) {
-    return true;
-  }
-
-  return false;
+  return checkTextMatch(slipText);
 };
 
 /**
