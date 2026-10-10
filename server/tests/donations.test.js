@@ -583,5 +583,32 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.data.ocrResult.verified).toBe(true);
       expect(res.body.data.ocrResult.message).toContain("รอการยืนยันจากสตรีมเมอร์");
     });
+
+    it("should keep status as pending with unverified ocrResult when slip image cannot be decoded as QR", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+
+      // 1x1 blank PNG data URI that has no QR code
+      const blankImageUri =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ผู้โอนธรรมดา",
+          amount: 50,
+          paymentMethod: "promptpay",
+          slipImage: blankImageUri,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.message).toBe("สร้างรายการโดเนทสำเร็จ");
+      expect(res.body.data.status).toBe("pending");
+      expect(res.body.data.transRef).toBeNull();
+      expect(res.body.data.ocrResult.verified).toBe(false);
+      expect(res.body.data.ocrResult.method).toBe("none");
+      expect(res.body.data.ocrResult.message).toContain("ไม่พบ QR Code บนสลิป");
+    });
   });
 });

@@ -75,6 +75,26 @@ describe("Thai Bank Slip & QR Parser Utility (Phase 8 OCR)", () => {
       expect(res.rawPayload).toBe(payload);
     });
 
+    it("should parse EMVCo QR when sub01 prefix is not a bank code and sub02 is bank code", () => {
+      const payload = "00020130200109REF1234560203004540510.006304ABCD";
+      const res = parseThaiSlipQr(payload);
+
+      expect(res.success).toBe(true);
+      expect(res.transRef).toBe("REF123456");
+      expect(res.bankCode).toBe("004");
+      expect(res.bankName).toContain("KBANK");
+      expect(res.amount).toBe(10);
+    });
+
+    it("should parse EMVCo QR when sub01 is shorter than 6 characters", () => {
+      const payload = "00020130070103ABC540510.006304ABCD";
+      const res = parseThaiSlipQr(payload);
+
+      expect(res.success).toBe(true);
+      expect(res.transRef).toBe("ABC");
+      expect(res.amount).toBe(10);
+    });
+
     it("should parse JSON payload correctly", () => {
       const jsonPayload = JSON.stringify({
         transRef: "TXN1234567890",

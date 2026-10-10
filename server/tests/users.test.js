@@ -738,6 +738,29 @@ describe("Users Route", () => {
       expect(mockDoc.save).toHaveBeenCalled();
     });
 
+    it("should update autoApproveSlip setting when provided", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = {
+        donationPage: {
+          autoApproveSlip: true,
+        },
+        save: jest.fn().mockResolvedValue(true),
+      };
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(mockDoc);
+
+      const res = await request(app)
+        .put("/api/users/donation-page")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          autoApproveSlip: false,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("อัปเดตการตั้งค่าหน้ารับเงินสำเร็จ");
+      expect(res.body.data.autoApproveSlip).toBe(false);
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
     it("should forward server error to errorHandler on database failure", async () => {
       const token = jwt.sign({ userId: "mockId123" }, secret);
       jest.spyOn(User, "findOne").mockRejectedValueOnce(new Error("Database failure"));
