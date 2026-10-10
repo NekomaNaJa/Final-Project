@@ -283,7 +283,10 @@ const DonorPage = () => {
         />
 
         {/* Donation Main Card */}
-        <div className="w-full rounded-2xl border border-[#2b2542] bg-[#16122a]/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
+        <div
+          key={`donor-card-${resetKey}`}
+          className="w-full rounded-2xl border border-[#2b2542] bg-[#16122a]/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6"
+        >
             {/* Error Feedback Banner */}
             {errorFeedback && (
               <div
