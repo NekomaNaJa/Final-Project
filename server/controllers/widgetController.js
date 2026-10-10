@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 import Widget from "../Models/Widget.js";
+import Donation from "../Models/Donation.js";
 
 /**
  * ดึงข้อมูลการตั้งค่าวิดเจ็ตของผู้ใช้ปัจจุบัน (GET /api/widgets/me)
  * หากยังไม่มีข้อมูลใน DB จะสร้างค่าเริ่มต้นให้อัตโนมัติ
+ * และคำนวณยอด goal.current จากยอดบริจาคจริง (เฉพาะสถานะ approved)
  */
 export const getMyWidget = async (req, res, next) => {
   try {
@@ -24,9 +26,43 @@ export const getMyWidget = async (req, res, next) => {
       await widget.save();
     }
 
+    const widgetData =
+      typeof widget.toObject === "function" ? widget.toObject() : { ...widget };
+
+    // คำนวณยอดสะสมของ Goal จาก Donation Aggregation (เฉพาะสถานะ approved)
+    try {
+      const goalFilter = { streamerId: safeUserId, status: "approved" };
+      if (widgetData.goal?.startDate) {
+        const start = new Date(widgetData.goal.startDate);
+        if (!Number.isNaN(start.getTime())) {
+          goalFilter.createdAt = { ...goalFilter.createdAt, $gte: start };
+        }
+      }
+      if (widgetData.goal?.endDate) {
+        const end = new Date(widgetData.goal.endDate);
+        if (!Number.isNaN(end.getTime())) {
+          end.setHours(23, 59, 59, 999);
+          goalFilter.createdAt = { ...goalFilter.createdAt, $lte: end };
+        }
+      }
+
+      const goalAgg = await Donation.aggregate([
+        { $match: goalFilter },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]);
+
+      const goalCurrent = goalAgg[0]?.total || 0;
+      widgetData.goal = {
+        ...widgetData.goal,
+        current: goalCurrent,
+      };
+    } catch {
+      // หาก aggregation ไม่พร้อม ให้ใช้ค่าเดิมของ goal
+    }
+
     return res.status(200).json({
       message: "ดึงข้อมูลการตั้งค่าวิดเจ็ตสำเร็จ",
-      data: widget,
+      data: widgetData,
     });
   } catch (err) {
     next(err);
@@ -68,7 +104,8 @@ export const updateMyWidget = async (req, res, next) => {
     }
 
     if (goal && typeof goal === "object" && !Array.isArray(goal)) {
-      widget.goal = { ...widget.goal.toObject(), ...goal };
+      const { current: _ignoreCurrent, ...goalFields } = goal;
+      widget.goal = { ...widget.goal.toObject(), ...goalFields };
     }
 
     if (leaderboard && typeof leaderboard === "object" && !Array.isArray(leaderboard)) {
@@ -85,9 +122,42 @@ export const updateMyWidget = async (req, res, next) => {
 
     await widget.save();
 
+    const widgetData =
+      typeof widget.toObject === "function" ? widget.toObject() : { ...widget };
+
+    try {
+      const goalFilter = { streamerId: safeUserId, status: "approved" };
+      if (widgetData.goal?.startDate) {
+        const start = new Date(widgetData.goal.startDate);
+        if (!Number.isNaN(start.getTime())) {
+          goalFilter.createdAt = { ...goalFilter.createdAt, $gte: start };
+        }
+      }
+      if (widgetData.goal?.endDate) {
+        const end = new Date(widgetData.goal.endDate);
+        if (!Number.isNaN(end.getTime())) {
+          end.setHours(23, 59, 59, 999);
+          goalFilter.createdAt = { ...goalFilter.createdAt, $lte: end };
+        }
+      }
+
+      const goalAgg = await Donation.aggregate([
+        { $match: goalFilter },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]);
+
+      const goalCurrent = goalAgg[0]?.total || 0;
+      widgetData.goal = {
+        ...widgetData.goal,
+        current: goalCurrent,
+      };
+    } catch {
+      // หาก aggregation ไม่พร้อม ให้ใช้ค่าเดิมของ goal
+    }
+
     return res.status(200).json({
       message: "บันทึกการตั้งค่าวิดเจ็ตสำเร็จ",
-      data: widget,
+      data: widgetData,
     });
   } catch (err) {
     next(err);

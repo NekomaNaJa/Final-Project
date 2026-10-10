@@ -143,7 +143,7 @@ export const DEFAULT_WIDGET_CONFIG = {
     title: "เป้าหมายพัฒนาสตรีม",
     theme: "mana",
     target: 10000,
-    current: 3500,
+    current: 0,
     startDate: "2026-09-01",
     endDate: "2026-09-30",
   },

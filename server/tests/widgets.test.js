@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { jest } from "@jest/globals";
 import app from "../app.js";
 import Widget from "../Models/Widget.js";
+import Donation from "../Models/Donation.js";
 
 describe("Widget Routes (/api/widgets)", () => {
   const mockUserId = "60c72b2f9b1d8b2bad876543";
@@ -11,6 +12,9 @@ describe("Widget Routes (/api/widgets)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest
+      .spyOn(Donation, "aggregate")
+      .mockResolvedValue([{ _id: null, total: 0 }]);
   });
 
   describe("GET /api/widgets/me", () => {
@@ -58,6 +62,36 @@ describe("Widget Routes (/api/widgets)", () => {
       expect(res.body.message).toBe("ดึงข้อมูลการตั้งค่าวิดเจ็ตสำเร็จ");
       expect(res.body.data).toBeDefined();
       expect(mockSave).toHaveBeenCalled();
+    });
+
+    it("should calculate goal.current dynamically from approved donations", async () => {
+      const mockWidget = {
+        _id: "60c72b2f9b1d8b2bad876999",
+        userId: mockUserId,
+        token: "test-widget-token-123",
+        alert: { minAmount: 20 },
+        goal: {
+          title: "เป้าหมายใหม่",
+          target: 5000,
+          current: 0,
+          startDate: "2026-09-01",
+          endDate: "2026-09-30",
+        },
+        leaderboard: {},
+        mission: {},
+      };
+
+      jest.spyOn(Widget, "findOne").mockResolvedValueOnce(mockWidget);
+      jest
+        .spyOn(Donation, "aggregate")
+        .mockResolvedValueOnce([{ _id: null, total: 3500 }]);
+
+      const res = await request(app)
+        .get("/api/widgets/me")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.goal.current).toBe(3500);
     });
 
     it("should handle server errors gracefully", async () => {
