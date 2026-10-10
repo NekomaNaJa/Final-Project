@@ -148,16 +148,7 @@ export const verifySlipImage = async (slipImage, expectedAmount, options = {}) =
   if (shouldRunOcr) {
     try {
       const worker = await getTesseractWorker();
-      let ocrBuffer = buffer;
-      if (image?.bitmap && (image.bitmap.width > 1200 || image.bitmap.height > 1200)) {
-        try {
-          const ocrImage = image.clone().resize({ w: Math.min(1000, image.bitmap.width) });
-          ocrBuffer = await ocrImage.getBuffer("image/png");
-        } catch {
-          ocrBuffer = buffer;
-        }
-      }
-      const ocrResult = await worker.recognize(ocrBuffer);
+      const ocrResult = await worker.recognize(buffer);
       rawText = ocrResult?.data?.text || "";
     } catch (err) {
       console.warn("Tesseract OCR recognition warning:", err.message);

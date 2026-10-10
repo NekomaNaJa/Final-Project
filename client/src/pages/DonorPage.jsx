@@ -16,57 +16,7 @@ const fileToBase64 = (file) => {
       return;
     }
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result;
-      if (
-        process.env.NODE_ENV === "test" ||
-        typeof window === "undefined" ||
-        typeof Image === "undefined" ||
-        typeof document === "undefined" ||
-        typeof dataUrl !== "string"
-      ) {
-        resolve(dataUrl);
-        return;
-      }
-      try {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const maxDim = 1200;
-            if (img.width <= maxDim && img.height <= maxDim) {
-              resolve(dataUrl);
-              return;
-            }
-            const canvas = document.createElement("canvas");
-            let w = img.width;
-            let h = img.height;
-            if (w > h) {
-              h = Math.round((h * maxDim) / w);
-              w = maxDim;
-            } else {
-              h = Math.round((w * maxDim) / h);
-              h = maxDim;
-            }
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              resolve(dataUrl);
-              return;
-            }
-            ctx.drawImage(img, 0, 0, w, h);
-            const compressed = canvas.toDataURL("image/jpeg", 0.85);
-            resolve(compressed || dataUrl);
-          } catch {
-            resolve(dataUrl);
-          }
-        };
-        img.onerror = () => resolve(dataUrl);
-        img.src = dataUrl;
-      } catch {
-        resolve(dataUrl);
-      }
-    };
+    reader.onloadend = () => resolve(reader.result);
     reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
