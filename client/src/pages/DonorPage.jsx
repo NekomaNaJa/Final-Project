@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, AlertCircle, Loader2, Lock } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
@@ -131,6 +131,7 @@ const DonorPage = () => {
   const [selectedMission, setSelectedMission] = useState(null);
   const [presetAmount, setPresetAmount] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [submittedDonation, setSubmittedDonation] = useState(null);
   const [errorFeedback, setErrorFeedback] = useState(null);
   const [streamerNotFound, setStreamerNotFound] = useState(false);
@@ -223,6 +224,10 @@ const DonorPage = () => {
   const isChannelEnabled = streamerConfig.payment[activeTab]?.enabled;
 
   const handleDonationSubmit = async (donationData) => {
+    if (isSubmittingRef.current || isSubmitting) {
+      return;
+    }
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setErrorFeedback(null);
 
@@ -235,6 +240,7 @@ const DonorPage = () => {
 
     if (!isBank && (numericAmount === null || Number.isNaN(numericAmount) || numericAmount < min)) {
       setErrorFeedback(`จำนวนเงินต้องไม่ต่ำกว่า ${min} บาท`);
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
       return;
     }
@@ -270,11 +276,13 @@ const DonorPage = () => {
     } catch (err) {
       setErrorFeedback(err?.message || "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
   const handleCloseModal = () => {
+    isSubmittingRef.current = false;
     setSubmittedDonation(null);
     setMessage("");
     setDonorName("Anonymous");

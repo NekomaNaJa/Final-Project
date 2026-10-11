@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Landmark, Copy, Check } from "lucide-react";
 import DonorSlipUpload from "./DonorSlipUpload";
 
@@ -13,6 +13,13 @@ const DonorBankForm = ({
 }) => {
   const [slipFile, setSlipFile] = useState(null);
   const [copied, setCopied] = useState(false);
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      isSubmittingRef.current = false;
+    }
+  }, [isSubmitting]);
 
   const handleCopy = async () => {
     try {
@@ -28,10 +35,14 @@ const DonorBankForm = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting || isSubmittingRef.current) {
+      return;
+    }
     if (!slipFile) {
       alert("กรุณาแนบรูปภาพสลิปการโอนเงินเพื่อยืนยัน");
       return;
     }
+    isSubmittingRef.current = true;
     if (onSubmit) {
       onSubmit({ slipFile, method: "bank" });
     }
@@ -135,7 +146,9 @@ const DonorBankForm = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold text-white bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] shadow-[0_0_24px_rgba(139,92,246,0.45)] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+          className={`w-full py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold text-white bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] shadow-[0_0_24px_rgba(139,92,246,0.45)] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer ${
+            isSubmitting ? "pointer-events-none opacity-60 cursor-not-allowed" : ""
+          }`}
         >
           {isSubmitting ? "กำลังดำเนินการ..." : "ยืนยันการชำระเงิน"}
         </button>
