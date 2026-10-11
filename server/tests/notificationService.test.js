@@ -70,6 +70,7 @@ describe("Notification Service", () => {
         host: "smtp.example.com",
         port: 587,
         secure: false,
+        requireTLS: true,
         auth: { user: "noreply@example.com", pass: "smtp-pass" },
       });
       expect(mockSendMail).toHaveBeenCalledWith(
@@ -133,6 +134,7 @@ describe("Notification Service", () => {
       expect(result).toEqual({ success: true, simulated: false });
       expect(mockCreateTransport).toHaveBeenCalledWith({
         service: "gmail",
+        requireTLS: true,
         auth: { user: "bot@gmail.com", pass: "gmail-app-pass" },
       });
       expect(mockSendMail).toHaveBeenCalledWith(

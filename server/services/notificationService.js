@@ -4,12 +4,23 @@ import nodemailer from "nodemailer";
  * บริการส่งอีเมลและ SMS สำหรับรหัส OTP (Email via Nodemailer / SMS via Twilio)
  */
 
+const maskAddress = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length <= 4) return "****";
+  return `${text.slice(0, 2)}***${text.slice(-2)}`;
+};
+
+const stripNewlines = (value) => String(value || "").replace(/[\r\n]+/g, " ");
+
 const getEmailTransporter = () => {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const smtpPort = Number(process.env.SMTP_PORT) || 587;
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      requireTLS: smtpPort !== 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -20,6 +31,7 @@ const getEmailTransporter = () => {
   if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
     return nodemailer.createTransport({
       service: "gmail",
+      requireTLS: true,
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_PASS,
@@ -70,15 +82,15 @@ export const sendEmailOtp = async (email, otp, purpose) => {
       });
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Email Service Error]:", err?.message || err);
-      // Fallback: log for debugging
-      console.log(`[Email OTP Log fallback]: OTP for ${safeEmail} is ${safeOtp}`);
+      console.error("[Email Service Error]:", stripNewlines(err?.message));
+      // Fallback: log masked recipient only (no OTP)
+      console.log(`[Email OTP Log fallback]: Simulated OTP email to ${maskAddress(safeEmail)}`);
       return { success: true, simulated: true, error: err?.message };
     }
   }
 
   // Dev / Testing mode simulation
-  console.log(`[Email OTP Simulated]: Send OTP ${safeOtp} to ${safeEmail} (${purpose})`);
+  console.log(`[Email OTP Simulated]: Simulated OTP email to ${maskAddress(safeEmail)} (${purpose})`);
   return { success: true, simulated: true };
 };
 
@@ -121,20 +133,20 @@ export const sendSmsOtp = async (phone, otp, purpose) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("[Twilio SMS Error]:", errorData);
-        console.log(`[Twilio SMS Fallback Log]: OTP for ${e164Phone} is ${safeOtp}`);
+        console.error("[Twilio SMS Error]:", stripNewlines(errorData?.message));
+        console.log(`[Twilio SMS Fallback Log]: Simulated OTP SMS to ${maskAddress(e164Phone)}`);
         return { success: true, simulated: true, error: errorData.message };
       }
 
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Twilio Fetch Error]:", err?.message || err);
-      console.log(`[SMS OTP Fallback Log]: OTP for ${e164Phone} is ${safeOtp}`);
+      console.error("[Twilio Fetch Error]:", stripNewlines(err?.message));
+      console.log(`[SMS OTP Fallback Log]: Simulated OTP SMS to ${maskAddress(e164Phone)}`);
       return { success: true, simulated: true, error: err?.message };
     }
   }
 
   // Dev / Testing mode simulation
-  console.log(`[SMS OTP Simulated]: Send OTP ${safeOtp} to ${e164Phone} (${purpose})`);
+  console.log(`[SMS OTP Simulated]: Simulated OTP SMS to ${maskAddress(e164Phone)} (${purpose})`);
   return { success: true, simulated: true };
 };
