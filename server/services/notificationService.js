@@ -11,7 +11,10 @@ const maskAddress = (value) => {
   return `${text.slice(0, 2)}***${text.slice(-2)}`;
 };
 
-const stripNewlines = (value) => String(value || "").replace(/[\r\n]+/g, " ");
+// Escape control characters and terminal escape sequences before writing untrusted values to logs.
+const sanitizeLogValue = (value) => String(value ?? "")
+  .replace(/[\x00-\x1f\x7f-\x9f]/g, " ")
+  .slice(0, 500);
 
 const getEmailTransporter = () => {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -82,20 +85,20 @@ export const sendEmailOtp = async (email, otp, purpose) => {
       });
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Email Service Error]:", stripNewlines(err?.message));
+      console.error("[Email Service Error]:", sanitizeLogValue(err?.message));
       // Fallback: log masked recipient only (no OTP)
-      console.log(`[Email OTP Log fallback]: Simulated OTP email to ${maskAddress(safeEmail)}`);
+      console.log(`[Email OTP Log fallback]: Simulated OTP email to ${sanitizeLogValue(maskAddress(safeEmail))}`);
       return { success: true, simulated: true, error: err?.message };
     }
   }
 
   // Dev / Testing mode simulation
-  console.log(`[Email OTP Simulated]: Simulated OTP email to ${maskAddress(safeEmail)} (${purpose})`);
+  console.log(`[Email OTP Simulated]: Simulated OTP email to ${sanitizeLogValue(maskAddress(safeEmail))} (${sanitizeLogValue(purpose)})`);
   return { success: true, simulated: true };
 };
 
 export const sendSmsOtp = async (phone, otp, purpose) => {
-  const safePhone = String(phone).trim().replace(/[^0-9]/g, "");
+  const safePhone = String(phone).trim().replace(/\D/g, "");
   const safeOtp = String(otp).trim();
 
   // Convert Thai phone (e.g. 0812345678) to international E.164 (+66812345678)
@@ -133,20 +136,20 @@ export const sendSmsOtp = async (phone, otp, purpose) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("[Twilio SMS Error]:", stripNewlines(errorData?.message));
-        console.log(`[Twilio SMS Fallback Log]: Simulated OTP SMS to ${maskAddress(e164Phone)}`);
+        console.error("[Twilio SMS Error]:", sanitizeLogValue(errorData?.message));
+        console.log(`[Twilio SMS Fallback Log]: Simulated OTP SMS to ${sanitizeLogValue(maskAddress(e164Phone))}`);
         return { success: true, simulated: true, error: errorData.message };
       }
 
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Twilio Fetch Error]:", stripNewlines(err?.message));
-      console.log(`[SMS OTP Fallback Log]: Simulated OTP SMS to ${maskAddress(e164Phone)}`);
+      console.error("[Twilio Fetch Error]:", sanitizeLogValue(err?.message));
+      console.log(`[SMS OTP Fallback Log]: Simulated OTP SMS to ${sanitizeLogValue(maskAddress(e164Phone))}`);
       return { success: true, simulated: true, error: err?.message };
     }
   }
 
   // Dev / Testing mode simulation
-  console.log(`[SMS OTP Simulated]: Simulated OTP SMS to ${maskAddress(e164Phone)} (${purpose})`);
+  console.log(`[SMS OTP Simulated]: Simulated OTP SMS to ${sanitizeLogValue(maskAddress(e164Phone))} (${sanitizeLogValue(purpose)})`);
   return { success: true, simulated: true };
 };

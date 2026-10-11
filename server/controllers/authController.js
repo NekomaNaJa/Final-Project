@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../Models/User.js";
@@ -20,7 +20,7 @@ const maskTarget = (target, type) => {
     const maskedLocal = local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : `${local[0]}***`;
     return `${maskedLocal}@${domain}`;
   }
-  const cleaned = target.replace(/[^0-9]/g, "");
+  const cleaned = target.replace(/\D/g, "");
   if (cleaned.length >= 9) {
     return `${cleaned.slice(0, 3)}-***-${cleaned.slice(-4)}`;
   }
@@ -343,7 +343,7 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
       });
     }
 
-    const cleanPhone = safeIdentifier.replace(/[^0-9]/g, "");
+    const cleanPhone = safeIdentifier.replace(/\D/g, "");
 
     const user = await User.findOne({
       $or: [
@@ -467,7 +467,7 @@ export const forgotPasswordVerifyOtp = async (req, res, next) => {
       });
     }
 
-    const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
+    const cleanPhone = safeTarget.replace(/\D/g, "");
     const user = await User.findOne({
       $or: [
         { email: { $eq: safeTarget.toLowerCase() } },

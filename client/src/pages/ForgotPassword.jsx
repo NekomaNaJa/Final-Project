@@ -228,7 +228,7 @@ const ForgotPassword = () => {
               type="text"
               maxLength={6}
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
               placeholder="123456"
               className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-3 text-center text-2xl font-bold tracking-[8px] text-purple-300 placeholder-[#5c556f] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all font-mono"
             />

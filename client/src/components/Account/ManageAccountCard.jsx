@@ -52,7 +52,8 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
   const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
     if (!inputValue.trim()) {
-      return setError(modalType === "email" ? "กรุณากรอกอีเมล" : "กรุณากรอกเบอร์โทรศัพท์");
+      setError(modalType === "email" ? "กรุณากรอกอีเมล" : "กรุณากรอกเบอร์โทรศัพท์");
+      return;
     }
 
     setLoading(true);
@@ -78,7 +79,8 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (!otpValue.trim() || otpValue.trim().length !== 6) {
-      return setError("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
+      setError("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
+      return;
     }
 
     setLoading(true);
@@ -101,6 +103,19 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderConnectionAction = (row) => {
+    if (row.connected) {
+      return <>
+        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-400">ยืนยันแล้ว</span>
+        {row.canManage && <button type="button" onClick={() => openModal(row.key)} title="แก้ไขข้อมูล" className="text-gray-400 hover:text-purple-300 p-1 transition-colors"><Pencil size={13} /></button>}
+      </>;
+    }
+    if (row.canManage) {
+      return <button type="button" onClick={() => openModal(row.key)} className="rounded-lg bg-purple-600/20 border border-purple-500/30 px-3 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-600 hover:text-white transition-all">คลิกเพื่อเชื่อมต่อ</button>;
+    }
+    return <span className="text-[11px] font-medium text-[#5c556f]">ยังไม่รองรับ</span>;
   };
 
   const rows = [
@@ -172,35 +187,7 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {row.connected ? (
-                <>
-                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-400">
-                    ยืนยันแล้ว
-                  </span>
-                  {row.canManage && (
-                    <button
-                      type="button"
-                      onClick={() => openModal(row.key)}
-                      title="แก้ไขข้อมูล"
-                      className="text-gray-400 hover:text-purple-300 p-1 transition-colors"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
-                </>
-              ) : row.canManage ? (
-                <button
-                  type="button"
-                  onClick={() => openModal(row.key)}
-                  className="rounded-lg bg-purple-600/20 border border-purple-500/30 px-3 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-600 hover:text-white transition-all"
-                >
-                  คลิกเพื่อเชื่อมต่อ
-                </button>
-              ) : (
-                <span className="text-[11px] font-medium text-[#5c556f]">
-                  ยังไม่รองรับ
-                </span>
-              )}
+              {renderConnectionAction(row)}
             </div>
           </div>
         ))}
@@ -288,7 +275,7 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
                     type="text"
                     maxLength={6}
                     value={otpValue}
-                    onChange={(e) => setOtpValue(e.target.value.replace(/[^0-9]/g, ""))}
+                    onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
                     placeholder="123456"
                     className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 text-center text-xl font-bold tracking-[6px] text-purple-300 placeholder-[#5c556f] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all font-mono"
                   />
