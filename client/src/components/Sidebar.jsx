@@ -6,7 +6,6 @@ import {
   Image,
   Sparkles,
   History,
-  Settings,
   LogOut,
 } from "lucide-react";
 import DonixLogo from "../assets/PrimaryLogo.png";
@@ -94,7 +93,6 @@ const Sidebar = ({ onLogout }) => {
       </div>
 
       <div className="mt-auto space-y-1">
-        <SidebarItem icon={Settings} label="ตั้งค่า" to="/settings" />
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
