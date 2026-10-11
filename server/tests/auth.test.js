@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import app from "../app.js";
 import User from "../Models/User.js";
 import Otp from "../Models/Otp.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 describe("Auth Controller & Routes", () => {
   beforeEach(() => {
@@ -646,7 +647,7 @@ describe("Auth Controller & Routes", () => {
       });
 
       it("should return 400 if new password does not meet complexity requirements", async () => {
-        const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+        const secret = getJwtSecret();
         const validToken = jwt.sign(
           { userId: "u123", purpose: "password_reset" },
           secret,
@@ -662,7 +663,7 @@ describe("Auth Controller & Routes", () => {
       });
 
       it("should successfully reset password", async () => {
-        const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+        const secret = getJwtSecret();
         const validToken = jwt.sign(
           { userId: "u123", purpose: "password_reset" },
           secret,

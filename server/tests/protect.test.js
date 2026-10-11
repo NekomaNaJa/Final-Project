@@ -1,9 +1,10 @@
 import { jest } from "@jest/globals";
 import jwt from "jsonwebtoken";
 import protect from "../middleware/protect.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 describe("Protect Middleware", () => {
-  const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+  const secret = getJwtSecret();
   let req;
   let res;
   let next;

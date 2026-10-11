@@ -9,6 +9,7 @@ import Donation from "../Models/Donation.js";
 import Widget from "../Models/Widget.js";
 import { buildMockEmvQrPayload } from "../utils/slipParser.js";
 import slipVerificationService, { terminateOcrWorker } from "../services/slipVerificationService.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 const validStreamer = {
   _id: "60c72b2f9b1d8b2bad876543",
@@ -181,7 +182,7 @@ describe("Donations Routes (Analytics & Management)", () => {
   const otherUserId = new mongoose.Types.ObjectId();
   const mockDonationId = new mongoose.Types.ObjectId();
 
-  const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+  const secret = getJwtSecret();
   const token = jwt.sign(
     { userId: mockUserId.toString(), email: "streamer@donix.app", username: "streamer" },
     secret

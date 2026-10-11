@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 export const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -13,7 +14,7 @@ export const protect = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const secret = getJwtSecret();
     const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();

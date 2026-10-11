@@ -5,9 +5,10 @@ import bcrypt from "bcryptjs";
 import app from "../app.js";
 import User from "../Models/User.js";
 import Otp from "../Models/Otp.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 describe("Users Route", () => {
-  const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+  const secret = getJwtSecret();
 
   beforeEach(() => {
     jest.clearAllMocks();

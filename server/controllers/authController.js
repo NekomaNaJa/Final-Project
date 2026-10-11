@@ -8,6 +8,7 @@ import {
   isPasswordValid,
   getPasswordError,
 } from "../utils/passwordValidation.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
@@ -94,7 +95,7 @@ export const register = async (req, res, next) => {
     });
     await user.save();
 
-    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const secret = getJwtSecret();
     const token = jwt.sign(
       { userId: user._id, username: user.username },
       secret,
@@ -157,7 +158,7 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const secret = getJwtSecret();
     const token = jwt.sign(
       { userId: user._id, username: user.username },
       secret,
@@ -294,7 +295,7 @@ export const googleAuth = async (req, res, next) => {
       await user.save();
     }
 
-    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const secret = getJwtSecret();
     const token = jwt.sign(
       { userId: user._id, username: user.username },
       secret,
@@ -483,7 +484,7 @@ export const forgotPasswordVerifyOtp = async (req, res, next) => {
 
     await Otp.deleteOne({ _id: otpRecord._id });
 
-    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const secret = getJwtSecret();
     const resetToken = jwt.sign(
       { userId: user._id, purpose: "password_reset" },
       secret,
@@ -512,7 +513,7 @@ export const forgotPasswordReset = async (req, res, next) => {
       });
     }
 
-    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const secret = getJwtSecret();
     let decoded;
     try {
       decoded = jwt.verify(resetToken, secret);
