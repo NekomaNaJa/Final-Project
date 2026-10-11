@@ -156,7 +156,10 @@ const Account = () => {
             {/* Profile Overview */}
             <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
               <AccountProfileCard user={user} onSave={handleSaveProfile} />
-              <ManageAccountCard user={user} />
+              <ManageAccountCard
+                user={user}
+                onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+              />
             </div>
 
             {/* Tabs */}

@@ -17,6 +17,11 @@ import {
   saveWidgetSettings,
   loginWithGoogle,
   fetchPublicOverlayConfig,
+  sendForgotPasswordOtp,
+  verifyForgotPasswordOtp,
+  resetForgotPassword,
+  sendLinkOtp,
+  verifyLinkOtp,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -612,5 +617,213 @@ describe("API utility functions", () => {
     });
 
     await expect(fetchPublicOverlayConfig("goal", "wrong")).rejects.toThrow("Not found");
+  });
+
+  test("sendForgotPasswordOtp sends POST to forgot-password/send-otp and returns data", async () => {
+    const mockResp = { target: "test@example.com", maskedTarget: "t***@example.com" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "ส่ง OTP สำเร็จ", data: mockResp }),
+    });
+
+    const payload = { identifier: "test@example.com", channel: "email" };
+    const result = await sendForgotPasswordOtp(payload);
+
+    expect(result).toEqual(mockResp);
+    expect(global.fetch).toHaveBeenCalledWith(API.forgotPasswordSendOtp, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("sendForgotPasswordOtp throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "ไม่พบบัญชีผู้ใช้ในระบบ" }),
+    });
+
+    await expect(
+      sendForgotPasswordOtp({ identifier: "unknown", channel: "email" })
+    ).rejects.toThrow("ไม่พบบัญชีผู้ใช้ในระบบ");
+  });
+
+  test("sendForgotPasswordOtp throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(
+      sendForgotPasswordOtp({ identifier: "unknown", channel: "email" })
+    ).rejects.toThrow("ไม่สามารถส่งรหัส OTP ได้");
+  });
+
+  test("verifyForgotPasswordOtp sends POST to verify-otp and returns resetToken", async () => {
+    const mockResp = { resetToken: "mock_reset_jwt" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "ยืนยัน OTP สำเร็จ", data: mockResp }),
+    });
+
+    const payload = { target: "test@example.com", otp: "123456" };
+    const result = await verifyForgotPasswordOtp(payload);
+
+    expect(result).toEqual(mockResp);
+    expect(global.fetch).toHaveBeenCalledWith(API.forgotPasswordVerifyOtp, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("verifyForgotPasswordOtp throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "รหัส OTP ไม่ถูกต้อง" }),
+    });
+
+    await expect(
+      verifyForgotPasswordOtp({ target: "test@example.com", otp: "000000" })
+    ).rejects.toThrow("รหัส OTP ไม่ถูกต้อง");
+  });
+
+  test("verifyForgotPasswordOtp throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(
+      verifyForgotPasswordOtp({ target: "test@example.com", otp: "000000" })
+    ).rejects.toThrow("รหัส OTP ไม่ถูกต้อง");
+  });
+
+  test("resetForgotPassword sends POST to reset endpoint and returns full json", async () => {
+    const mockResp = { message: "ตั้งรหัสผ่านใหม่สำเร็จแล้ว", data: null };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockResp,
+    });
+
+    const payload = { resetToken: "mock_reset_jwt", newPassword: "NewPass123!" };
+    const result = await resetForgotPassword(payload);
+
+    expect(result).toEqual(mockResp);
+    expect(global.fetch).toHaveBeenCalledWith(API.forgotPasswordReset, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("resetForgotPassword throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "โทเค็นไม่ถูกต้อง" }),
+    });
+
+    await expect(
+      resetForgotPassword({ resetToken: "bad", newPassword: "NewPass123!" })
+    ).rejects.toThrow("โทเค็นไม่ถูกต้อง");
+  });
+
+  test("resetForgotPassword throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(
+      resetForgotPassword({ resetToken: "bad", newPassword: "NewPass123!" })
+    ).rejects.toThrow("ไม่สามารถรีเซ็ตรหัสผ่านได้");
+  });
+
+  test("sendLinkOtp sends authorized POST to link-otp/send", async () => {
+    const mockResp = { target: "test@example.com", type: "email" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "ส่ง OTP สำเร็จ", data: mockResp }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const payload = { target: "test@example.com", type: "email" };
+    const result = await sendLinkOtp(payload);
+
+    expect(result).toEqual(mockResp);
+    expect(global.fetch).toHaveBeenCalledWith(API.linkOtpSend, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("sendLinkOtp throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "รูปแบบอีเมลไม่ถูกต้อง" }),
+    });
+
+    await expect(
+      sendLinkOtp({ target: "bad", type: "email" })
+    ).rejects.toThrow("รูปแบบอีเมลไม่ถูกต้อง");
+  });
+
+  test("sendLinkOtp throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(sendLinkOtp({ target: "bad", type: "email" })).rejects.toThrow(
+      "ไม่สามารถส่งรหัส OTP ได้"
+    );
+  });
+
+  test("verifyLinkOtp sends authorized POST to link-otp/verify and returns user data", async () => {
+    const mockUser = { email: "test@example.com", isEmailVerified: true };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "เชื่อมต่อสำเร็จ", data: mockUser }),
+    });
+
+    localStorage.setItem("token", "valid-token");
+    const payload = { target: "test@example.com", type: "email", otp: "123456" };
+    const result = await verifyLinkOtp(payload);
+
+    expect(result).toEqual(mockUser);
+    expect(global.fetch).toHaveBeenCalledWith(API.linkOtpVerify, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer valid-token",
+      },
+      body: JSON.stringify(payload),
+    });
+  });
+
+  test("verifyLinkOtp throws error when response is not ok", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "ยืนยันรหัส OTP ไม่สำเร็จ" }),
+    });
+
+    await expect(
+      verifyLinkOtp({ target: "test@example.com", type: "email", otp: "000000" })
+    ).rejects.toThrow("ยืนยันรหัส OTP ไม่สำเร็จ");
+  });
+
+  test("verifyLinkOtp throws fallback error when response has no message", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(
+      verifyLinkOtp({ target: "test@example.com", type: "email", otp: "000000" })
+    ).rejects.toThrow("ยืนยันรหัส OTP ไม่สำเร็จ");
   });
 });

@@ -4,9 +4,11 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import app from "../app.js";
 import User from "../Models/User.js";
+import Otp from "../Models/Otp.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 describe("Users Route", () => {
-  const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+  const secret = getJwtSecret();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -888,6 +890,217 @@ describe("Users Route", () => {
 
       expect(res.status).toBe(404);
       expect(res.body.message).toBe("ไม่พบผู้ใช้");
+    });
+  });
+
+  describe("Link OTP Flow (Email & Phone Linking)", () => {
+    describe("POST /api/users/link-otp/send", () => {
+      it("should return 401 when token is missing", async () => {
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .send({ target: "new@example.com", type: "email" });
+
+        expect(res.status).toBe(401);
+      });
+
+      it("should return 400 when target or type is invalid", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: 12345, type: "email" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("ข้อมูลไม่ถูกต้อง");
+      });
+
+      it("should return 400 when email format is invalid", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "not-an-email", type: "email" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("รูปแบบอีเมลไม่ถูกต้อง");
+      });
+
+      it("should return 400 when email is already taken by another user", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+        jest.spyOn(User, "findOne").mockResolvedValueOnce({ _id: "otherUser456" });
+
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "taken@example.com", type: "email" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("อีเมลนี้ถูกใช้งานโดยบัญชีอื่นแล้ว");
+      });
+
+      it("should return 400 when phone format is invalid", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "123", type: "phone" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง");
+      });
+
+      it("should successfully send OTP for email linking", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+        jest.spyOn(User, "findOne").mockResolvedValueOnce(null);
+        jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+        jest.spyOn(Otp, "create").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "myemail@example.com", type: "email" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toContain("ส่งรหัส OTP ไปยัง");
+        expect(res.body.data.target).toBe("myemail@example.com");
+      });
+
+      it("should successfully send OTP for phone linking", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+        jest.spyOn(User, "findOne").mockResolvedValueOnce(null);
+        jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+        jest.spyOn(Otp, "create").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/users/link-otp/send")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "0812345678", type: "phone" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toContain("ส่งรหัส OTP ไปยัง");
+        expect(res.body.data.target).toBe("0812345678");
+      });
+    });
+
+    describe("POST /api/users/link-otp/verify", () => {
+      it("should return 400 when OTP record is not found", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce(null);
+
+        const res = await request(app)
+          .post("/api/users/link-otp/verify")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "myemail@example.com", type: "email", otp: "123456" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ");
+      });
+
+      it("should return 400 when OTP is incorrect", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
+        const mockOtp = {
+          _id: "otp1",
+          otp: "123456",
+          expiresAt: new Date(Date.now() + 60000),
+          attempts: 0,
+          save: jest.fn().mockResolvedValue(true),
+        };
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce(mockOtp);
+
+        const res = await request(app)
+          .post("/api/users/link-otp/verify")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "myemail@example.com", type: "email", otp: "999999" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("รหัส OTP ไม่ถูกต้อง");
+        expect(mockOtp.attempts).toBe(1);
+      });
+
+      it("should successfully verify and link email", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        const mockUser = {
+          _id: "mockId123",
+          email: "old@example.com",
+          isEmailVerified: false,
+          save: jest.fn().mockResolvedValue(true),
+        };
+        jest.spyOn(User, "findById")
+          .mockResolvedValueOnce(mockUser)
+          .mockReturnValueOnce({
+            select: jest.fn().mockResolvedValueOnce({
+              _id: "mockId123",
+              email: "new@example.com",
+              isEmailVerified: true,
+            }),
+          });
+
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+          _id: "otp1",
+          otp: "123456",
+          expiresAt: new Date(Date.now() + 60000),
+          attempts: 0,
+        });
+        jest.spyOn(Otp, "deleteOne").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/users/link-otp/verify")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "new@example.com", type: "email", otp: "123456" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toBe("เชื่อมต่อและยืนยันอีเมลสำเร็จ");
+        expect(mockUser.email).toBe("new@example.com");
+        expect(mockUser.isEmailVerified).toBe(true);
+      });
+
+      it("should successfully verify and link phone", async () => {
+        const token = jwt.sign({ userId: "mockId123" }, secret);
+        const mockUser = {
+          _id: "mockId123",
+          phone: "",
+          isPhoneVerified: false,
+          save: jest.fn().mockResolvedValue(true),
+        };
+        jest.spyOn(User, "findById")
+          .mockResolvedValueOnce(mockUser)
+          .mockReturnValueOnce({
+            select: jest.fn().mockResolvedValueOnce({
+              _id: "mockId123",
+              phone: "0812345678",
+              isPhoneVerified: true,
+            }),
+          });
+
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+          _id: "otp1",
+          otp: "654321",
+          expiresAt: new Date(Date.now() + 60000),
+          attempts: 0,
+        });
+        jest.spyOn(Otp, "deleteOne").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/users/link-otp/verify")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ target: "0812345678", type: "phone", otp: "654321" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toBe("เชื่อมต่อและยืนยันเบอร์โทรศัพท์สำเร็จ");
+        expect(mockUser.phone).toBe("0812345678");
+        expect(mockUser.isPhoneVerified).toBe(true);
+      });
     });
   });
 });

@@ -1,5 +1,6 @@
-import React from "react";
-import { Pencil } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Pencil, Mail, Phone, X, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { sendLinkOtp, verifyLinkOtp } from "../../utils/api";
 
 const DiscordIcon = (
   <svg className="w-4 h-4 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor">
@@ -13,21 +14,126 @@ const StreamlabsIcon = (
   </svg>
 );
 
-const ManageAccountCard = ({ user }) => {
+const ManageAccountCard = ({ user, onUpdateUser }) => {
+  const [modalType, setModalType] = useState(null); // "email" | "phone" | null
+  const [inputValue, setInputValue] = useState("");
+  const [otpValue, setOtpValue] = useState("");
+  const [step, setStep] = useState(1); // 1 = Input & Send OTP, 2 = Verify OTP
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  const openModal = (type) => {
+    setModalType(type);
+    setInputValue(type === "email" ? (user?.email || "") : (user?.phone || ""));
+    setOtpValue("");
+    setStep(1);
+    setError("");
+    setSuccess("");
+    setCountdown(0);
+  };
+
+  const closeModal = () => {
+    setModalType(null);
+    setOtpValue("");
+    setError("");
+    setSuccess("");
+  };
+
+  const handleSendOtp = async (e) => {
+    if (e) e.preventDefault();
+    if (!inputValue.trim()) {
+      setError(modalType === "email" ? "กรุณากรอกอีเมล" : "กรุณากรอกเบอร์โทรศัพท์");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await sendLinkOtp({
+        target: inputValue.trim(),
+        type: modalType,
+      });
+
+      setStep(2);
+      setCountdown(60);
+      setSuccess(`ส่งรหัส OTP ไปยัง ${inputValue.trim()} แล้ว`);
+    } catch (err) {
+      setError(err.message || "เกิดข้อผิดพลาดในการส่งรหัส OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otpValue.trim() || otpValue.trim().length !== 6) {
+      setError("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const updatedUser = await verifyLinkOtp({
+        target: inputValue.trim(),
+        type: modalType,
+        otp: otpValue.trim(),
+      });
+
+      onUpdateUser?.(updatedUser);
+      setSuccess("เชื่อมต่อและยืนยันสำเร็จแล้ว");
+      setTimeout(() => {
+        closeModal();
+      }, 1500);
+    } catch (err) {
+      setError(err.message || "รหัส OTP ไม่ถูกต้องหรือหมดอายุ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderConnectionAction = (row) => {
+    if (row.connected) {
+      return <>
+        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-400">ยืนยันแล้ว</span>
+        {row.canManage && <button type="button" onClick={() => openModal(row.key)} title="แก้ไขข้อมูล" className="text-gray-400 hover:text-purple-300 p-1 transition-colors"><Pencil size={13} /></button>}
+      </>;
+    }
+    if (row.canManage) {
+      return <button type="button" onClick={() => openModal(row.key)} className="rounded-lg bg-purple-600/20 border border-purple-500/30 px-3 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-600 hover:text-white transition-all">คลิกเพื่อเชื่อมต่อ</button>;
+    }
+    return <span className="text-[11px] font-medium text-[#5c556f]">ยังไม่รองรับ</span>;
+  };
+
   const rows = [
     {
       key: "email",
       label: "อีเมล",
-      icon: null,
+      icon: <Mail size={14} className="text-purple-400" />,
       value: user?.email || "user@example.com",
-      connected: user?.isEmailVerified !== undefined ? user.isEmailVerified : true,
+      connected: user?.isEmailVerified !== undefined ? Boolean(user.isEmailVerified) : true,
+      canManage: true,
     },
     {
       key: "phone",
       label: "เบอร์โทรศัพท์",
-      icon: null,
+      icon: <Phone size={14} className="text-purple-400" />,
       value: user?.phone || "000-000-0000",
-      connected: user?.isPhoneVerified !== undefined ? user.isPhoneVerified : true,
+      connected: user?.isPhoneVerified !== undefined ? Boolean(user.isPhoneVerified) : false,
+      canManage: true,
     },
     {
       key: "discord",
@@ -35,6 +141,7 @@ const ManageAccountCard = ({ user }) => {
       icon: DiscordIcon,
       value: "ยังไม่ได้เชื่อมต่อ",
       connected: false,
+      canManage: false,
     },
     {
       key: "streamlabs",
@@ -42,6 +149,7 @@ const ManageAccountCard = ({ user }) => {
       icon: StreamlabsIcon,
       value: "ยังไม่ได้เชื่อมต่อ",
       connected: false,
+      canManage: false,
     },
   ];
 
@@ -56,13 +164,6 @@ const ManageAccountCard = ({ user }) => {
             MANAGE ACCOUNT
           </p>
         </div>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 rounded-full bg-[#8b5cf6] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#7c3aed] shadow-[0_0_16px_rgba(139,92,246,0.35)] transition-colors"
-        >
-          <Pencil size={12} />
-          <span>แก้ไข</span>
-        </button>
       </div>
 
       <div className="space-y-3">
@@ -85,21 +186,151 @@ const ManageAccountCard = ({ user }) => {
               </p>
             </div>
 
-            {row.connected ? (
-              <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-400">
-                ยืนยันแล้ว
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="shrink-0 text-[11px] font-medium text-purple-300 hover:text-purple-200 transition-colors"
-              >
-                คลิกเพื่อเชื่อมต่อ
-              </button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {renderConnectionAction(row)}
+            </div>
           </div>
         ))}
       </div>
+
+      {/* Verification Modal */}
+      {modalType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#16122a] p-6 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                {modalType === "email" ? <Mail size={18} className="text-purple-400" /> : <Phone size={18} className="text-purple-400" />}
+                <span>{modalType === "email" ? "เชื่อมต่อและยืนยันอีเมล" : "เชื่อมต่อและยืนยันเบอร์โทรศัพท์"}</span>
+              </h3>
+              <p className="text-xs text-gray-400 mt-1">
+                {step === 1
+                  ? `กรอก${modalType === "email" ? "อีเมล" : "เบอร์โทรศัพท์"}ของคุณเพื่อรับรหัส OTP`
+                  : `กรอกรหัสยืนยัน 6 หลักที่ส่งไปยัง ${inputValue}`}
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300 flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0 text-red-400" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+                <span>{success}</span>
+              </div>
+            )}
+
+            {step === 1 ? (
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div>
+                  <label htmlFor="manage-input-target" className="text-xs font-semibold text-[#d4cfdf] block mb-1.5">
+                    {modalType === "email" ? "ที่อยู่อีเมล" : "เบอร์โทรศัพท์ (10 หลัก)"}
+                  </label>
+                  <input
+                    id="manage-input-target"
+                    type={modalType === "email" ? "email" : "text"}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder={modalType === "email" ? "example@mail.com" : "0812345678"}
+                    className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 text-xs text-white placeholder-[#5c556f] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all"
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 rounded-xl text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || !inputValue.trim()}
+                    className="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-500 transition-all shadow-[0_0_16px_rgba(147,51,234,0.3)] disabled:opacity-50"
+                  >
+                    {loading ? "กำลังส่ง OTP..." : "ส่งรหัส OTP"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div>
+                  <label htmlFor="manage-otp-input" className="text-xs font-semibold text-[#d4cfdf] block mb-1.5">
+                    รหัส OTP 6 หลัก
+                  </label>
+                  <input
+                    id="manage-otp-input"
+                    type="text"
+                    maxLength={6}
+                    value={otpValue}
+                    onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123456"
+                    className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 text-center text-xl font-bold tracking-[6px] text-purple-300 placeholder-[#5c556f] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-400 px-1">
+                  <span>
+                    {countdown > 0 ? (
+                      `ขอรหัสใหม่ได้ใน ${countdown} วิ`
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSendOtp(null)}
+                        disabled={loading}
+                        className="text-purple-400 hover:text-purple-300 font-medium inline-flex items-center gap-1"
+                      >
+                        <RefreshCw size={11} />
+                        <span>ส่งรหัสอีกครั้ง</span>
+                      </button>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep(1);
+                      setOtpValue("");
+                      setError("");
+                    }}
+                    className="text-gray-500 hover:text-gray-300"
+                  >
+                    เปลี่ยนข้อมูล
+                  </button>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 rounded-xl text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || otpValue.length !== 6}
+                    className="px-5 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-500 transition-all shadow-[0_0_16px_rgba(147,51,234,0.3)] disabled:opacity-50"
+                  >
+                    {loading ? "กำลังตรวจสอบ..." : "ยืนยันและเชื่อมต่อ"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

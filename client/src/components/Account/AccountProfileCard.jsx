@@ -4,13 +4,13 @@ import { Pencil, Copy, Check } from "lucide-react";
 const AccountProfileCard = ({ user, onSave }) => {
   const [copied, setCopied] = useState(false);
   const username = user?.username || "Test";
-  const donixUrl = `donix.app/${username}`;
+  const donixUrl = `https://final-project-orpin-five.vercel.app/${username}`;
   const isLive = Boolean(user?.isLive);
 
   const handleCopy = async () => {
     try {
       if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(`https://${donixUrl}`);
+        await navigator.clipboard.writeText(donixUrl);
       }
     } catch {
       // Ignore clipboard write failure

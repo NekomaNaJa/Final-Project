@@ -4,10 +4,11 @@ import { jest } from "@jest/globals";
 import app from "../app.js";
 import Widget from "../Models/Widget.js";
 import Donation from "../Models/Donation.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 describe("Widget Routes (/api/widgets)", () => {
   const mockUserId = "60c72b2f9b1d8b2bad876543";
-  const jwtSecret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+  const jwtSecret = getJwtSecret();
   const token = jwt.sign({ userId: mockUserId }, jwtSecret);
 
   beforeEach(() => {
