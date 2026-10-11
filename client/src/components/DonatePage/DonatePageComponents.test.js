@@ -42,7 +42,16 @@ describe("DonatePage Components & Page", () => {
     test("renders link and handles copy and external link", async () => {
       render(<DonatePageLink username="StreamerHero" />);
       expect(screen.getByText("DONOR URL")).toBeInTheDocument();
-      expect(screen.getByDisplayValue("http://donix.app/StreamerHero")).toBeInTheDocument();
+      expect(
+        screen.getByDisplayValue("https://final-project-orpin-five.vercel.app/StreamerHero")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("final-project-orpin-five.vercel.app/StreamerHero")
+      ).toBeInTheDocument();
+
+      // Ensure IG and Twitch share buttons are removed
+      expect(screen.queryByTitle("แชร์ไปยัง Instagram")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("แชร์ไปยัง Twitch")).not.toBeInTheDocument();
 
       const copyBtn = screen.getByTitle("คัดลอกลิงก์");
       fireEvent.click(copyBtn);
@@ -50,6 +59,51 @@ describe("DonatePage Components & Page", () => {
 
       const previewLink = screen.getByText("ดูตัวอย่างหน้ารับเงินของคุณได้ที่นี่").closest("a");
       expect(previewLink).toHaveAttribute("href", "/StreamerHero");
+    });
+
+    test("renders custom baseUrl when passed as prop", () => {
+      render(<DonatePageLink username="CustomUser" baseUrl="https://custom.donix.live" />);
+      expect(screen.getByDisplayValue("https://custom.donix.live/CustomUser")).toBeInTheDocument();
+      expect(screen.getByText("custom.donix.live/CustomUser")).toBeInTheDocument();
+    });
+
+    test("resolves window.location.origin when deployed on production domain", () => {
+      const originalLocation = window.location;
+      delete window.location;
+      window.location = {
+        origin: "https://my-stream.app",
+        hostname: "my-stream.app",
+      };
+
+      render(<DonatePageLink username="LiveStreamer" />);
+      expect(screen.getByDisplayValue("https://my-stream.app/LiveStreamer")).toBeInTheDocument();
+      expect(screen.getByText("my-stream.app/LiveStreamer")).toBeInTheDocument();
+
+      window.location = originalLocation;
+    });
+
+    test("handles clipboard failure gracefully without crashing", async () => {
+      const originalClipboard = navigator.clipboard;
+      Object.assign(navigator, {
+        clipboard: {
+          writeText: jest.fn().mockRejectedValueOnce(new Error("Clipboard permission denied")),
+        },
+      });
+
+      render(<DonatePageLink username="StreamerHero" />);
+      const input = screen.getByDisplayValue("https://final-project-orpin-five.vercel.app/StreamerHero");
+      fireEvent.click(input);
+
+      expect(await screen.findByText("คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว!")).toBeInTheDocument();
+
+      Object.assign(navigator, { clipboard: originalClipboard });
+    });
+
+    test("renders with default Test username when none provided", () => {
+      render(<DonatePageLink />);
+      expect(
+        screen.getByDisplayValue("https://final-project-orpin-five.vercel.app/Test")
+      ).toBeInTheDocument();
     });
   });
 
