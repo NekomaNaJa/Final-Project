@@ -515,6 +515,40 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.message).toContain("DUP_SLIP_REF_999");
     });
 
+    it("should return 200 with existing donation when duplicate slip was submitted within 15s (idempotency)", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      const recentDonation = {
+        _id: "recent_donation_id",
+        streamerId: validStreamer._id,
+        donorName: "Double Clicker",
+        amount: 100,
+        transRef: "RECENT_DUP_REF_888",
+        createdAt: new Date(),
+        status: "approved",
+      };
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(recentDonation);
+
+      const payload = buildMockEmvQrPayload({
+        transRef: "RECENT_DUP_REF_888",
+        amount: 100,
+        bankCode: "014",
+      });
+      const dupSlipDataUri = await QRCode.toDataURL(payload, { width: 350, margin: 2 });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 100,
+          paymentMethod: "promptpay",
+          slipImage: dupSlipDataUri,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain("การบริจาคสำเร็จและสลิปผ่านการตรวจสอบอัตโนมัติ");
+      expect(res.body.data.transRef).toBe("RECENT_DUP_REF_888");
+    });
+
     it("should reject donation with 400 when slip amount is less than donation amount", async () => {
       jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
       jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);

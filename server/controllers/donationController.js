@@ -202,6 +202,20 @@ export const createDonation = async (req, res, next) => {
             transRef: { $eq: safeTransRef },
           });
           if (duplicate) {
+            const isRecentSubmission =
+              duplicate.streamerId &&
+              streamer._id &&
+              duplicate.streamerId.toString() === streamer._id.toString() &&
+              duplicate.createdAt &&
+              Date.now() - new Date(duplicate.createdAt).getTime() < 15000;
+
+            if (isRecentSubmission) {
+              return res.status(200).json({
+                message: "การบริจาคสำเร็จและสลิปผ่านการตรวจสอบอัตโนมัติ",
+                data: duplicate,
+              });
+            }
+
             return res.status(400).json({
               message: `สลิปนี้ถูกใช้งานไปแล้ว (รหัสอ้างอิง: ${safeTransRef}) ไม่สามารถใช้ซ้ำได้`,
               data: null,

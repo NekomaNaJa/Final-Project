@@ -415,6 +415,43 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       });
     });
 
+    test("ignores repeated donation submissions while in flight", async () => {
+      let resolveSubmission;
+      const pendingPromise = new Promise((resolve) => {
+        resolveSubmission = resolve;
+      });
+      createDonation.mockImplementationOnce(() => pendingPromise);
+
+      render(
+        <MemoryRouter initialEntries={["/donor/Streamer1"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ธนาคาร"));
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(createDonation).toHaveBeenCalledTimes(1);
+      });
+
+      await act(async () => {
+        resolveSubmission({ id: "don999", status: "approved", amount: 100 });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
+      });
+    });
+
     test("submits donation successfully with API _id and displays pending status and anonymous donor, then resets fields on modal close", async () => {
       createDonation.mockResolvedValueOnce({
         _id: "mongo_id_777",

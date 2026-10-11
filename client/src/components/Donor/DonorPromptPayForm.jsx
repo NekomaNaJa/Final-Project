@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { QrCode } from "lucide-react";
 import DonorSlipUpload from "./DonorSlipUpload";
 
@@ -47,6 +47,14 @@ const DonorPromptPayForm = ({
     }
   }, [amount, promptpayNumber, minAmount]);
 
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      isSubmittingRef.current = false;
+    }
+  }, [isSubmitting]);
+
   const handleBlur = () => {
     const num = Number(amount);
     if (Number.isNaN(num) || num < minAmount) {
@@ -54,9 +62,11 @@ const DonorPromptPayForm = ({
     }
   };
 
-
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting || isSubmittingRef.current) {
+      return;
+    }
     if (Number(amount) < minAmount) {
       alert(`จำนวนเงินขั้นต่ำคือ ${minAmount} บาท`);
       setAmount(minAmount);
@@ -66,6 +76,7 @@ const DonorPromptPayForm = ({
       alert("กรุณาแนบรูปภาพสลิปการโอนเงินเพื่อยืนยัน");
       return;
     }
+    isSubmittingRef.current = true;
     if (onSubmit) {
       onSubmit({ amount: Number(amount), slipFile, method: "promptpay" });
     }
@@ -159,7 +170,9 @@ const DonorPromptPayForm = ({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold text-white bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] shadow-[0_0_24px_rgba(139,92,246,0.45)] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+          className={`w-full py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold text-white bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] shadow-[0_0_24px_rgba(139,92,246,0.45)] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer ${
+            isSubmitting ? "pointer-events-none opacity-60 cursor-not-allowed" : ""
+          }`}
         >
           {isSubmitting ? "กำลังดำเนินการ..." : "ยืนยันการชำระเงิน"}
         </button>

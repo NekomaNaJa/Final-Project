@@ -1,10 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const DonorTrueMoneyForm = ({ onSubmit, isSubmitting = false }) => {
   const [giftLink, setGiftLink] = useState("");
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      isSubmittingRef.current = false;
+    }
+  }, [isSubmitting]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isSubmitting || isSubmittingRef.current) {
+      return;
+    }
     const trimmed = giftLink.trim();
     if (!trimmed) {
       alert("กรุณากรอกลิงก์ซองของขวัญทรูมันนี่ อั่งเปา");
@@ -14,6 +24,7 @@ const DonorTrueMoneyForm = ({ onSubmit, isSubmitting = false }) => {
       alert("กรุณากรอกลิงก์ซองของขวัญทรูมันนี่ที่ถูกต้อง");
       return;
     }
+    isSubmittingRef.current = true;
     if (onSubmit) {
       onSubmit({ giftLink: trimmed, method: "truemoney" });
     }
@@ -48,7 +59,9 @@ const DonorTrueMoneyForm = ({ onSubmit, isSubmitting = false }) => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold text-white bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] shadow-[0_0_24px_rgba(139,92,246,0.45)] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+          className={`w-full py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold text-white bg-linear-to-r from-[#8b5cf6] to-[#7c3aed] hover:from-[#9333ea] hover:to-[#6d28d9] shadow-[0_0_24px_rgba(139,92,246,0.45)] active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer ${
+            isSubmitting ? "pointer-events-none opacity-60 cursor-not-allowed" : ""
+          }`}
         >
           {isSubmitting ? "กำลังดำเนินการ..." : "ยืนยันการชำระเงิน"}
         </button>
