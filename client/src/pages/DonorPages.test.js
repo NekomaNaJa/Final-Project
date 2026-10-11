@@ -231,6 +231,53 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       });
     });
 
+    test("displays missions from public streamer and updates amount and message when mission is selected", async () => {
+      fetchPublicStreamer.mockResolvedValueOnce({
+        username: "StarStreamer",
+        payment: {
+          promptpay: { enabled: true, number: "0899999999" },
+        },
+        donationPage: { minAmount: 10 },
+        mission: {
+          title: "ภารกิจสุดโหดวันนี้",
+          missions: [
+            { id: "m-1", name: "เล่นมือเดียว", price: 50 },
+            { id: "m-2", name: "ร้องเพลง 1 เพลง", price: 100 },
+          ],
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/StarStreamer"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("ภารกิจสุดโหดวันนี้")).toBeInTheDocument();
+      });
+      expect(screen.getByText("เล่นมือเดียว")).toBeInTheDocument();
+      expect(screen.getByText("ร้องเพลง 1 เพลง")).toBeInTheDocument();
+
+      // Click mission 1
+      fireEvent.click(screen.getByText("เล่นมือเดียว"));
+
+      // Check amount input updated to 50
+      const amountInput = screen.getByRole("spinbutton");
+      expect(amountInput.value).toBe("50");
+
+      // Check message input tagged with mission
+      const messageInput = screen.getByPlaceholderText("พิมพ์ข้อความที่ต้องการส่งถึงสตรีมเมอร์...");
+      expect(messageInput.value).toContain("[ภารกิจ: เล่นมือเดียว]");
+
+      // Click clear button
+      const clearBtn = screen.getByTestId("clear-mission-btn");
+      fireEvent.click(clearBtn);
+      expect(messageInput.value).not.toContain("[ภารกิจ: เล่นมือเดียว]");
+    });
+
     test("displays filtered donorName from api response in submitted card", async () => {
       localStorage.setItem(
         "donix_payment_config",

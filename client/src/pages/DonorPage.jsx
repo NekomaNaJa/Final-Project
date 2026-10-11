@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
+import DonorMissionList from "../components/Donor/DonorMissionList";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
 import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
 import DonorPromptPayForm from "../components/Donor/DonorPromptPayForm";
@@ -33,6 +34,10 @@ const getInitialStreamerConfig = (username) => {
     coverImage: null,
     backgroundImage: null,
     avatar: null,
+    mission: {
+      title: "ภารกิจสตรีมเมอร์วันนี้",
+      missions: [],
+    },
     payment: {
       promptpay: {
         enabled: true,
@@ -87,6 +92,21 @@ const getInitialStreamerConfig = (username) => {
       };
     }
 
+    const savedWidgetConfig =
+      localStorage.getItem(`donix_widget_config_${username}`) ||
+      localStorage.getItem("donix_widget_config");
+    if (savedWidgetConfig) {
+      const parsedWidget = JSON.parse(savedWidgetConfig);
+      if (parsedWidget.mission) {
+        config.mission = {
+          title: parsedWidget.mission.title || config.mission.title,
+          missions: Array.isArray(parsedWidget.mission.missions)
+            ? parsedWidget.mission.missions
+            : [],
+        };
+      }
+    }
+
     return config;
   } catch {
     return defaultConfig;
@@ -108,11 +128,30 @@ const DonorPage = () => {
   // Donor input fields
   const [donorName, setDonorName] = useState("Anonymous");
   const [message, setMessage] = useState("สวัสดีครับ");
+  const [selectedMission, setSelectedMission] = useState(null);
+  const [presetAmount, setPresetAmount] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedDonation, setSubmittedDonation] = useState(null);
   const [errorFeedback, setErrorFeedback] = useState(null);
   const [streamerNotFound, setStreamerNotFound] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+
+  // Handle selecting or toggling a mission
+  const handleSelectMission = (mission) => {
+    if (!mission || selectedMission?.id === mission.id) {
+      setSelectedMission(null);
+      setPresetAmount(null);
+      setMessage((prev) => prev.replace(/^\[ภารกิจ:.*?\]\s*/, ""));
+    } else {
+      setSelectedMission(mission);
+      setPresetAmount(Number(mission.price));
+      setMessage((prev) => {
+        const cleanPrev = prev.replace(/^\[ภารกิจ:.*?\]\s*/, "");
+        const tag = `[ภารกิจ: ${mission.name}]`;
+        return cleanPrev ? `${tag} ${cleanPrev}` : tag;
+      });
+    }
+  };
 
   // Fetch updated public data from API when available
   useEffect(() => {
@@ -143,6 +182,7 @@ const DonorPage = () => {
               publicData.donationPage?.backgroundImage || prev.backgroundImage,
             avatar:
               publicData.avatar || prev.avatar,
+            mission: publicData.mission || prev.mission,
             payment: {
               promptpay: {
                 ...prev.payment.promptpay,
@@ -235,6 +275,8 @@ const DonorPage = () => {
     setMessage("");
     setDonorName("Anonymous");
     setErrorFeedback(null);
+    setSelectedMission(null);
+    setPresetAmount(null);
     setResetKey((prev) => prev + 1);
 
     if (typeof window !== "undefined") {
@@ -327,6 +369,17 @@ const DonorPage = () => {
               </div>
             )}
 
+            {/* Mission Donate List (Shown when streamer has active missions) */}
+            {Array.isArray(streamerConfig.mission?.missions) &&
+              streamerConfig.mission.missions.length > 0 && (
+                <DonorMissionList
+                  missionConfig={streamerConfig.mission}
+                  selectedMission={selectedMission}
+                  onSelectMission={handleSelectMission}
+                  disabled={isSubmitting}
+                />
+              )}
+
             {/* Payment Channel Selector Tabs */}
             <DonorPaymentTabs
               activeTab={activeTab}
@@ -389,6 +442,8 @@ const DonorPage = () => {
                 key={`promptpay-${resetKey}`}
                 minAmount={streamerConfig.minAmount}
                 promptpayNumber={streamerConfig.payment.promptpay.number}
+                presetAmount={presetAmount}
+                selectedMission={selectedMission}
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}
               />
@@ -400,6 +455,7 @@ const DonorPage = () => {
                 accountNumber={streamerConfig.payment.bank.accountNumber}
                 accountName={streamerConfig.payment.bank.accountName}
                 minAmount={streamerConfig.minAmount}
+                selectedMission={selectedMission}
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}
               />

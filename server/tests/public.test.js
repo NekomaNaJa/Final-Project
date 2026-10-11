@@ -74,7 +74,17 @@ describe("Public Route (GET /api/public/:username)", () => {
       },
     };
 
+    const mockWidget = {
+      mission: {
+        title: "ภารกิจสตรีมเมอร์วันนี้",
+        missions: [
+          { id: "m-1", name: "เล่นเกมมือเดียว 1 ตา", price: 50 },
+        ],
+      },
+    };
+
     jest.spyOn(User, "findOne").mockResolvedValueOnce(mockUser);
+    jest.spyOn(Widget, "findOne").mockResolvedValueOnce(mockWidget);
 
     const res = await request(app).get("/api/public/streamerpro");
 
@@ -84,6 +94,11 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data.nickname).toBe("Pro Streamer");
     expect(res.body.data.avatar).toBe("https://example.com/avatar.png");
     expect(res.body.data.isLive).toBe(true);
+
+    // Verify mission config
+    expect(res.body.data.mission.title).toBe("ภารกิจสตรีมเมอร์วันนี้");
+    expect(res.body.data.mission.missions).toHaveLength(1);
+    expect(res.body.data.mission.missions[0].name).toBe("เล่นเกมมือเดียว 1 ตา");
 
     // Verify sensitive data is NOT returned
     expect(res.body.data.email).toBeUndefined();
@@ -107,6 +122,7 @@ describe("Public Route (GET /api/public/:username)", () => {
     };
 
     jest.spyOn(User, "findOne").mockResolvedValueOnce(minimalUser);
+    jest.spyOn(Widget, "findOne").mockResolvedValueOnce(null);
 
     const res = await request(app).get("/api/public/minimal_streamer");
 
@@ -115,6 +131,8 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data.nickname).toBe("");
     expect(res.body.data.donationPage.minAmount).toBe(10);
     expect(res.body.data.donationPage.charLimit).toBe(100);
+    expect(res.body.data.mission.title).toBe("ภารกิจสตรีมเมอร์วันนี้");
+    expect(res.body.data.mission.missions).toEqual([]);
     expect(res.body.data.payment.promptpay.enabled).toBe(false);
     expect(res.body.data.payment.bank.enabled).toBe(false);
     expect(res.body.data.payment.truemoney.enabled).toBe(false);

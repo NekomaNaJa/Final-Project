@@ -9,6 +9,7 @@ import DonorPromptPayForm from "./DonorPromptPayForm";
 import DonorBankForm from "./DonorBankForm";
 import DonorTrueMoneyForm from "./DonorTrueMoneyForm";
 import DonorSlipUpload from "./DonorSlipUpload";
+import DonorMissionList from "./DonorMissionList";
 
 describe("Donor Components", () => {
   describe("DonorHeader", () => {
@@ -320,6 +321,99 @@ describe("Donor Components", () => {
       render(<DonorBankForm accountNumber="123-456" />);
       const copyBtn = screen.getByRole("button", { name: /คัดลอก/i });
       fireEvent.click(copyBtn);
+    });
+
+    test("renders selectedMission badge in DonorBankForm", () => {
+      const mockMission = { id: "m-1", name: "เล่นเกมมือเดียว", price: 50 };
+      render(<DonorBankForm selectedMission={mockMission} />);
+
+      expect(screen.getByTestId("bank-mission-badge")).toBeInTheDocument();
+      expect(screen.getByText("เล่นเกมมือเดียว")).toBeInTheDocument();
+      expect(screen.getByText("50 บาท")).toBeInTheDocument();
+    });
+  });
+
+  describe("DonorPromptPayForm with Mission", () => {
+    test("syncs amount with presetAmount and shows selectedMission badge", () => {
+      const mockMission = { id: "m-2", name: "ร้องเพลง", price: 100 };
+      const { rerender } = render(
+        <DonorPromptPayForm
+          minAmount={10}
+          presetAmount={100}
+          selectedMission={mockMission}
+        />
+      );
+
+      const amountInput = screen.getByRole("spinbutton");
+      expect(amountInput.value).toBe("100");
+      expect(screen.getByTestId("promptpay-mission-badge")).toBeInTheDocument();
+      expect(screen.getByText("ร้องเพลง")).toBeInTheDocument();
+
+      // Rerender with different presetAmount
+      rerender(
+        <DonorPromptPayForm
+          minAmount={10}
+          presetAmount={200}
+          selectedMission={{ id: "m-3", name: "เต้น 1 เพลง", price: 200 }}
+        />
+      );
+      expect(amountInput.value).toBe("200");
+      expect(screen.getByText("เต้น 1 เพลง")).toBeInTheDocument();
+    });
+  });
+
+  describe("DonorMissionList", () => {
+    const mockMissions = [
+      { id: "m-1", name: "ดื่มน้ำ 1 แก้ว", price: 20 },
+      { id: "m-2", name: "เล่นเกมไม่พูด 1 ตา", price: 50 },
+    ];
+
+    test("renders null when missions list is empty", () => {
+      const { container } = render(
+        <DonorMissionList missionConfig={{ title: "ภารกิจ", missions: [] }} />
+      );
+      expect(container.firstChild).toBeNull();
+    });
+
+    test("renders missions and handles selection and deselection", () => {
+      const handleSelect = jest.fn();
+      const { rerender } = render(
+        <DonorMissionList
+          missionConfig={{ title: "ภารกิจสตรีมเมอร์", missions: mockMissions }}
+          selectedMission={null}
+          onSelectMission={handleSelect}
+        />
+      );
+
+      expect(screen.getByText("ภารกิจสตรีมเมอร์")).toBeInTheDocument();
+      expect(screen.getByText("2 ภารกิจ")).toBeInTheDocument();
+      expect(screen.getByText("ดื่มน้ำ 1 แก้ว")).toBeInTheDocument();
+      expect(screen.getByText("เล่นเกมไม่พูด 1 ตา")).toBeInTheDocument();
+
+      // Click first mission
+      fireEvent.click(screen.getByText("ดื่มน้ำ 1 แก้ว"));
+      expect(handleSelect).toHaveBeenCalledWith(mockMissions[0]);
+
+      // Rerender with mission 1 selected
+      rerender(
+        <DonorMissionList
+          missionConfig={{ title: "ภารกิจสตรีมเมอร์", missions: mockMissions }}
+          selectedMission={mockMissions[0]}
+          onSelectMission={handleSelect}
+        />
+      );
+
+      expect(screen.getByTestId("selected-mission-banner")).toBeInTheDocument();
+      expect(screen.getByText("เลือกอยู่")).toBeInTheDocument();
+
+      // Click clear button
+      const clearBtn = screen.getByTestId("clear-mission-btn");
+      fireEvent.click(clearBtn);
+      expect(handleSelect).toHaveBeenCalledWith(null);
+
+      // Clicking already selected mission triggers deselect (calls with null)
+      fireEvent.click(screen.getByTestId("mission-item-m-1"));
+      expect(handleSelect).toHaveBeenCalledWith(null);
     });
   });
 });

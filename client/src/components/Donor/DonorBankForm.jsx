@@ -7,6 +7,7 @@ const DonorBankForm = ({
   accountNumber = "",
   accountName = "",
   minAmount = 1,
+  selectedMission = null,
   onSubmit,
   isSubmitting = false,
 }) => {
@@ -108,6 +109,22 @@ const DonorBankForm = ({
           <span>⚠️ ยอดเงินในสลิปต้องไม่ต่ำกว่า</span>
           <span className="font-bold text-amber-400">
             {Number(minAmount).toLocaleString()} บาท
+          </span>
+        </div>
+      )}
+
+      {/* Selected Mission Badge */}
+      {selectedMission && (
+        <div
+          data-testid="bank-mission-badge"
+          className="flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-xs text-purple-200"
+        >
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="font-bold text-purple-400">🎯 ยอดโอนตามภารกิจ:</span>
+            <span className="font-semibold truncate">{selectedMission.name}</span>
+          </div>
+          <span className="shrink-0 font-mono font-bold text-amber-300">
+            {Number(selectedMission.price).toLocaleString()} บาท
           </span>
         </div>
       )}

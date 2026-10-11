@@ -5,12 +5,27 @@ import DonorSlipUpload from "./DonorSlipUpload";
 const DonorPromptPayForm = ({
   minAmount = 1,
   promptpayNumber = "",
+  presetAmount = null,
+  selectedMission = null,
   onSubmit,
   isSubmitting = false,
 }) => {
-  const [amount, setAmount] = useState(minAmount > 0 ? minAmount : 10);
+  const [amount, setAmount] = useState(
+    presetAmount !== null && presetAmount !== undefined
+      ? presetAmount
+      : minAmount > 0
+      ? minAmount
+      : 10
+  );
   const [slipFile, setSlipFile] = useState(null);
   const [qrUrl, setQrUrl] = useState("");
+
+  // Sync amount when presetAmount changes
+  useEffect(() => {
+    if (presetAmount !== null && presetAmount !== undefined) {
+      setAmount(presetAmount);
+    }
+  }, [presetAmount]);
 
   // Sync amount with minAmount whenever minAmount changes
   useEffect(() => {
@@ -87,6 +102,20 @@ const DonorPromptPayForm = ({
           <p className="text-xs font-semibold text-amber-400">
             ⚠️ ยอดเงินต้องไม่ต่ำกว่า {minAmount} บาท
           </p>
+        )}
+        {selectedMission && (
+          <div
+            data-testid="promptpay-mission-badge"
+            className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-purple-950/40 border border-purple-500/30 text-xs text-purple-200"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="font-bold text-purple-400">🎯 ยอดตามภารกิจ:</span>
+              <span className="font-semibold truncate">{selectedMission.name}</span>
+            </div>
+            <span className="shrink-0 font-mono font-bold text-amber-300">
+              {Number(selectedMission.price).toLocaleString()} บาท
+            </span>
+          </div>
         )}
       </div>
 
