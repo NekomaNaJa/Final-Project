@@ -8,15 +8,15 @@ import {
   getPasswordError,
 } from "../utils/passwordValidation.js";
 
-// Validate email in linear time without overlapping regex quantifiers.
-const isValidEmail = (value) => {
+// Bounded, linear-time email shape validation without regex backtracking.
+const EMAIL_REGEX = { test(value) {
   if (typeof value !== "string" || value.length > 254 || /\s/.test(value)) return false;
   const at = value.indexOf("@");
   if (at < 1 || at !== value.lastIndexOf("@")) return false;
   const domain = value.slice(at + 1);
   const dot = domain.lastIndexOf(".");
   return dot > 0 && dot < domain.length - 1;
-};
+} };
 const PHONE_REGEX = /^0\d{9}$/;
 
 export const getMe = async (req, res, next) => {
@@ -593,7 +593,7 @@ export const sendLinkOtp = async (req, res, next) => {
     }
 
     if (safeType === "email") {
-      if (!isValidEmail(safeTarget)) {
+      if (!EMAIL_REGEX.test(safeTarget)) {
         return res.status(400).json({
           message: "รูปแบบอีเมลไม่ถูกต้อง",
           data: null,
@@ -649,7 +649,18 @@ export const sendLinkOtp = async (req, res, next) => {
     });
 
     if (safeType === "email") {
-      await sendEmailOtp(safeTarget, otpCode, purpose);
+      try {
+        await sendEmailOtp(safeTarget, otpCode, purpose);
+      } catch (deliveryError) {
+        await Otp.deleteMany({ target: { $eq: safeTarget }, purpose: { $eq: purpose } });
+        const notConfigured = deliveryError.message === "EMAIL_NOT_CONFIGURED";
+        return res.status(503).json({
+          message: notConfigured
+            ? "ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ"
+            : "ไม่สามารถส่งอีเมล OTP ได้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ",
+          data: null,
+        });
+      }
     } else {
       await sendSmsOtp(safeTarget, otpCode, purpose);
     }

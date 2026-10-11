@@ -43,16 +43,15 @@ describe("Notification Service", () => {
   });
 
   describe("sendEmailOtp", () => {
-    it("simulates sending when no SMTP/GMail credentials are configured", async () => {
+    it("rejects sending when no SMTP/GMail credentials are configured", async () => {
       delete process.env.SMTP_HOST;
       delete process.env.SMTP_USER;
       delete process.env.SMTP_PASS;
       delete process.env.GMAIL_USER;
       delete process.env.GMAIL_PASS;
 
-      const result = await sendEmailOtp("test@example.com", "123456", "forgot_password");
-
-      expect(result).toEqual({ success: true, simulated: true });
+      await expect(sendEmailOtp("test@example.com", "123456", "forgot_password"))
+        .rejects.toThrow("EMAIL_NOT_CONFIGURED");
       expect(mockCreateTransport).not.toHaveBeenCalled();
     });
 
@@ -108,7 +107,7 @@ describe("Notification Service", () => {
       );
     });
 
-    it("falls back to a simulated success log when SMTP send fails", async () => {
+    it("rejects when SMTP delivery fails", async () => {
       withEnv({
         SMTP_HOST: "smtp.example.com",
         SMTP_USER: "noreply@example.com",
@@ -116,11 +115,8 @@ describe("Notification Service", () => {
       });
       mockSendMail.mockRejectedValueOnce(new Error("connection refused"));
 
-      const result = await sendEmailOtp("test@example.com", "999888", "forgot_password");
-
-      expect(result.success).toBe(true);
-      expect(result.simulated).toBe(true);
-      expect(result.error).toBe("connection refused");
+      await expect(sendEmailOtp("test@example.com", "999888", "forgot_password"))
+        .rejects.toThrow("EMAIL_DELIVERY_FAILED");
     });
 
     it("configures a Gmail transporter when GMAIL env vars are set", async () => {

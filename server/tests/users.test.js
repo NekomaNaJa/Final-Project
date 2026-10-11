@@ -956,11 +956,11 @@ describe("Users Route", () => {
         expect(res.body.message).toContain("รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง");
       });
 
-      it("should successfully send OTP for email linking", async () => {
+      it("should return 503 when email provider is not configured", async () => {
         const token = jwt.sign({ userId: "mockId123" }, secret);
         jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
         jest.spyOn(User, "findOne").mockResolvedValueOnce(null);
-        jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+        jest.spyOn(Otp, "deleteMany").mockResolvedValue({});
         jest.spyOn(Otp, "create").mockResolvedValueOnce({});
 
         const res = await request(app)
@@ -968,9 +968,8 @@ describe("Users Route", () => {
           .set("Authorization", `Bearer ${token}`)
           .send({ target: "myemail@example.com", type: "email" });
 
-        expect(res.status).toBe(200);
-        expect(res.body.message).toContain("ส่งรหัส OTP ไปยัง");
-        expect(res.body.data.target).toBe("myemail@example.com");
+        expect(res.status).toBe(503);
+        expect(res.body.message).toContain("ระบบส่งอีเมลยังไม่ได้ตั้งค่า");
       });
 
       it("should successfully send OTP for phone linking", async () => {
