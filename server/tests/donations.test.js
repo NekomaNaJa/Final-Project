@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import app from "../app.js";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
+import Widget from "../Models/Widget.js";
 import { buildMockEmvQrPayload } from "../utils/slipParser.js";
 import slipVerificationService, { terminateOcrWorker } from "../services/slipVerificationService.js";
 
@@ -871,6 +872,178 @@ describe("Donations Routes (Analytics & Management)", () => {
 
       expect(res.status).toBe(400);
       expect(res.body.message).toContain("ยอดเงินในสลิป (5 บาท) ต่ำกว่ายอดเงินขั้นต่ำที่กำหนด (15 บาท)");
+    });
+
+    it("should strip mission tag from message and alert when bank slip amount is less than mission price but >= minAmount", async () => {
+      const bankStreamer = {
+        ...validStreamer,
+        donationPage: { ...validStreamer.donationPage, minAmount: 10 },
+        payment: {
+          ...validStreamer.payment,
+          bank: {
+            enabled: true,
+            accountNumber: "1234567890",
+            accountName: "โปร เกมเมอร์",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(bankStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+      jest.spyOn(Widget, "findOne").mockResolvedValueOnce({
+        mission: {
+          missions: [{ id: "m-1", name: "ดื่มน้ำ 1 แก้วใหญ่", price: 20 }],
+        },
+      });
+
+      const mockIoEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
+      app.set("io", { to: mockTo });
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "ocr",
+        transRef: "BANK_LESS_THAN_MISSION_01",
+        amount: 10, // 10 < 20, but >= minAmount 10
+        bankCode: "014",
+        recipientMatched: true,
+        accountNumberMatched: true,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ใจดี",
+          message: "[ภารกิจ: ดื่มน้ำ 1 แก้วใหญ่] ชื่นใจจัง",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,mockslip",
+          missionPrice: 20,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.amount).toBe(10);
+      expect(res.body.data.message).toBe("ชื่นใจจัง");
+      expect(mockIoEmit).toHaveBeenCalledWith(
+        "donation-alert",
+        expect.objectContaining({
+          message: "ชื่นใจจัง",
+          amount: 10,
+        })
+      );
+
+      app.set("io", null);
+    });
+
+    it("should strip mission tag to empty string when bank slip amount is less than mission price and no extra message", async () => {
+      const bankStreamer = {
+        ...validStreamer,
+        donationPage: { ...validStreamer.donationPage, minAmount: 10 },
+        payment: {
+          ...validStreamer.payment,
+          bank: {
+            enabled: true,
+            accountNumber: "1234567890",
+            accountName: "โปร เกมเมอร์",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(bankStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+      jest.spyOn(Widget, "findOne").mockResolvedValueOnce({
+        mission: {
+          missions: [{ id: "m-1", name: "ดื่มน้ำ 1 แก้วใหญ่", price: 20 }],
+        },
+      });
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "ocr",
+        transRef: "BANK_LESS_THAN_MISSION_02",
+        amount: 10,
+        bankCode: "014",
+        recipientMatched: true,
+        accountNumberMatched: true,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          message: "[ภารกิจ: ดื่มน้ำ 1 แก้วใหญ่]",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,mockslip",
+          missionPrice: 20,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.amount).toBe(10);
+      expect(res.body.data.message).toBe("");
+    });
+
+    it("should keep mission tag when bank slip amount is greater than or equal to mission price", async () => {
+      const bankStreamer = {
+        ...validStreamer,
+        donationPage: { ...validStreamer.donationPage, minAmount: 10 },
+        payment: {
+          ...validStreamer.payment,
+          bank: {
+            enabled: true,
+            accountNumber: "1234567890",
+            accountName: "โปร เกมเมอร์",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(bankStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+      jest.spyOn(Widget, "findOne").mockResolvedValueOnce({
+        mission: {
+          missions: [{ id: "m-1", name: "ดื่มน้ำ 1 แก้วใหญ่", price: 20 }],
+        },
+      });
+
+      const mockIoEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
+      app.set("io", { to: mockTo });
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "ocr",
+        transRef: "BANK_EQUAL_MISSION_01",
+        amount: 20, // 20 >= 20
+        bankCode: "014",
+        recipientMatched: true,
+        accountNumberMatched: true,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ใจดี",
+          message: "[ภารกิจ: ดื่มน้ำ 1 แก้วใหญ่] ชื่นใจจัง",
+          paymentMethod: "bank",
+          slipImage: "data:image/png;base64,mockslip",
+          missionPrice: 20,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.amount).toBe(20);
+      expect(res.body.data.message).toBe("[ภารกิจ: ดื่มน้ำ 1 แก้วใหญ่] ชื่นใจจัง");
+      expect(mockIoEmit).toHaveBeenCalledWith(
+        "donation-alert",
+        expect.objectContaining({
+          message: "[ภารกิจ: ดื่มน้ำ 1 แก้วใหญ่] ชื่นใจจัง",
+          amount: 20,
+        })
+      );
+
+      app.set("io", null);
     });
   });
 

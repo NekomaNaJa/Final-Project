@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import User from "../Models/User.js";
 import Donation from "../Models/Donation.js";
+import Widget from "../Models/Widget.js";
 import slipVerificationService from "../services/slipVerificationService.js";
 
 const THAI_DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
@@ -146,7 +147,7 @@ export const createDonation = async (req, res, next) => {
     }
 
     // 6. กรองข้อความและชื่อผู้บริจาค
-    const safeMessage = sanitizeDonationMessage(message, streamer.donationPage);
+    let safeMessage = sanitizeDonationMessage(message, streamer.donationPage);
     const rawDonorName =
       typeof donorName === "string" && donorName.trim()
         ? String(donorName).trim().slice(0, 50)
@@ -315,6 +316,47 @@ export const createDonation = async (req, res, next) => {
         message: "ข้อมูลไม่ถูกต้อง",
         data: null,
       });
+    }
+
+    // 7.7 ตรวจสอบราคาภารกิจสำหรับช่องทาง Bank (Bank Mission Price Verification)
+    // หากเลือกภารกิจแต่ยอดเงินจากสลิป < ราคาภารกิจ (แต่ >= minAmount) ให้ตัดแท็กภารกิจออกจากข้อความบน Alert และในระบบ
+    if (paymentMethod === "bank" && typeof safeMessage === "string") {
+      const missionRegex = /^\[ภารกิจ:\s*(.+?)\s*\]\s*/;
+      const missionMatch = safeMessage.match(missionRegex);
+      const reqMissionPrice =
+        req.body?.missionPrice !== undefined &&
+        req.body?.missionPrice !== null &&
+        !Number.isNaN(Number(req.body.missionPrice)) &&
+        Number(req.body.missionPrice) > 0
+          ? Number(req.body.missionPrice)
+          : null;
+
+      if (missionMatch || reqMissionPrice !== null) {
+        const detectedMissionName = missionMatch
+          ? missionMatch[1].trim()
+          : (typeof req.body?.missionName === "string" ? req.body.missionName.trim() : "");
+        let targetMissionPrice = reqMissionPrice;
+
+        try {
+          const widget = await Widget.findOne({ userId: { $eq: streamer._id } });
+          if (widget?.mission?.missions && Array.isArray(widget.mission.missions)) {
+            const foundMission = widget.mission.missions.find((m) => {
+              if (req.body?.missionId && String(m.id) === String(req.body.missionId)) return true;
+              if (detectedMissionName && m.name && m.name.trim() === detectedMissionName) return true;
+              return false;
+            });
+            if (foundMission && typeof foundMission.price === "number") {
+              targetMissionPrice = foundMission.price;
+            }
+          }
+        } catch {
+          // หากค้นหา widget ไม่สำเร็จ ใช้ targetMissionPrice ที่ได้จาก req.body
+        }
+
+        if (targetMissionPrice !== null && effectiveAmount < targetMissionPrice) {
+          safeMessage = safeMessage.replace(missionRegex, "").trim();
+        }
+      }
     }
 
     // 8. บันทึกลงฐานข้อมูล MongoDB
