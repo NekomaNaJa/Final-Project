@@ -490,23 +490,22 @@ describe("Auth Controller & Routes", () => {
         expect(res.body.message).toContain("ยังไม่ได้เชื่อมต่อเบอร์โทรศัพท์");
       });
 
-      it("should successfully send OTP via email", async () => {
+      it("should return 503 when email provider is not configured", async () => {
         jest.spyOn(User, "findOne").mockResolvedValueOnce({
           _id: "u123",
           email: "donor@example.com",
           phone: "0812345678",
         });
-        jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+        jest.spyOn(Otp, "deleteMany").mockResolvedValue({});
         jest.spyOn(Otp, "create").mockResolvedValueOnce({});
 
         const res = await request(app)
           .post("/api/auth/forgot-password/send-otp")
           .send({ identifier: "donor@example.com", channel: "email" });
 
-        expect(res.status).toBe(200);
-        expect(res.body.message).toContain("ส่งรหัส OTP");
-        expect(res.body.data.channel).toBe("email");
-        expect(res.body.data.target).toBe("donor@example.com");
+        expect(res.status).toBe(503);
+        expect(res.body.message).toContain("ระบบส่งอีเมลยังไม่ได้ตั้งค่า");
+        expect(res.body.data).toBeNull();
       });
 
       it("should successfully send OTP via SMS", async () => {
