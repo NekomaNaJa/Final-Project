@@ -166,3 +166,140 @@ export const login = async (req, res, next) => {
     next(err);
   }
 };
+
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { credential, accessToken, mockUser } = req.body;
+
+    let googleProfile = null;
+
+    if (process.env.NODE_ENV === "test" && mockUser && typeof mockUser === "object") {
+      googleProfile = {
+        sub: String(mockUser.sub || mockUser.googleId || "mock_google_id"),
+        email: String(mockUser.email || "mock@gmail.com").trim().toLowerCase(),
+        name: String(mockUser.name || "Mock User"),
+        picture: String(mockUser.picture || ""),
+      };
+    } else if (typeof credential === "string" && credential.trim()) {
+      const safeCredential = String(credential).trim();
+      const googleRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(safeCredential)}`
+      );
+      const data = await googleRes.json();
+      if (!googleRes.ok || !data.sub || !data.email) {
+        return res.status(400).json({
+          message: "Google Token ไม่ถูกต้องหรือหมดอายุ",
+          data: null,
+        });
+      }
+      googleProfile = {
+        sub: String(data.sub),
+        email: String(data.email).trim().toLowerCase(),
+        name: String(data.name || data.given_name || ""),
+        picture: String(data.picture || ""),
+      };
+    } else if (typeof accessToken === "string" && accessToken.trim()) {
+      const safeAccessToken = String(accessToken).trim();
+      const googleRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${safeAccessToken}` },
+      });
+      const data = await googleRes.json();
+      if (!googleRes.ok || !data.sub || !data.email) {
+        return res.status(400).json({
+          message: "Google Access Token ไม่ถูกต้องหรือหมดอายุ",
+          data: null,
+        });
+      }
+      googleProfile = {
+        sub: String(data.sub),
+        email: String(data.email).trim().toLowerCase(),
+        name: String(data.name || data.given_name || ""),
+        picture: String(data.picture || ""),
+      };
+    } else {
+      return res.status(400).json({
+        message: "กรุณาระบุ Google Credential หรือ Token ที่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeGoogleId = googleProfile.sub;
+    const safeEmail = googleProfile.email;
+
+    let user = await User.findOne({
+      $or: [
+        { googleId: { $eq: safeGoogleId } },
+        { email: { $eq: safeEmail } },
+      ],
+    });
+
+    if (user) {
+      let isUpdated = false;
+      if (!user.googleId) {
+        user.googleId = safeGoogleId;
+        isUpdated = true;
+      }
+      if (!user.avatar && googleProfile.picture) {
+        user.avatar = googleProfile.picture;
+        isUpdated = true;
+      }
+      if (!user.isEmailVerified) {
+        user.isEmailVerified = true;
+        isUpdated = true;
+      }
+      if (isUpdated) {
+        await user.save();
+      }
+    } else {
+      let baseUsername = safeEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+      if (baseUsername.length < 3) {
+        baseUsername = `user_${safeGoogleId.slice(-6)}`;
+      }
+      baseUsername = baseUsername.slice(0, 20);
+
+      let candidateUsername = baseUsername;
+      let counter = 1;
+      while (await User.findOne({ username: { $eq: candidateUsername } })) {
+        candidateUsername = `${baseUsername.slice(0, 15)}_${counter}`;
+        counter++;
+      }
+
+      user = new User({
+        username: candidateUsername,
+        email: safeEmail,
+        googleId: safeGoogleId,
+        fullName: googleProfile.name || "",
+        nickname: googleProfile.name ? googleProfile.name.split(" ")[0] : candidateUsername,
+        avatar: googleProfile.picture || "",
+        isEmailVerified: true,
+        password: null,
+      });
+      await user.save();
+    }
+
+    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const token = jwt.sign(
+      { userId: user._id, username: user.username },
+      secret,
+      { expiresIn: "7d" }
+    );
+
+    const userData = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    };
+
+    res.json({
+      message: "เข้าสู่ระบบด้วย Google สำเร็จ",
+      token,
+      user: userData,
+      data: {
+        token,
+        user: userData,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};

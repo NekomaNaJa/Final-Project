@@ -81,11 +81,42 @@ describe('Auth Components', () => {
   });
 
   describe('SocialAuthButtons', () => {
-    it('renders Google, Youtube, Twitch login options', () => {
-      render(<SocialAuthButtons />);
+    it('renders Google login option and does not render Youtube or Twitch', () => {
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons />
+        </MemoryRouter>
+      );
       expect(screen.getByText(/ดำเนินการต่อด้วย Google/i)).toBeInTheDocument();
-      expect(screen.getByText(/ดำเนินการต่อด้วย Youtube/i)).toBeInTheDocument();
-      expect(screen.getByText(/ดำเนินการต่อด้วย Twitch/i)).toBeInTheDocument();
+      expect(screen.queryByText(/ดำเนินการต่อด้วย Youtube/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/ดำเนินการต่อด้วย Twitch/i)).not.toBeInTheDocument();
+    });
+
+    it('opens demo modal and handles demo login when client ID is missing', async () => {
+      const handleSuccess = jest.fn();
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "mock_jwt_token",
+          user: { id: "1", username: "demo_user" },
+        }),
+      });
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onSuccess={handleSuccess} />
+        </MemoryRouter>
+      );
+
+      const googleBtn = screen.getByText(/ดำเนินการต่อด้วย Google/i);
+      fireEvent.click(googleBtn);
+
+      expect(screen.getByText("Google OAuth Service")).toBeInTheDocument();
+
+      const demoBtn = screen.getByText(/เข้าสู่ระบบด้วย Google \(Demo Mode\)/i);
+      fireEvent.click(demoBtn);
+
+      expect(await screen.findByText(/กำลังเชื่อมต่อกับ Google.../i)).toBeInTheDocument();
     });
   });
 });
