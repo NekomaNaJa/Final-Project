@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (10 Suites, 205 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (10 Suites, 206 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (28 Suites, 292 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (28 Suites, 308 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -134,7 +134,7 @@ server/
 │   └── slipVerificationService.js → In-house Zero-Cost Slip QR & OCR Verification Engine (Jimp + jsQR + Tesseract.js Worker Lifecycle)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication & Google OAuth (25 tests)
-│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching (35 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency (36 tests)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
 │   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (5 tests)
@@ -143,7 +143,7 @@ server/
 │   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (3 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (15 tests)
-│   ── รวมฝั่ง Server: 10 Test Suites, 205 Tests ผ่าน 100% (Coverage > 97%)
+│   ── รวมฝั่ง Server: 10 Test Suites, 206 Tests ผ่าน 100% (Coverage > 97%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -196,6 +196,21 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 - **กรณีสำเร็จ (Success)**: `{ "message": "...", "data": ... }`
   - หมายเหตุ: สำหรับ Auth endpoints (`register`, `login`) จะแนบ `token` และ `user` ไว้ที่ root ควบคู่กันเพื่อรักษาความเข้ากันได้กับ Client: `{ "message": "...", "token": "...", "user": {...}, "data": { "token": "...", "user": {...} } }`
 - **กรณีล้มเหลว (Error)**: `{ "message": "...", "data": null }` พร้อม HTTP Status Code ที่เหมาะสม (400, 401, 404, 500)
+
+### 4.6 การป้องกัน Race Condition และการประมวลผลคำขอซ้ำแบบ Idempotency (API Idempotency Pattern)
+
+เพื่อแก้ไขปัญหาการกดส่งสลิปซ้ำซ้อน (Double Click) หรือเครือข่ายส่งคำขอซ้อนกันในเสี้ยววินาที ซึ่งอาจส่งผลให้ Request แรกบันทึกสำเร็จและยิง Socket Alert ไปแล้ว แต่ Request ที่สองถูกระบบ Duplicate Detection ปฏิเสธด้วย Error 400 จนทำให้หน้าเว็บแสดงข้อความผิดพลาดหลอกผู้ใช้งาน เซิร์ฟเวอร์ใน `donationController.js` ได้นำหลักการ **Idempotency** มาใช้:
+
+1. **การตรวจสอบหน้าต่างเวลาสั้น (15-Second Deduplication Window)**:
+   - เมื่อสกัดรหัส `transRef` จากสลิปและค้นพบรายการซ้ำในฐานข้อมูล ระบบจะตรวจสอบว่า:
+     - รายการนั้นเป็นของสตรีมเมอร์คนเดียวกันหรือไม่ (`duplicate.streamerId === streamer._id`)
+     - รายการนั้นถูกสร้างขึ้นภายใน 15 วินาทีที่ผ่านมาหรือไม่ (`Date.now() - duplicate.createdAt < 15,000ms`)
+2. **การตอบกลับอย่างปลอดภัย (Idempotent 200 Success)**:
+   - หากตรงตามเงื่อนไขทั้งสองข้อ เซิร์ฟเวอร์จะตอบกลับด้วยสถานะ **`200 OK` พร้อมข้อมูลรายการบริจาคเดิม** ทันที
+   - **ไม่สร้างรายการใหม่ในฐานข้อมูล** และ **ไม่ยิง Socket.IO `donation-alert` ซ้ำไปยัง OBS Studio**
+   - ช่วยให้หน้าเว็บของผู้สนับสนุนได้รับสถานะสำเร็จและเปิดหน้าต่างขอบคุณอย่างราบรื่น 100%
+3. **การรักษาความปลอดภัยต่อการทุจริต**:
+   - หากสลิปถูกนำมาใช้ซ้ำเกิน 15 วินาที หรือนำไปใช้กับสตรีมเมอร์คนละคน ระบบจะตอบกลับด้วยรหัสข้อผิดพลาด **`400 Bad Request`** พร้อมข้อความ *"สลิปนี้ถูกใช้งานไปแล้ว ไม่สามารถใช้ซ้ำได้"* ตามมาตรฐานความปลอดภัยอย่างเข้มงวด
 
 ---
 
@@ -278,6 +293,10 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 - **เปิดให้บริการตลอดเวลา (Always Online)**: ผู้สนับสนุนเข้าถึงหน้าโดเนทได้ตลอด 24 ชม. ไม่ต้องรอสลับสถานะออฟไลน์/ออนไลน์
 - **การแสดงผลรูปภาพหน้าปกและพื้นหลัง**: แสดงรูปภาพหน้าปก (`coverImage`) และรูปภาพพื้นหลัง (`backgroundImage`) ที่สตรีมเมอร์ตั้งค่าไว้ พร้อม Dark Overlay เพื่อให้อ่านข้อความและข้อมูลได้ชัดเจน
 - **ภารกิจโดเนท (Mission Donate Integration & Locked Tag)**: แสดงรายการภารกิจที่สตรีมเมอร์ตั้งค่าไว้ในหน้า Widget (`/widget`) เป็นการ์ดภารกิจแบบอินเทอร์แอคทีฟ (DonorMissionList) เมื่อผู้สนับสนุนคลิกเลือกภารกิจ ระบบจะตั้งค่ายอดเงินตามราคาภารกิจ (`mission.price`) พร้อมล็อคแท็กภารกิจ (`[ 🔒 ภารกิจ: {name} ]`) ไว้ในกล่องข้อความไม่ให้ผู้บริจาคลบออกได้ และการันตีแนบ `[ภารกิจ: {name}]` ส่งไปยัง Alert ใน OBS Studio เสมอเมื่อชำระเงิน พร้อมแสดงป้ายกำกับทั้งใน PromptPay และโอนผ่านธนาคาร รวมถึงปุ่มยกเลิกการเลือกภารกิจ
+- **การป้องกันการกดซ้ำซ้อน (Multi-layer Submission Guard & Double-click Lock)**:
+  - ติดตั้ง `useRef` Submission Lock (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อยทุกช่องทาง (`DonorPromptPayForm`, `DonorBankForm`, `DonorTrueMoneyForm`) ป้องกันการกดเบิ้ลหรือยิงคำขอซ้ำในระดับ JavaScript Memory ทันที
+  - เพิ่ม CSS `pointer-events-none` และสถานะ `disabled` บนปุ่มยืนยันการชำระเงินทันทีที่เริ่มประมวลผลคำขอแรก ป้องกันไม่ให้เบราว์เซอร์รับ Event การคลิกซ้ำได้
+  - แสดง Processing Modal แจ้งสถานะระบบกำลังตรวจสอบและสแกนสลิป ป้องกันผู้ใช้งานปิดหรือเปลี่ยนหน้าต่างระหว่างประมวลผล
 - สถานะการเปิด/ปิดช่องทางรับเงินขึ้นอยู่กับการตั้งค่าสวิตช์ในหน้า **Payment (`/payment`)** โดยตรง:
   1. **PromptPay**: แสดง PromptPay QR Code อัตโนมัติตามยอดเงิน, ลากวางอัปโหลดสลิป, ปุ่มยืนยัน
   2. **Bank**: แสดงข้อมูลบัญชีธนาคารพร้อมปุ่มคัดลอกเลขบัญชี แสดงยอดโดเนทขั้นต่ำชัดเจนทั้งภายในการ์ดและป้ายเตือน ไม่ต้องกรอกจำนวนเงินเอง ระบบจะอ่านยอดเงินและตรวจสอบชื่อผู้รับเงินจากสลิปผ่าน OCR/Mini QR อัตโนมัติ
@@ -406,12 +425,13 @@ client/src/
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
 | **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 28 Suites (292 Tests ผ่าน 100%), Server: 10 Suites (205 Tests ผ่าน 100%, Coverage > 97%), รวม **38 Suites, 497 Tests ผ่าน 100%** |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 28 Suites (308 Tests ผ่าน 100%), Server: 10 Suites (206 Tests ผ่าน 100%, Coverage > 97%), รวม **38 Suites, 514 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง รองรับ `--forceExit` ป้องกัน Process ค้าง |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities, เพิ่ม Node Memory 4GB และ Exclude Binary Assets แก้ปัญหาสแกนค้างที่ 57% |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
 | **OCR Slip Verification & Bank Matching** | ✅ สมบูรณ์ | Phase 8 & Extension — In-House QR & OCR Verification Engine (Zero-Cost ด้วย jsQR + Jimp + Tesseract.js), ตรวจจับสลิป PromptPay / Bank Mini QR (ITMX), อ่านจำนวนเงินจากสลิปอัตโนมัติ (Zero-Touch), ตรวจสอบชื่อผู้รับเงินตรงกับบัญชีสตรีมเมอร์ (`isRecipientNameMatched`) พร้อมตัดคำนำหน้าชื่อไทย, ตรวจสอบเลขบัญชี 4 หลักสุดท้าย, ป้องกันสลิปซ้ำด้วย Sparse Unique Index บน `transRef`, และระบบ Auto-Approve แจ้งเตือน OBS ทันที |
 | **Phase 9 — Google OAuth & Performance** | ✅ สมบูรณ์ | ระบบ Google Identity Services (GIS) ทำงานได้จริงทั้ง Login & Register, Endpoint `POST /api/auth/google` สำหรับ Auto-Registration และ Link Account, ลบปุ่ม YouTube/Twitch ที่ไม่จำเป็น, Dynamic Domain ลิงก์โดเนท, ปรับแต่ง SonarCloud Heap Memory 4096MB แก้ปัญหาสแกนล่าช้า |
+| **Phase 10 — Mission Donate & Idempotency Engine** | ✅ สมบูรณ์ | เชื่อมต่อระบบภารกิจโดเนท Mission Cards สู่หน้าบริจาค (`/:username`) พร้อมป้ายล็อคแท็ก `[ 🔒 ภารกิจ: {name} ]`, ป้องกันการกดส่งสลิปซ้ำซ้อนสองชั้น (Multi-layer Submission Guard + useRef lock), ระบบ 15-second Backend Idempotency Window ป้องกัน Race condition ตอบกลับ 200 OK โดยไม่ยิง Socket ซ้ำ, รองรับภาพหน้าปก/พื้นหลัง และตัวกรองคำหยาบทั้งชื่อและข้อความ |
 
 ---
 
@@ -545,6 +565,23 @@ client/src/
     - กำหนด `sonar.javascript.node.maxspace=4096` แก้ไขปัญหา SonarCloud Scanner หยุดชะงักที่ 57%
     - ละเว้นการวิเคราะห์ไฟล์ Binary OCR `*.traineddata`, `package-lock.json`, และรูปภาพ Static Assets
   - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 205 Tests Coverage > 97%, Client 28 Suites 292 Tests รวม **38 Suites, 497 Tests ผ่าน 100%**) และผ่าน SonarCloud Quality Gate Coverage on New Code ≥ 80%
+
+- **Phase 10: Mission Donate Integration, Locked Tag System, Multi-layer Submission Guard & Idempotency Engine (เสร็จสมบูรณ์ ✅)**
+  - **Mission Donate Integration & Interactive Selection**:
+    - ดึงการตั้งค่าภารกิจจาก `/widget` มาแสดงผลเป็นการ์ดภารกิจแบบ Interactive (`DonorMissionList`) บนหน้า `DonorPage` (`/:username`)
+    - เมื่อผู้สนับสนุนคลิกเลือกภารกิจ ระบบจะตั้งค่ายอดเงินตามราคาภารกิจ (`mission.price`) โดยอัตโนมัติ
+  - **Locked Mission Tag Guard**:
+    - ล็อคแท็กภารกิจเป็นป้ายกำกับถาวร `[ 🔒 ภารกิจ: {name} ]` เหนือกล่องข้อความ โดยผู้สนับสนุนไม่สามารถแก้ไขหรือลบออกได้
+    - การันตีแนบ `[ภารกิจ: {name}]` ส่งต่อไปยัง OBS Alert เมื่อชำระเงิน พร้อมแสดงป้ายกำกับทั้งใน PromptPay และโอนผ่านธนาคาร รวมถึงปุ่มยกเลิกการเลือกภารกิจ
+  - **Multi-layer Submission Guard & Double-click Lock**:
+    - ติดตั้ง `useRef` Submission Lock (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อยทุกช่องทาง (`DonorPromptPayForm`, `DonorBankForm`, `DonorTrueMoneyForm`) ป้องกันการกดเบิ้ลในระดับ Memory ทันที
+    - เพิ่ม CSS `pointer-events-none` และสถานะ `disabled` บนปุ่มยืนยันการชำระเงินทันทีที่เริ่มประมวลผล
+  - **15-Second Backend Idempotency Window**:
+    - ใน `donationController.js` เพิ่มการตรวจสอบหากพบ `transRef` ซ้ำที่สร้างขึ้นภายใน 15 วินาทีสำหรับสตรีมเมอร์คนเดิม จะตอบกลับด้วยสถานะ 200 OK พร้อมข้อมูลเดิมทันที โดยไม่บันทึกซ้ำและไม่ยิง Socket.IO Alert ซ้ำ
+  - **Donor Page Decoration & Profanity Filtering**:
+    - รองรับการแสดงผลภาพหน้าปก (`coverImage`) และภาพพื้นหลัง (`backgroundImage`) พร้อม Dark Overlay
+    - ขยายระบบตัวกรองคำหยาบ (Profanity Filter) ให้ครอบคลุมทั้งชื่อผู้สนับสนุน (`donorName`) และข้อความ (`message`)
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 206 Tests Coverage > 97%, Client 28 Suites 308 Tests รวม **38 Suites, 514 Tests ผ่าน 100%**) และผ่าน SonarCloud Quality Gate Coverage on New Code ≥ 80% (Clean Code, 0 Code Smells)
 
 ---
 
@@ -686,7 +723,7 @@ client/src/
 2. **การวิเคราะห์ระบบ (System Analysis)**: วิเคราะห์ความต้องการของผู้ใช้ (Streamer, Donor) กำหนด Use Cases และออกแบบสถาปัตยกรรม Monorepo
 3. **การออกแบบระบบ (System & Database Design)**: ออกแบบ UI/UX บน Figma, กำหนด Mongoose Schema (5 Models: User, Donation, Widget, Mission, Blacklist) และออกแบบ REST API Endpoints
 4. **การพัฒนาระบบ (System Implementation)**: พัฒนาระบบ Client, Server, Socket.IO Events, In-House Slip Verification Engine, และ Google OAuth 2.0 GIS
-5. **การทดสอบและปรับปรุงระบบ (Testing & Quality Assurance)**: เขียน Unit/Integration Tests ครอบคลุม 38 Test Suites, 497 Tests ผ่าน 100%, ทดสอบความปลอดภัย NoSQL Guard, และปรับแต่ง SonarCloud Quality Gate
+5. **การทดสอบและปรับปรุงระบบ (Testing & Quality Assurance)**: เขียน Unit/Integration Tests ครอบคลุม 38 Test Suites, 514 Tests ผ่าน 100% (Server 206 Tests, Client 308 Tests), ทดสอบความปลอดภัย NoSQL Guard, ป้องกัน Race Condition ด้วย Idempotency, และปรับแต่ง SonarCloud Quality Gate
 6. **การจัดทำเอกสารโครงงาน (Documentation)**: บันทึกเอกสารคู่มือระบบ (`AGENTS.md`) และจัดทำรูปเล่มรายงานโครงงานบทที่ 1 ถึงบทที่ 5
 7. **การนำเสนอโครงงาน (Project Defense)**: จัดเตรียมสไลด์และระบบต้นแบบเพื่อนำเสนอต่อคณะกรรมการ
 
@@ -763,6 +800,10 @@ client/src/
 - **GitHub Actions**: แพลตฟอร์ม CI/CD แบบ Automated Pipeline ตรวจสอบโค้ด, รันชุดทดสอบทั้ง Client และ Server, และตรวจสอบ Production Build
 - **SonarCloud**: เครื่องมือวิเคราะห์คุณภาพโค้ดแบบ Static Code Analysis ตรวจสอบ Security Hotspots, Bugs, Code Smells, Code Duplication, และ Code Coverage
 
+#### 8) การจัดการคำขอซ้ำและความสอดคล้องของข้อมูล (Idempotency & Concurrency Control)
+- **API Idempotency Pattern**: การออกแบบให้คำขอที่ส่งซ้ำจากฝั่งผู้ใช้ (เช่น การกดปุ่มซ้ำ Double-click หรือเครือข่ายส่งแพ็กเกจซ้ำ) ได้รับผลลัพธ์ที่ถูกต้องโดยไม่เกิดการประมวลผลธุรกรรมซ้ำซ้อน ผ่านระบบหน้าต่างเวลาตรวจสอบ (15-Second Deduplication Window)
+- **Client-Side Concurrency Guard**: การใช้ Mutable Reference (`useRef`) ใน React เพื่อล็อคสถานะการประมวลผลทันทีในระดับ Memory ควบคู่กับ CSS Pointer Events Suppression เพื่อป้องกัน Race Condition ก่อนที่ React State จะ Re-render
+
 ---
 
 ### 12.3 สรุปเนื้อหาสำหรับ บทที่ 3: การวิเคราะห์และออกแบบระบบ
@@ -775,19 +816,23 @@ client/src/
 - **FR-01 (Authentication)**: ผู้ใช้สามารถลงทะเบียน, เข้าสู่ระบบด้วย Email/Password พร้อมตรวจสอบความปลอดภัยรหัสผ่าน 5 ข้อ หรือเข้าสู่ระบบด้วย Google Account
 - **FR-02 (Profile Management)**: สตรีมเมอร์สามารถจัดการข้อมูลส่วนตัว, รูปภาพโปรไฟล์ (Avatar), ข้อมูลติดต่อ และเชื่อมต่อโซเชียลมีเดีย 6 แพลตฟอร์ม
 - **FR-03 (Payment Setup)**: สตรีมเมอร์สามารถเปิด/ปิด และตั้งค่าช่องทางรับเงิน 3 รูปแบบ (PromptPay 7 ประเภท, บัญชีธนาคาร 7 แห่ง, TrueMoney)
-- **FR-04 (Donation Page Decoration)**: สตรีมเมอร์สามารถตกแต่งหน้าโดเนท, กำหนดยอดบริจาคขั้นต่ำ, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, และภาพหน้าปก
+- **FR-04 (Donation Page Decoration)**: สตรีมเมอร์สามารถตกแต่งหน้าโดเนท, กำหนดยอดบริจาคขั้นต่ำ, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, รูปภาพหน้าปก และรูปภาพพื้นหลัง
 - **FR-05 (Public Donor Page)**: ผู้สนับสนุนสามารถเข้าหน้ารับเงินของสตรีมเมอร์ (`/:username`) ได้ตลอด 24 ชั่วโมง โดยไม่ต้องรอสตรีมเมอร์เปิดไลฟ์
 - **FR-06 (Zero-Touch Bank Transfer & Slip Upload)**: ผู้สนับสนุนสามารถโอนเงินและแนบสลิป โดยระบบจะอ่านยอดเงินและตรวจสอบชื่อผู้รับเงินอัตโนมัติ
 - **FR-07 (In-house Slip Verification Engine)**: ระบบตรวจสอบความถูกต้องของสลิป ป้องกันสลิปซ้ำผ่านรหัสอ้างอิงธุรกรรม (`transRef`), ตรวจสอบยอดเงิน และอนุมัติอัตโนมัติ
 - **FR-08 (Real-time OBS Overlays)**: แสดงผลวิดเจ็ต 3 รูปแบบบน OBS Studio (Alert, Goal, Leaderboard) ด้วยพื้นหลังโปร่งใสและอัปเดตข้อมูลแบบเรียลไทม์
 - **FR-09 (Live Widget Config Sync)**: เมื่อสตรีมเมอร์แก้ไขการตั้งค่าวิดเจ็ตบนเว็บ ระบบจะส่งสัญญาณอัปเดต OBS Browser Source อัตโนมัติทันที
 - **FR-10 (Dashboard & History Analytics)**: สตรีมเมอร์สามารถดูสถิติภาพรวม, กราฟแนวโน้มยอดเงิน, ตรวจสอบประวัติสลิป และอนุมัติ/ปฏิเสธรายการได้
+- **FR-11 (Double-Click & Idempotency Guard)**: ป้องกันการส่งคำขอซ้ำซ้อนในระดับ Client ผ่าน `useRef` Submission Locks และระดับ Backend API ผ่าน 15-second Idempotency Deduplication Window ตอบกลับสถานะ 200 OK โดยไม่สร้างรายการซ้ำและไม่ยิง Socket.IO ซ้ำ
+- **FR-12 (Mission Donate Integration & Locked Tag)**: ระบบแสดงการ์ดภารกิจในหน้า Donor Page (`/:username`) เมื่อเลือกภารกิจจะตั้งยอดเงินอัตโนมัติ ล็อคแท็กภารกิจ `[ 🔒 ภารกิจ: {name} ]` ในกล่องข้อความไม่ให้ผู้บริจาคลบออกได้ และการันตีส่งแท็กภารกิจไปยัง Alert บน OBS Studio
+- **FR-13 (Donor Page Media Customization)**: สตรีมเมอร์สามารถตกแต่งหน้าโดเนทด้วยรูปภาพหน้าปก (`coverImage`) และรูปภาพพื้นหลัง (`backgroundImage`) พร้อมระบบ Dark Overlay เพื่อให้อ่านข้อความได้อย่างชัดเจน
+- **FR-14 (Comprehensive Profanity Filtering)**: ระบบกรองคำหยาบแบบครอบคลุมทั้งชื่อผู้สนับสนุน (`donorName`) และข้อความ (`message`) เพื่อความปลอดภัยของคอนเทนต์ในการถ่ายทอดสด
 
 ##### ความต้องการที่ไม่ใช่เชิงหน้าที่ (Non-Functional Requirements: NFR)
 - **NFR-01 (Security)**: ระบบต้องป้องกัน NoSQL Injection, XSS, CSRF, Brute-force และเข้ารหัสรหัสผ่านด้วย `bcryptjs`
 - **NFR-02 (Performance & Latency)**: การส่งการแจ้งเตือน Real-time ผ่าน Socket.IO ไปยัง OBS Studio ต้องมีความล่าช้า (Latency) ต่ำกว่า 500 มิลลิวินาที
 - **NFR-03 (Zero-Cost Operation)**: ระบบตรวจสอบสลิปต้องทำงานได้ด้วย Open-source libraries ภายในเครื่อง โดยไม่มีค่าใช้จ่ายต่อครั้งของ API ภายนอก
-- **NFR-04 (High Reliability)**: ชุดทดสอบของระบบต้องผ่าน 100% พร้อม Code Coverage รวมสูงกว่า 95% และมีระบบ Auto-reconnect Socket
+- **NFR-04 (High Reliability & Test Coverage)**: ชุดทดสอบของระบบต้องผ่าน 100% ครบทั้ง 38 Test Suites, 514 Tests พร้อม Code Coverage รวมสูงกว่า 97% และมีระบบ Auto-reconnect Socket
 - **NFR-05 (Clean Stream UX)**: หน้า OBS Browser Source ต้องไม่มีปุ่มหรือสิ่งกีดขวางใดๆ ปรากฏบนจอถ่ายทอดสด
 
 #### 2) แผนภาพสถาปัตยกรรมระบบ (System Architecture)
@@ -871,9 +916,14 @@ stateDiagram-v2
         [*] --> QueryTransRef: ค้นหา transRef ใน MongoDB
         QueryTransRef --> DuplicateFound: พบ transRef ซ้ำในฐานข้อมูล
         QueryTransRef --> SlipValid: สลิปไม่ซ้ำและยอดเงินถูกต้อง
+        
+        DuplicateFound --> CheckIdempotencyWindow: ตรวจสอบหน้าต่างเวลาและสตรีมเมอร์
+        CheckIdempotencyWindow --> IdempotentSuccess: สร้างไม่เกิน 15 วิ & สตรีมเมอร์คนเดิม
+        CheckIdempotencyWindow --> ErrorDuplicate: เกิน 15 วิ หรือสตรีมเมอร์คนละคน
     }
     
-    DuplicateFound --> [*]: ส่งข้อผิดพลาด 400 (สลิปนี้ถูกใช้งานไปแล้ว)
+    IdempotentSuccess --> [*]: ตอบกลับ 200 OK เดิม (ไม่ยิง Alert ซ้ำ)
+    ErrorDuplicate --> [*]: ส่งข้อผิดพลาด 400 (สลิปนี้ถูกใช้งานไปแล้ว)
     
     state SlipValid {
         [*] --> CheckStreamerSetting
@@ -902,18 +952,18 @@ stateDiagram-v2
 | `nickname` | String | - | ชื่อเล่นสำหรับแสดงผล |
 | `avatar` | String | - | รูปโปรไฟล์ (Base64 data URI หรือ URL) |
 | `isLive` | Boolean | - | สถานะของสตรีมเมอร์ (Default: true) |
-| `payment.promptpay` | Object | - | `{ enabled: Boolean, type: String, number: String }` |
-| `payment.bank` | Object | - | `{ enabled: Boolean, bankName: String, accountNumber: String, accountName: String }` |
+| `payment.promptpay` | Object | - | `{ enabled: Boolean, type: String (7 รูปแบบ), number: String }` |
+| `payment.bank` | Object | - | `{ enabled: Boolean, bankName: String (7 ธนาคาร), accountNumber: String, accountName: String }` |
 | `payment.truemoney`| Object | - | `{ enabled: Boolean, phone: String }` |
-| `donationPage` | Object | - | `{ minAmount: Number, autoApproveSlip: Boolean, welcomeMessage: String, filteredWords: Array }` |
+| `donationPage` | Object | - | `{ minAmount: Number, autoApproveSlip: Boolean, welcomeMessage: String, thankYouMessage: String, filteredWords: Array, coverImage: String, backgroundImage: String }` |
 
 ##### 2. Donation Schema (`server/Models/Donation.js`)
 | ฟิลด์ (Field) | ชนิดข้อมูล (Type) | ดัชนี (Index) | คำอธิบาย |
 | :--- | :--- | :--- | :--- |
 | `streamerId` | ObjectId (Ref: User) | Compound `{ streamerId: 1, createdAt: -1 }` | ไอดีของสตรีมเมอร์ผู้รับเงิน |
-| `donorName` | String | - | ชื่อผู้สนับสนุน (Default: 'Anonymous') |
+| `donorName` | String | - | ชื่อผู้สนับสนุน (Default: 'Anonymous', ผ่านตัวกรองคำหยาบ) |
 | `amount` | Number | Required | จำนวนเงินบริจาค (บาท) |
-| `message` | String | - | ข้อความถึงสตรีมเมอร์ (ผ่านการกรองคำหยาบแล้ว) |
+| `message` | String | - | ข้อความถึงสตรีมเมอร์ (รวมแท็ก `[ภารกิจ: {name}]` และผ่านตัวกรองคำหยาบ) |
 | `paymentMethod`| String | Enum: `promptpay`, `bank`, `truemoney` | ช่องทางที่ใช้ในการชำระเงิน |
 | `status` | String | Enum: `pending`, `approved`, `rejected` | สถานะของรายการบริจาค |
 | `slipImage` | String | - | รูปภาพสลิปการโอนเงิน (Base64 data URI) |
@@ -929,7 +979,7 @@ stateDiagram-v2
 | `alert` | Object | - | การตั้งค่าการแจ้งเตือน (เสียง, TTS, ฟอนต์, สี, แอนิเมชั่น, Tiers) |
 | `goal` | Object | - | การตั้งค่าเป้าหมาย (ชื่อเป้าหมาย, ยอดเป้าหมาย, ธีมสี, วันที่เริ่ม/สิ้นสุด) |
 | `leaderboard` | Object | - | การตั้งค่าบอร์ดผู้นำ (จำนวนอันดับ, การแสดงยอดเงิน, ช่วงเวลา) |
-| `mission` | Object | - | การตั้งค่าภารกิจโดเนท |
+| `mission` | Object | - | การตั้งค่าภารกิจโดเนท `{ enabled: Boolean, title: String, missions: [{ id, name, price, completed }] }` |
 
 #### 5) ตารางข้อกำหนดส่วนต่อประสาน (RESTful API Specification)
 
@@ -937,10 +987,11 @@ stateDiagram-v2
 | :--- | :---: | :---: | :--- |
 | `/api/auth/register` | POST | สาธารณะ | สมัครสมาชิกใหม่ ตรวจสอบความปลอดภัยรหัสผ่าน 5 ข้อ |
 | `/api/auth/login` | POST | สาธารณะ | เข้าสู่ระบบและส่งกลับ JWT Token และข้อมูลโปรไฟล์ |
+| `/api/auth/google` | POST | สาธารณะ | เข้าสู่ระบบ/ลงทะเบียนอัตโนมัติด้วย Google OAuth (GIS) |
 | `/api/users/me` | GET / PUT | Bearer JWT | ดึงและอัปเดตข้อมูลส่วนตัว / Nickname / รูปภาพ Avatar |
 | `/api/users/payment` | PUT | Bearer JWT | บันทึกการตั้งค่าช่องทางรับเงิน (PromptPay, Bank, TrueMoney) |
-| `/api/users/donation-page` | PUT | Bearer JWT | บันทึกการตั้งค่าหน้าโดเนท (ยอดขั้นต่ำ, Auto-Approve OCR, ข้อความ) |
-| `/api/donations` | POST | สาธารณะ | ส่งรายการบริจาค พร้อมถอดรหัสสลิป ตรวจสอบยอดและชื่อผู้รับเงิน |
+| `/api/users/donation-page` | PUT | Bearer JWT | บันทึกการตั้งค่าหน้าโดเนท (ยอดขั้นต่ำ, Auto-Approve OCR, ข้อความ, หน้าปก, พื้นหลัง) |
+| `/api/donations` | POST | สาธารณะ | ส่งรายการบริจาค พร้อมถอดรหัสสลิป ตรวจสอบยอด/ชื่อ และ 15s Idempotency ป้องกันส่งซ้ำ |
 | `/api/donations` | GET | Bearer JWT | ดึงประวัติรายการบริจาค พร้อมแบ่งหน้าและตัวกรองสถานะ |
 | `/api/donations/stats` | GET | Bearer JWT | ดึงข้อมูลสถิติภาพรวม ยอดรวม กราฟ 7D/30D และ Top Donors |
 | `/api/donations/:id` | PATCH | Bearer JWT | อนุมัติ (`approved`) หรือปฏิเสธ (`rejected`) รายการโดเนท |
@@ -967,14 +1018,30 @@ stateDiagram-v2
    - ตัดวรรคตอนและเครื่องหมายพิเศษออกเพื่อเปรียบเทียบแบบ Substring
    - รองรับกรณีสลิปธนาคารย่อนามสกุลเหลือเพียงอักษรย่อตัวแรก
 
-#### 2) ผลการทดสอบระบบ (Test Results & Metrics)
+#### 2) การพัฒนากลไกป้องกัน Race Condition และคำขอซ้ำซ้อน (Multi-layer Submission Guard & Idempotency Engine)
+1. **Client-Side Concurrency Lock**:
+   - ติดตั้ง `useRef` submission locks (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อย (`DonorPromptPayForm`, `DonorBankForm`, `DonorTrueMoneyForm`) เพื่อล็อคการส่งคำขอทันทีในระดับ Memory Execution ก่อนที่ React State จะ Re-render
+   - เพิ่ม CSS `pointer-events-none` และสถานะ `disabled` บนปุ่มยืนยันการชำระเงินทันทีที่เริ่มประมวลผลคำขอแรก ป้องกันไม่ให้เบราว์เซอร์รับ Event การคลิกซ้ำได้
+2. **Backend 15-Second Idempotency Window**:
+   - ใน `server/controllers/donationController.js` เพิ่มกลไกตรวจสอบหากพบรหัสอ้างอิง `transRef` ซ้ำในฐานข้อมูล ระบบจะตรวจสอบว่ารายการนั้นเป็นของสตรีมเมอร์คนเดียวกันและถูกสร้างขึ้นภายใน 15 วินาทีหรือไม่
+   - หากตรงตามเงื่อนไข จะตอบกลับด้วยสถานะ `200 OK` พร้อมข้อมูลรายการบริจาคเดิมทันที โดยไม่บันทึกซ้ำและไม่ยิง Socket.IO `donation-alert` ซ้ำไปยัง OBS Studio ช่วยให้หน้าต่างขอบคุณผู้บริจาคเปิดขึ้นอย่างราบรื่น 100%
+
+#### 3) การพัฒนาระบบภารกิจโดเนทและการล็อคแท็กภารกิจ (Mission Donate Integration & Locked Tag Guard)
+1. **Interactive Mission Selection**:
+   - เชื่อมโยงข้อมูลภารกิจจากวิดเจ็ตสตรีมเมอร์มาแสดงผลเป็นการ์ดภารกิจแบบโต้ตอบ (`DonorMissionList`) บนหน้าบริจาค (`/:username`)
+   - เมื่อผู้สนับสนุนคลิกเลือกภารกิจ ระบบจะตั้งค่ายอดเงินตามราคาภารกิจ (`mission.price`) โดยอัตโนมัติ
+2. **Locked Mission Tag Guard**:
+   - แสดงป้ายกำกับภารกิจที่ถูกล็อค `[ 🔒 ภารกิจ: {name} ]` เหนือกล่องข้อความ โดยผู้สนับสนุนไม่สามารถลบหรือแก้ไขชื่อภารกิจออกได้
+   - การันตีแนบ `[ภารกิจ: {name}]` เข้ากับข้อความบริจาคเสมอ เพื่อให้ Alert บน OBS Studio แสดงชื่อภารกิจอย่างแม่นยำ พร้อมปุ่มยกเลิกการเลือกภารกิจ
+
+#### 4) ผลการทดสอบระบบ (Test Results & Metrics)
 
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **10 Suites** | **205 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **Client (Frontend React SPA)** | **28 Suites** | **292 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **38 Suites** | **497 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **10 Suites** | **206 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Client (Frontend React SPA)** | **28 Suites** | **308 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **38 Suites** | **514 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |
@@ -990,7 +1057,7 @@ stateDiagram-v2
 - **Quality Gate Status**: Passed (ผ่านเกณฑ์ระดับสูงสุด)
 - **Security Rating**: A (0 Vulnerabilities, 0 Security Hotspots)
 - **Reliability Rating**: A (0 Bugs)
-- **Maintainability Rating**: A (0 Code Smells รุนแรง)
+- **Maintainability Rating**: A (0 Code Smells)
 - **Duplication on New Code**: ≤ 3.0% (ปฏิบัติตามกฎห้ามโค้ดซ้ำซ้อนอย่างเคร่งครัด)
 - **Coverage on New Code**: ≥ 80.0% (ทำได้จริง > 88% - 97%)
 
@@ -1002,11 +1069,12 @@ stateDiagram-v2
 
 #### 1) สรุปผลสำเร็จของโครงงาน (Conclusion)
 โครงงานระบบรับบริจาคและสนับสนุนสตรีมเมอร์ (DONIX) บรรลุตามวัตถุประสงค์ที่กำหนดไว้ทุกประการ:
-1. พัฒนาเว็บแอปพลิเคชันสำหรับสตรีมเมอร์และผู้สนับสนุนได้ครบ 14 หน้า พร้อมหน้า Browser Source Overlays 3 รูปแบบ
+1. พัฒนาเว็บแอปพลิเคชันสำหรับสตรีมเมอร์และผู้สนับสนุนได้ครบ 14 หน้า พร้อมหน้า Browser Source Overlays 3 รูปแบบบน OBS Studio
 2. พัฒนาระบบตรวจสอบสลิปการโอนเงินอัตโนมัติภายในระบบ (Zero-Cost In-House QR & OCR Engine) สำเร็จโดยไม่มีค่าใช้จ่าย API ต่อรายการ
-3. ป้องกันการทุจริตและการใช้สลิปซ้ำได้ 100% ด้วยระบบ Sparse Unique Database Indexing
+3. ป้องกันการทุจริตและการใช้สลิปซ้ำได้ 100% ด้วยระบบ Sparse Unique Database Indexing ควบคู่กับ 15-second Idempotency Engine
 4. ตรวจสอบชื่อผู้รับเงินในสลิปกับชื่อบัญชีสตรีมเมอร์ได้อย่างถูกต้อง รองรับการตัดคำนำหน้าชื่อไทยและการย่อนามสกุล
 5. ซิงค์การแสดงผลบน OBS Studio ได้แบบเรียลไทม์ และมีระบบคำนวณยอดเงินสะสมจริงที่แม่นยำ
+6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 38 Test Suites รวม 514 Tests ผ่าน 100% พร้อมระดับความปลอดภัยและคุณภาพโค้ดเกรด A จาก SonarCloud
 
 #### 2) ตารางเปรียบเทียบคุณสมบัติ (Competitive Advantage Analysis)
 
@@ -1015,9 +1083,10 @@ stateDiagram-v2
 | **ค่าธรรมเนียมต่อรายการ (Transaction Fee)** | มีการหักเปอร์เซ็นต์ (เช่น 5% - 15%) | **0% (ฟรี ไม่มีหักค่าธรรมเนียม)** |
 | **ค่าบริการตรวจสอบสลิป (Slip API Cost)** | มีค่าใช้จ่ายต่อสลิป (เช่น 0.20 - 0.50 บาท/ครั้ง) | **0 บาท (ประมวลผลด้วย In-House OCR ภายในระบบ)** |
 | **การตรวจสอบชื่อผู้รับเงิน** | มักให้สตรีมเมอร์ตรวจสอบเองด้วยตาเปล่า | **ตรวจสอบอัตโนมัติด้วย OCR Matching** |
+| **การป้องกันการกดส่งสลิปซ้ำ (Double Submit)** | มักขึ้น Error สลิปถูกใช้แล้วสร้างความสับสน | **Idempotent 200 OK + Multi-layer Lock ปลอดภัย 100%** |
 | **การอัปเดตการตั้งค่าวิดเจ็ตใน OBS** | สตรีมเมอร์ต้องกด Refresh Browser Source ใน OBS | **Live Sync ทันทีผ่าน Socket.IO โดยไม่ต้องแตะ OBS** |
 | **ความถูกต้องของยอด Goal และ Leaderboard** | บางครั้งนับยอดแจ้งเตือนทดสอบรวมเข้าไปด้วย | **คำนวณจากประวัติการบริจาคที่สำเร็จจริงในฐานข้อมูล** |
-| **การทดสอบความน่าเชื่อถือ (Code Coverage)** | ไม่เปิดเผยหรือไม่ครอบคลุม | **ทดสอบแบบ Automated ครบ 461 Tests (Coverage > 97.5%)** |
+| **การทดสอบความน่าเชื่อถือ (Code Coverage)** | ไม่เปิดเผยหรือไม่ครอบคลุม | **ทดสอบแบบ Automated ครบ 514 Tests (Coverage > 97%)** |
 
 #### 3) ปัญหาและอุปสรรคที่พบ พร้อมแนวทางแก้ไข (Problems & Solutions)
 1. **ปัญหา**: สลิปธนาคารของบางแอปพลิเคชัน (เช่น Krungthai NEXT) เป็น Mini QR ที่ไม่มี Tag 54 ระบุจำนวนเงิน
@@ -1026,6 +1095,10 @@ stateDiagram-v2
    - **แนวทางแก้ไข**: สร้างฟังก์ชัน `isRecipientNameMatched` ที่ตัดคำนำหน้าชื่อและตรวจสอบคำแรกของชื่อ-นามสกุลแบบ Dynamic
 3. **ปัญหา**: การรันชุดทดสอบบน CI ค้างเนื่องจาก Background Worker ของ OCR
    - **แนวทางแก้ไข**: เพิ่ม Lifecycle Hook `terminateOcrWorker()` ใน `afterAll` และใส่แฟล็ก `--forceExit` ใน Jest configuration
+4. **ปัญหา**: การกดส่งสลิปซ้ำซ้อน (Double Submit / Race Condition) เมื่อผู้ใช้คลิกปุ่มส่งสลิปรัวๆ หรือเบราว์เซอร์ส่งคำขอซ้อนกันในเสี้ยววินาที Request แรกบันทึกสำเร็จและยิงแจ้งเตือน OBS ไปแล้ว แต่ Request ที่สองพบ `transRef` ซ้ำและส่ง Error 400 (`"สลิปนี้ถูกใช้งานไปแล้ว"`) กลับมา ทำให้ Modal แสดงสถานะผิดพลาดหลอกผู้ใช้ ทั้งที่รายการแรกสำเร็จแล้ว
+   - **แนวทางแก้ไข**: ใช้สถาปัตยกรรมแบบสองชั้น (Multi-layer Guard) โดยฝั่ง Client ใช้ `useRef` submission locks ควบคู่กับ CSS `pointer-events-none` และฝั่ง Server ปรับใช้ **15-Second Backend Idempotency Window** ใน `donationController.js` หากพบคำขอซ้ำของสลิปเดิมสำหรับสตรีมเมอร์คนเดิมในเวลาไม่เกิน 15 วินาที จะตอบกลับ 200 OK ด้วยข้อมูลเดิมทันที โดยไม่สร้างรายการใหม่และไม่ยิง Socket.IO ซ้ำ
+5. **ปัญหา**: ผู้บริจาคลบข้อความแท็กภารกิจโดเนทในกล่องข้อความ ทำให้ชื่อภารกิจไม่ปรากฏในแจ้งเตือน OBS Studio
+   - **แนวทางแก้ไข**: ออกแบบกลไก Locked Mission Tag ในฝั่ง Client โดยแยกชื่อภารกิจออกมาแสดงเป็น Badge ถาวร `[ 🔒 ภารกิจ: {name} ]` ที่ผู้บริจาคไม่สามารถแก้ไขหรือลบได้ และระบบจะแนบแท็ก `[ภารกิจ: {name}]` เข้ากับข้อความก่อนส่งไปยัง Backend โดยอัตโนมัติ
 
 #### 4) ข้อเสนอแนะในการพัฒนาต่อยอด (Future Recommendations)
 1. **การเชื่อมต่อกับ Payment Gateway เต็มรูปแบบ**: พัฒนาระบบรองรับบัตรเครดิต/เดบิต และ PromptPay QR แบบ Dynamic Bot API ในอนาคต
