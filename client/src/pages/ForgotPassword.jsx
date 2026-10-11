@@ -9,7 +9,7 @@ import {
   verifyForgotPasswordOtp,
   resetForgotPassword,
 } from "../utils/api";
-import { Mail, Phone, KeyRound, CheckCircle2, ArrowLeft, RefreshCw } from "lucide-react";
+import { Mail, Phone, CheckCircle2, ArrowLeft, RefreshCw } from "lucide-react";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
