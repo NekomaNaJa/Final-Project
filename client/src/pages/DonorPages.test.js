@@ -268,14 +268,35 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       const amountInput = screen.getByRole("spinbutton");
       expect(amountInput.value).toBe("50");
 
-      // Check message input tagged with mission
-      const messageInput = screen.getByPlaceholderText("พิมพ์ข้อความที่ต้องการส่งถึงสตรีมเมอร์...");
-      expect(messageInput.value).toContain("[ภารกิจ: เล่นมือเดียว]");
+      // Check locked mission badge is rendered in message container (cannot be deleted)
+      expect(screen.getByTestId("locked-mission-badge")).toBeInTheDocument();
+      expect(screen.getByTestId("locked-mission-badge")).toHaveTextContent("เล่นมือเดียว");
 
-      // Click clear button
+      // Type additional message
+      const messageInput = screen.getByPlaceholderText(/พิมพ์ข้อความ/);
+      fireEvent.change(messageInput, { target: { value: "สู้ๆ นะครับ" } });
+
+      // Attach slip and submit donation
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(createDonation).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: "[ภารกิจ: เล่นมือเดียว] สู้ๆ นะครับ",
+            amount: 50,
+          })
+        );
+      });
+
+      // Click clear button when mission is selected
       const clearBtn = screen.getByTestId("clear-mission-btn");
       fireEvent.click(clearBtn);
-      expect(messageInput.value).not.toContain("[ภารกิจ: เล่นมือเดียว]");
+      expect(screen.queryByTestId("locked-mission-badge")).not.toBeInTheDocument();
     });
 
     test("displays filtered donorName from api response in submitted card", async () => {
