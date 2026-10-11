@@ -344,6 +344,20 @@ describe("Donor Components", () => {
       fireEvent.submit(form);
       expect(handleSubmit).toHaveBeenCalledTimes(1);
     });
+
+    test("displays selectedMission badge when mission is passed", () => {
+      const mockMission = { id: "m-1", name: "ห้ามพูดคำหยาบ", price: 40 };
+      render(
+        <DonorTrueMoneyForm
+          onSubmit={jest.fn()}
+          selectedMission={mockMission}
+        />
+      );
+
+      expect(screen.getByTestId("truemoney-mission-badge")).toBeInTheDocument();
+      expect(screen.getByText("ห้ามพูดคำหยาบ")).toBeInTheDocument();
+      expect(screen.getByText("40 บาท")).toBeInTheDocument();
+    });
   });
 
   describe("DonorSlipUpload", () => {
@@ -452,6 +466,32 @@ describe("Donor Components", () => {
       );
       expect(amountInput.value).toBe("200");
       expect(screen.getByText("เต้น 1 เพลง")).toBeInTheDocument();
+    });
+
+    test("locks amount input when selectedMission is present (readonly, locked badge, cannot change amount)", () => {
+      const mockMission = { id: "m-1", name: "ห้ามพูดคำหยาบ", price: 40 };
+      render(
+        <DonorPromptPayForm
+          minAmount={10}
+          presetAmount={40}
+          selectedMission={mockMission}
+        />
+      );
+
+      const amountInput = screen.getByRole("spinbutton");
+      expect(amountInput.value).toBe("40");
+      expect(amountInput).toHaveAttribute("readonly");
+      expect(screen.getByTestId("amount-locked-badge")).toBeInTheDocument();
+      expect(screen.getByTestId("amount-locked-icon")).toBeInTheDocument();
+      expect(screen.getByText("ล็อคตามภารกิจ")).toBeInTheDocument();
+
+      // Trying to change amount does not change value
+      fireEvent.change(amountInput, { target: { value: "20" } });
+      expect(amountInput.value).toBe("40");
+
+      // Pressing arrow keys does not change value
+      fireEvent.keyDown(amountInput, { key: "ArrowUp" });
+      expect(amountInput.value).toBe("40");
     });
   });
 

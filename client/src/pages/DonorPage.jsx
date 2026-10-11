@@ -233,10 +233,14 @@ const DonorPage = () => {
 
     const min = Number(streamerConfig.minAmount) || 1;
     const isBank = (donationData?.method || activeTab) === "bank";
-    const numericAmount =
+    let numericAmount =
       donationData?.amount !== undefined && donationData?.amount !== null
         ? Number(donationData.amount)
         : null;
+
+    if (selectedMission && !isBank) {
+      numericAmount = Number(selectedMission.price);
+    }
 
     if (!isBank && (numericAmount === null || Number.isNaN(numericAmount) || numericAmount < min)) {
       setErrorFeedback(`จำนวนเงินต้องไม่ต่ำกว่า ${min} บาท`);
@@ -505,6 +509,7 @@ const DonorPage = () => {
               /* State 4: TrueMoney Form */
               <DonorTrueMoneyForm
                 key={`truemoney-${resetKey}`}
+                selectedMission={selectedMission}
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}
               />
