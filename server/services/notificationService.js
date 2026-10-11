@@ -11,10 +11,7 @@ const maskAddress = (value) => {
   return `${text.slice(0, 2)}***${text.slice(-2)}`;
 };
 
-// Escape control characters and terminal escape sequences before writing untrusted values to logs.
-const sanitizeLogValue = (value) => String(value ?? "")
-  .replace(/[\x00-\x1f\x7f-\x9f]/g, " ")
-  .slice(0, 500);
+const stripNewlines = (value) => String(value || "").replace(/[\r\n]+/g, " ");
 
 const getEmailTransporter = () => {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -77,28 +74,29 @@ export const sendEmailOtp = async (email, otp, purpose) => {
   if (transporter) {
     try {
       const from = process.env.SMTP_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || "DONIX <no-reply@donix.app>";
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from,
         to: safeEmail,
         subject,
         html,
       });
+      if (Array.isArray(info.rejected) && info.rejected.length > 0) {
+        throw new Error("SMTP rejected the recipient");
+      }
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Email Service Error]:", sanitizeLogValue(err?.message));
-      // Fallback: log masked recipient only (no OTP)
-      console.log(`[Email OTP Log fallback]: Simulated OTP email to ${sanitizeLogValue(maskAddress(safeEmail))}`);
-      return { success: true, simulated: true, error: err?.message };
+      console.error("[Email Service Error]:", stripNewlines(err?.message));
+      throw new Error("EMAIL_DELIVERY_FAILED");
     }
   }
 
-  // Dev / Testing mode simulation
-  console.log(`[Email OTP Simulated]: Simulated OTP email to ${sanitizeLogValue(maskAddress(safeEmail))} (${sanitizeLogValue(purpose)})`);
-  return { success: true, simulated: true };
+  // Never report success when no email provider is configured.
+  console.error("[Email Service]: SMTP/Gmail credentials are not configured");
+  throw new Error("EMAIL_NOT_CONFIGURED");
 };
 
 export const sendSmsOtp = async (phone, otp, purpose) => {
-  const safePhone = String(phone).trim().replace(/\D/g, "");
+  const safePhone = String(phone).trim().replace(/[^0-9]/g, "");
   const safeOtp = String(otp).trim();
 
   // Convert Thai phone (e.g. 0812345678) to international E.164 (+66812345678)
@@ -136,20 +134,20 @@ export const sendSmsOtp = async (phone, otp, purpose) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("[Twilio SMS Error]:", sanitizeLogValue(errorData?.message));
-        console.log(`[Twilio SMS Fallback Log]: Simulated OTP SMS to ${sanitizeLogValue(maskAddress(e164Phone))}`);
+        console.error("[Twilio SMS Error]:", stripNewlines(errorData?.message));
+        console.log(`[Twilio SMS Fallback Log]: Simulated OTP SMS to ${maskAddress(e164Phone)}`);
         return { success: true, simulated: true, error: errorData.message };
       }
 
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Twilio Fetch Error]:", sanitizeLogValue(err?.message));
-      console.log(`[SMS OTP Fallback Log]: Simulated OTP SMS to ${sanitizeLogValue(maskAddress(e164Phone))}`);
+      console.error("[Twilio Fetch Error]:", stripNewlines(err?.message));
+      console.log(`[SMS OTP Fallback Log]: Simulated OTP SMS to ${maskAddress(e164Phone)}`);
       return { success: true, simulated: true, error: err?.message };
     }
   }
 
   // Dev / Testing mode simulation
-  console.log(`[SMS OTP Simulated]: Simulated OTP SMS to ${sanitizeLogValue(maskAddress(e164Phone))} (${sanitizeLogValue(purpose)})`);
+  console.log(`[SMS OTP Simulated]: Simulated OTP SMS to ${maskAddress(e164Phone)} (${purpose})`);
   return { success: true, simulated: true };
 };

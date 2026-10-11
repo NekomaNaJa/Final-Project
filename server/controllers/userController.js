@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import User from "../Models/User.js";
 import Otp from "../Models/Otp.js";
@@ -8,16 +8,8 @@ import {
   getPasswordError,
 } from "../utils/passwordValidation.js";
 
-// Validate email in linear time without overlapping regex quantifiers.
-const isValidEmail = (value) => {
-  if (typeof value !== "string" || value.length > 254 || /\s/.test(value)) return false;
-  const at = value.indexOf("@");
-  if (at < 1 || at !== value.lastIndexOf("@")) return false;
-  const domain = value.slice(at + 1);
-  const dot = domain.lastIndexOf(".");
-  return dot > 0 && dot < domain.length - 1;
-};
-const PHONE_REGEX = /^0\d{9}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^0[0-9]{9}$/;
 
 export const getMe = async (req, res, next) => {
   try {
@@ -593,7 +585,7 @@ export const sendLinkOtp = async (req, res, next) => {
     }
 
     if (safeType === "email") {
-      if (!isValidEmail(safeTarget)) {
+      if (!EMAIL_REGEX.test(safeTarget)) {
         return res.status(400).json({
           message: "รูปแบบอีเมลไม่ถูกต้อง",
           data: null,
@@ -611,7 +603,7 @@ export const sendLinkOtp = async (req, res, next) => {
         });
       }
     } else {
-      const cleanPhone = safeTarget.replace(/\D/g, "");
+      const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
       if (!PHONE_REGEX.test(cleanPhone)) {
         return res.status(400).json({
           message: "รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 10 หลักขึ้นต้นด้วย 0)",
@@ -649,7 +641,18 @@ export const sendLinkOtp = async (req, res, next) => {
     });
 
     if (safeType === "email") {
-      await sendEmailOtp(safeTarget, otpCode, purpose);
+      try {
+        await sendEmailOtp(safeTarget, otpCode, purpose);
+      } catch (deliveryError) {
+        await Otp.deleteMany({ target: { $eq: safeTarget }, purpose: { $eq: purpose } });
+        const notConfigured = deliveryError.message === "EMAIL_NOT_CONFIGURED";
+        return res.status(503).json({
+          message: notConfigured
+            ? "ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ"
+            : "ไม่สามารถส่งอีเมล OTP ได้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ",
+          data: null,
+        });
+      }
     } else {
       await sendSmsOtp(safeTarget, otpCode, purpose);
     }
@@ -735,7 +738,7 @@ export const verifyLinkOtp = async (req, res, next) => {
       user.email = safeTarget.toLowerCase();
       user.isEmailVerified = true;
     } else {
-      user.phone = safeTarget.replace(/\D/g, "");
+      user.phone = safeTarget.replace(/[^0-9]/g, "");
       user.isPhoneVerified = true;
     }
 

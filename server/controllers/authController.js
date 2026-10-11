@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../Models/User.js";
@@ -20,7 +20,7 @@ const maskTarget = (target, type) => {
     const maskedLocal = local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : `${local[0]}***`;
     return `${maskedLocal}@${domain}`;
   }
-  const cleaned = target.replace(/\D/g, "");
+  const cleaned = target.replace(/[^0-9]/g, "");
   if (cleaned.length >= 9) {
     return `${cleaned.slice(0, 3)}-***-${cleaned.slice(-4)}`;
   }
@@ -343,7 +343,7 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
       });
     }
 
-    const cleanPhone = safeIdentifier.replace(/\D/g, "");
+    const cleanPhone = safeIdentifier.replace(/[^0-9]/g, "");
 
     const user = await User.findOne({
       $or: [
@@ -396,7 +396,17 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
     });
 
     if (safeChannel === "email") {
-      await sendEmailOtp(target, otpCode, "forgot_password");
+      try {
+        await sendEmailOtp(target, otpCode, "forgot_password");
+      } catch (deliveryError) {
+        await Otp.deleteMany({ target: { $eq: target }, purpose: { $eq: "forgot_password" } });
+        return res.status(503).json({
+          message: deliveryError.message === "EMAIL_NOT_CONFIGURED"
+            ? "ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ"
+            : "ไม่สามารถส่งอีเมล OTP ได้ กรุณาลองใหม่อีกครั้ง",
+          data: null,
+        });
+      }
     } else {
       await sendSmsOtp(target, otpCode, "forgot_password");
     }
@@ -467,7 +477,7 @@ export const forgotPasswordVerifyOtp = async (req, res, next) => {
       });
     }
 
-    const cleanPhone = safeTarget.replace(/\D/g, "");
+    const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
     const user = await User.findOne({
       $or: [
         { email: { $eq: safeTarget.toLowerCase() } },

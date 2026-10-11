@@ -1078,10 +1078,10 @@ stateDiagram-v2
 | **ภาพรวมไฟล์ทั้งหมด (All Files)** | **97.01%** | **86.77%** | **98.14%** | **97.19%** | **✅ ยอดเยี่ยม (> 97%)** |
 
 ##### ผลการตรวจสอบคุณภาพและความปลอดภัยด้วย SonarCloud
-- **Quality Gate Status**: Passed (ผ่านเกณฑ์ระดับสูงสุด)
-- **Security Rating**: A (0 Vulnerabilities, 0 Security Hotspots)
+- **Quality Gate Status**: Failed ในการวิเคราะห์ Pull Request ล่าสุดที่ผู้ใช้แจ้ง (ต้องตรวจสอบใหม่หลัง push การแก้ไข)
+- **Security Rating on New Code**: B (เกณฑ์ต้อง A; ยังไม่ได้ยืนยันผลหลังแก้ไข)
 - **Reliability Rating**: A (0 Bugs)
-- **Maintainability Rating**: A (0 Code Smells)
+- **Maintainability Rating**: มีข้อเสนอแนะด้าน Cognitive Complexity, nested ternary, optional chaining และ regex syntax ที่ต้องตรวจสอบผลสแกนล่าสุด
 - **Duplication on New Code**: ≤ 3.0% (ปฏิบัติตามกฎห้ามโค้ดซ้ำซ้อนอย่างเคร่งครัด)
 - **Coverage on New Code**: ≥ 80.0% (ทำได้จริง > 88% - 97%)
 
@@ -1098,7 +1098,7 @@ stateDiagram-v2
 3. ป้องกันการทุจริตและการใช้สลิปซ้ำได้ 100% ด้วยระบบ Sparse Unique Database Indexing ควบคู่กับ 15-second Idempotency Engine
 4. ตรวจสอบชื่อผู้รับเงินในสลิปกับชื่อบัญชีสตรีมเมอร์ได้อย่างถูกต้อง รองรับการตัดคำนำหน้าชื่อไทยและการย่อนามสกุล
 5. ซิงค์การแสดงผลบน OBS Studio ได้แบบเรียลไทม์ และมีระบบคำนวณยอดเงินสะสมจริงที่แม่นยำ
-6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 38 Test Suites รวม 523 Tests ผ่าน 100% พร้อมระดับความปลอดภัยและคุณภาพโค้ดเกรด A จาก SonarCloud
+6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 38 Test Suites รวม 523 Tests ผ่าน 100% โดยผล SonarCloud ล่าสุดที่รายงานยังไม่ผ่าน Quality Gate และต้องสแกนยืนยันหลังแก้ไข
 
 #### 2) ตารางเปรียบเทียบคุณสมบัติ (Competitive Advantage Analysis)
 
@@ -1130,3 +1130,47 @@ stateDiagram-v2
 3. **การรองรับ Mobile Application**: พัฒนาแอปพลิเคชันสำหรับสตรีมเมอร์เพื่อดูสถิติและกดยืนยันสลิปผ่านสมาร์ทโฟนได้อย่างสะดวกรวดเร็ว
 
 
+
+
+---
+
+## 13. SonarQube remediation guide (อัปเดต 12 ตุลาคม 2026)
+
+> **สถานะ:** GitHub PR แสดง `Quality Gate failed` เพราะ `Security Rating on New Code = B` ขณะที่ต้องได้ `A` การมีแพตช์ใน ZIP **ไม่เท่ากับ** การผ่าน SonarCloud; ต้องทดสอบและสแกนใหม่
+
+### 13.1 Security findings (แก้ก่อน)
+
+1. `server/controllers/userController.js`: regular expression ที่เสี่ยง super-linear backtracking (ReDoS) — ตรวจสอบ regex และ input bounds, ใช้การตรวจสอบที่มี runtime เป็นเชิงเส้น และเพิ่ม test สำหรับ input ยาว/ผิดรูปแบบ
+2. `server/services/notificationService.js`: log injection จาก user-controlled input — normalize/escape CR, LF และ control characters ก่อนส่งไป logger; อย่า log token, secrets หรือข้อมูลส่วนตัวที่ไม่จำเป็น
+
+### 13.2 Maintainability findings
+
+- `client/src/components/Account/ManageAccountCard.jsx`: Cognitive Complexity 20 (เกณฑ์ 15), nested ternary สองจุด, optional chaining และ `[^0-9]` → `\D`
+- `server/controllers/userController.js`: Cognitive Complexity 17 (เกณฑ์ 15), `crypto` → `node:crypto`, `[0-9]` → `\d`, `[^0-9]` → `\D`
+- `server/controllers/authController.js`: `crypto` → `node:crypto`, `[^0-9]` → `\D`
+- `server/utils/jwtSecret.js`: `crypto` → `node:crypto`
+- `client/src/pages/ForgotPassword.jsx`: optional chaining, `[^0-9]` → `\D`
+- `server/services/notificationService.js`: `[^0-9]` → `\D`
+
+### 13.3 Development rules for future agents
+
+- รักษา API contracts, validation semantics, React behavior และ test coverage เดิม; อย่าปรับ regex โดยไม่ทดสอบ edge cases
+- อย่าปิดกฎ security หรือผ่อน Quality Gate เพื่อให้ CI ผ่าน
+- เพิ่ม regression tests สำหรับช่องโหว่ที่แก้และแยก refactor ด้าน readability ออกจาก behavior changes เมื่อทำได้
+- หลีกเลี่ยง nested ternary; แยก branch เป็นตัวแปร/helper ที่มีชื่อชัดเจน และพยายามรักษา Cognitive Complexity ≤ 15
+- ใช้ `node:` prefix สำหรับ Node built-ins; ใช้ optional chaining เฉพาะกรณีที่ไม่เปลี่ยน semantics
+- ห้าม commit `.env`, secrets, tokens หรือ credentials; หากเคยเผยแพร่ให้ rotate
+
+### 13.4 Verification checklist
+
+```bash
+cd server
+npm ci
+npm run test:coverage
+cd ../client
+npm ci
+CI=true npm test -- --coverage --watchAll=false
+CI=true npm run build
+```
+
+หลัง push ให้ตรวจ SonarCloud PR analysis ว่า **Security Rating on New Code = A**, Quality Gate = Passed และไม่มี issue ใหม่ที่เกี่ยวข้อง ตรวจสอบ test counts/coverage ใหม่ทุกครั้งก่อนอ้างผลในรายงาน (ค่าที่ระบุในหัวข้อก่อนหน้าเป็น snapshot เดิม ไม่ใช่ผลยืนยันหลังแพตช์)
