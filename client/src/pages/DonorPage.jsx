@@ -242,11 +242,12 @@ const DonorPage = () => {
     try {
       const slipBase64 = await fileToBase64(donationData.slipFile);
       const cleanCustomMessage = (message || "").replace(/^\[ภารกิจ:.*?\]\s*/, "").trim();
-      const finalMessage = selectedMission
-        ? (cleanCustomMessage
-            ? `[ภารกิจ: ${selectedMission.name}] ${cleanCustomMessage}`
-            : `[ภารกิจ: ${selectedMission.name}]`)
-        : cleanCustomMessage || message || "";
+      let finalMessage = cleanCustomMessage || message || "";
+      if (selectedMission) {
+        finalMessage = cleanCustomMessage
+          ? `[ภารกิจ: ${selectedMission.name}] ${cleanCustomMessage}`
+          : `[ภารกิจ: ${selectedMission.name}]`;
+      }
 
       const res = await createDonation({
         username,

@@ -10,13 +10,12 @@ const DonorPromptPayForm = ({
   onSubmit,
   isSubmitting = false,
 }) => {
-  const [amount, setAmount] = useState(
-    presetAmount !== null && presetAmount !== undefined
-      ? presetAmount
-      : minAmount > 0
-      ? minAmount
-      : 10
-  );
+  const [amount, setAmount] = useState(() => {
+    if (presetAmount !== null && presetAmount !== undefined) {
+      return presetAmount;
+    }
+    return minAmount > 0 ? minAmount : 10;
+  });
   const [slipFile, setSlipFile] = useState(null);
   const [qrUrl, setQrUrl] = useState("");
 
