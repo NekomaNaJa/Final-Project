@@ -170,6 +170,40 @@ describe("Donor Components", () => {
       fireEvent.error(img);
       expect(img.src).toContain("api.qrserver.com");
     });
+
+    test("prevents submit when isSubmitting is true or submitted repeatedly", () => {
+      const handleSubmit = jest.fn();
+      const { rerender } = render(
+        <DonorPromptPayForm
+          minAmount={10}
+          promptpayNumber="0812345678"
+          onSubmit={handleSubmit}
+          isSubmitting={true}
+        />
+      );
+
+      const submitBtn = screen.getByRole("button", { name: "กำลังดำเนินการ..." });
+      expect(submitBtn).toBeDisabled();
+      const form = submitBtn.closest("form");
+      fireEvent.submit(form);
+      expect(handleSubmit).not.toHaveBeenCalled();
+
+      rerender(
+        <DonorPromptPayForm
+          minAmount={10}
+          promptpayNumber="0812345678"
+          onSubmit={handleSubmit}
+          isSubmitting={false}
+        />
+      );
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+      expect(handleSubmit).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("DonorBankForm", () => {
@@ -222,6 +256,42 @@ describe("Donor Components", () => {
         method: "bank",
       });
     });
+
+    test("prevents submit when isSubmitting is true or submitted repeatedly in Bank form", () => {
+      const handleSubmit = jest.fn();
+      const { rerender } = render(
+        <DonorBankForm
+          bankName="SCB"
+          accountNumber="1234567890"
+          accountName="นายสมหวัง"
+          onSubmit={handleSubmit}
+          isSubmitting={true}
+        />
+      );
+
+      const submitBtn = screen.getByRole("button", { name: "กำลังดำเนินการ..." });
+      expect(submitBtn).toBeDisabled();
+      const form = submitBtn.closest("form");
+      fireEvent.submit(form);
+      expect(handleSubmit).not.toHaveBeenCalled();
+
+      rerender(
+        <DonorBankForm
+          bankName="SCB"
+          accountNumber="1234567890"
+          accountName="นายสมหวัง"
+          onSubmit={handleSubmit}
+          isSubmitting={false}
+        />
+      );
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+      expect(handleSubmit).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("DonorTrueMoneyForm", () => {
@@ -250,6 +320,29 @@ describe("Donor Components", () => {
         giftLink: "https://gift.truemoney.com/campaign/?v=1234",
         method: "truemoney",
       });
+    });
+
+    test("prevents submit when isSubmitting is true or submitted repeatedly in TrueMoney form", () => {
+      const handleSubmit = jest.fn();
+      const { rerender } = render(
+        <DonorTrueMoneyForm onSubmit={handleSubmit} isSubmitting={true} />
+      );
+
+      const submitBtn = screen.getByRole("button", { name: "กำลังดำเนินการ..." });
+      expect(submitBtn).toBeDisabled();
+      const form = submitBtn.closest("form");
+      fireEvent.submit(form);
+      expect(handleSubmit).not.toHaveBeenCalled();
+
+      rerender(
+        <DonorTrueMoneyForm onSubmit={handleSubmit} isSubmitting={false} />
+      );
+      const input = screen.getByPlaceholderText("https://gift.truemoney.com/campaign/?v=xxxx");
+      fireEvent.change(input, { target: { value: "https://gift.truemoney.com/campaign/?v=1234" } });
+
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+      expect(handleSubmit).toHaveBeenCalledTimes(1);
     });
   });
 

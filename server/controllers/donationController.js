@@ -330,27 +330,7 @@ export const createDonation = async (req, res, next) => {
       ocrResult,
     });
 
-    try {
-      await donation.save();
-    } catch (saveErr) {
-      if (saveErr.code === 11000 && saveErr.keyPattern?.transRef && safeTransRef) {
-        const existing = await Donation.findOne({ transRef: { $eq: safeTransRef } });
-        if (
-          existing &&
-          existing.streamerId &&
-          streamer._id &&
-          existing.streamerId.toString() === streamer._id.toString() &&
-          existing.createdAt &&
-          Date.now() - new Date(existing.createdAt).getTime() < 15000
-        ) {
-          return res.status(200).json({
-            message: "การบริจาคสำเร็จและสลิปผ่านการตรวจสอบอัตโนมัติ",
-            data: existing,
-          });
-        }
-      }
-      throw saveErr;
-    }
+    await donation.save();
 
     // 9. Real-time Notification ผ่าน Socket.IO (เฉพาะรายการที่อนุมัติแล้วเท่านั้น)
     if (req.io && initialStatus === "approved") {
