@@ -131,7 +131,7 @@ describe("Donation Route (POST /api/donations)", () => {
     expect(res.body.message).toBe("ช่องทางการชำระเงินนี้ไม่พร้อมให้บริการ");
   });
 
-  it("should return 201, filter bad words, and save donation successfully", async () => {
+  it("should return 201, filter bad words in message and donorName, and save donation successfully", async () => {
     jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
     jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
 
@@ -139,7 +139,7 @@ describe("Donation Route (POST /api/donations)", () => {
       .post("/api/donations")
       .send({
         username: "pro_gamer",
-        donorName: "ใจดีจัง",
+        donorName: "ใจดีจัง คำหยาบ",
         amount: 100,
         message: "สู้ๆ นะครับ คำหยาบ อย่าไปยอมแพ้",
         paymentMethod: "promptpay",
@@ -147,9 +147,9 @@ describe("Donation Route (POST /api/donations)", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.message).toBe("สร้างรายการโดเนทสำเร็จ");
-    expect(res.body.data.donorName).toBe("ใจดีจัง");
+    // Bad words filtered in both donorName and message
+    expect(res.body.data.donorName).toBe("ใจดีจัง ***");
     expect(res.body.data.amount).toBe(100);
-    // Bad word filtered
     expect(res.body.data.message).toBe("สู้ๆ นะครับ *** อย่าไปยอมแพ้");
     expect(res.body.data.status).toBe("pending");
   });

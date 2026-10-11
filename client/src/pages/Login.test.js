@@ -11,9 +11,20 @@ jest.mock("react-router-dom", () => ({
 }));
 
 describe("Login Page", () => {
+  const originalClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
+    delete process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  });
+
+  afterAll(() => {
+    if (originalClientId !== undefined) {
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = originalClientId;
+    } else {
+      delete process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    }
   });
 
   test("renders Login form with fields and Google button", () => {

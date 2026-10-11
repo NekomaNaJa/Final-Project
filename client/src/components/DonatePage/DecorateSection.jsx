@@ -58,8 +58,8 @@ const DecorateSection = ({ initialData, onSave }) => {
       welcomeMessage: cleanWelcome,
       thankYouMessage: cleanThankYou,
       minAmount: cleanMin,
-      coverImage: typeof coverImage === "string" ? coverImage : null,
-      backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
+      coverImage: typeof coverImage === "string" && coverImage.trim() ? coverImage.trim() : null,
+      backgroundImage: typeof backgroundImage === "string" && backgroundImage.trim() ? backgroundImage.trim() : null,
       autoApproveSlip: Boolean(autoApproveSlip),
     };
     if (onSave) {
@@ -67,8 +67,8 @@ const DecorateSection = ({ initialData, onSave }) => {
         welcomeMessage: cleanWelcome,
         thankYouMessage: cleanThankYou,
         minAmount: cleanMin,
-        coverImage: typeof coverImage === "string" ? coverImage : null,
-        backgroundImage: typeof backgroundImage === "string" ? backgroundImage : null,
+        coverImage: typeof coverImage === "string" && coverImage.trim() ? coverImage.trim() : null,
+        backgroundImage: typeof backgroundImage === "string" && backgroundImage.trim() ? backgroundImage.trim() : null,
         autoApproveSlip: Boolean(autoApproveSlip),
       });
     } else {
@@ -125,12 +125,16 @@ const DecorateSection = ({ initialData, onSave }) => {
       {/* 2 Columns: Cover Image & Background Image */}
       <div className="grid gap-4 sm:grid-cols-2">
         <ImageUploadBox
+          id="decorate-cover-image"
           label="รูปภาพหน้าปก"
-          onImageSelect={(file) => setCoverImage(file)}
+          previewUrl={coverImage}
+          onImageSelect={(_, url) => setCoverImage(url || null)}
         />
         <ImageUploadBox
+          id="decorate-background-image"
           label="รูปภาพพื้นหลัง"
-          onImageSelect={(file) => setBackgroundImage(file)}
+          previewUrl={backgroundImage}
+          onImageSelect={(_, url) => setBackgroundImage(url || null)}
         />
       </div>
 

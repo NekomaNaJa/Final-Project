@@ -273,6 +273,29 @@ describe("DonatePage Components & Page", () => {
         })
       );
     });
+
+    test("saves coverImage and backgroundImage when provided", () => {
+      const handleSave = jest.fn();
+      render(
+        <DecorateSection
+          initialData={{
+            coverImage: "data:image/png;base64,initialcover",
+            backgroundImage: "data:image/png;base64,initialbg",
+          }}
+          onSave={handleSave}
+        />
+      );
+
+      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
+      fireEvent.click(saveBtn);
+
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          coverImage: "data:image/png;base64,initialcover",
+          backgroundImage: "data:image/png;base64,initialbg",
+        })
+      );
+    });
   });
 
   describe("MessageFilterSection", () => {

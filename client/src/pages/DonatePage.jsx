@@ -6,11 +6,9 @@ import Topbar from "../components/Topbar";
 import DonatePageLink from "../components/DonatePage/DonatePageLink";
 import DecorateSection from "../components/DonatePage/DecorateSection";
 import MessageFilterSection from "../components/DonatePage/MessageFilterSection";
-import SocialMediaSection from "../components/DonatePage/SocialMediaSection";
 import {
   fetchCurrentUser,
   updateDonationPageSettings,
-  updateCurrentUser,
 } from "../utils/api";
 import { safeGetItem, safeSetItem } from "../utils/sanitizeStorage";
 
@@ -34,7 +32,6 @@ const DonatePage = () => {
   const [donationConfig, setDonationConfig] = useState(() =>
     safeGetItem("donix_donate_config", {})
   );
-  const [socialConfig, setSocialConfig] = useState({});
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -55,9 +52,6 @@ const DonatePage = () => {
         if (data.donationPage) {
           setDonationConfig(data.donationPage);
           safeSetItem("donix_donate_config", data.donationPage);
-        }
-        if (data.social) {
-          setSocialConfig(data.social);
         }
       }
     } catch (err) {
@@ -120,22 +114,6 @@ const DonatePage = () => {
       "บันทึกตัวกรองข้อความสำเร็จ",
       "เกิดข้อผิดพลาดในการบันทึกตัวกรองข้อความ"
     );
-
-  const handleSaveSocial = async (data) => {
-    try {
-      setFeedback(null);
-      const resData = await updateCurrentUser({ social: data });
-      const updated = resData?.social || data;
-
-      setSocialConfig(updated);
-      triggerFeedback("success", "บันทึกโซเชียลมีเดียสำเร็จ");
-    } catch (err) {
-      triggerFeedback(
-        "error",
-        err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลโซเชียลมีเดีย"
-      );
-    }
-  };
 
   return (
     <div className="relative min-h-screen bg-[#090812] font-sans text-white lg:flex">
@@ -208,10 +186,6 @@ const DonatePage = () => {
             <MessageFilterSection
               initialData={donationConfig}
               onSave={handleSaveFilter}
-            />
-            <SocialMediaSection
-              initialData={socialConfig}
-              onSave={handleSaveSocial}
             />
           </main>
         </div>

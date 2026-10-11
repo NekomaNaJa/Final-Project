@@ -81,6 +81,19 @@ describe('Auth Components', () => {
   });
 
   describe('SocialAuthButtons', () => {
+    const originalClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+    beforeEach(() => {
+      delete process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    });
+
+    afterAll(() => {
+      if (originalClientId !== undefined) {
+        process.env.REACT_APP_GOOGLE_CLIENT_ID = originalClientId;
+      } else {
+        delete process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      }
+    });
     it('renders Google login option and does not render Youtube or Twitch', () => {
       render(
         <MemoryRouter>

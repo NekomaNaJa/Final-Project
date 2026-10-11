@@ -95,7 +95,7 @@ describe("DonatePage Integration", () => {
       expect(screen.getByText("DONOR URL")).toBeInTheDocument();
       expect(screen.getByText("DONATE PAGE SETTINGS")).toBeInTheDocument();
       expect(screen.getByText("MESSAGES FILTER")).toBeInTheDocument();
-      expect(screen.getByText("SOCIAL MEDIA")).toBeInTheDocument();
+      expect(screen.queryByText("SOCIAL MEDIA")).not.toBeInTheDocument();
       expect(screen.getByDisplayValue("ยินดีต้อนรับสู่ช่องของฉัน")).toBeInTheDocument();
     });
   });
@@ -240,71 +240,7 @@ describe("DonatePage Integration", () => {
     });
   });
 
-  test("saves SocialMediaSection successfully and shows feedback toast", async () => {
-    localStorage.setItem("token", validToken);
-    api.fetchCurrentUser.mockResolvedValueOnce({
-      username: "streamer_alpha",
-      donationPage: mockDonationPageConfig,
-      social: mockSocial,
-    });
-    api.updateCurrentUser.mockResolvedValueOnce({
-      social: { ...mockSocial, twitch: "https://twitch.tv/alpha" },
-    });
 
-    render(
-      <MemoryRouter initialEntries={["/donate-page"]}>
-        <Routes>
-          <Route path="/donate-page" element={<DonatePage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("ยินดีต้อนรับสู่ช่องของฉัน")).toBeInTheDocument();
-    });
-
-    // The third save button is for SocialMediaSection
-    const saveButtons = screen.getAllByRole("button", { name: "บันทึก" });
-    fireEvent.click(saveButtons[2]);
-
-    await waitFor(() => {
-      expect(api.updateCurrentUser).toHaveBeenCalledWith(
-        expect.objectContaining({
-          social: expect.any(Object),
-        })
-      );
-      expect(screen.getByText("บันทึกโซเชียลมีเดียสำเร็จ")).toBeInTheDocument();
-    });
-  });
-
-  test("handles error when saving SocialMediaSection fails", async () => {
-    localStorage.setItem("token", validToken);
-    api.fetchCurrentUser.mockResolvedValueOnce({
-      username: "streamer_alpha",
-      donationPage: mockDonationPageConfig,
-      social: mockSocial,
-    });
-    api.updateCurrentUser.mockRejectedValueOnce(new Error("บันทึกโซเชียลมีเดียล้มเหลว"));
-
-    render(
-      <MemoryRouter initialEntries={["/donate-page"]}>
-        <Routes>
-          <Route path="/donate-page" element={<DonatePage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("ยินดีต้อนรับสู่ช่องของฉัน")).toBeInTheDocument();
-    });
-
-    const saveButtons = screen.getAllByRole("button", { name: "บันทึก" });
-    fireEvent.click(saveButtons[2]);
-
-    await waitFor(() => {
-      expect(screen.getByText("บันทึกโซเชียลมีเดียล้มเหลว")).toBeInTheDocument();
-    });
-  });
 
   test("logs out when clicking logout button in Sidebar", async () => {
     localStorage.setItem("token", validToken);
