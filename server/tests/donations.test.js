@@ -279,9 +279,16 @@ describe("Donations Routes (Analytics & Management)", () => {
           { _id: new Date().toISOString().slice(0, 10), amount: 1500 },
         ]) // daily 7D
         .mockResolvedValueOnce([]) // daily 30D
-        .mockResolvedValueOnce([{ _id: new Date().getMonth() + 1, amount: 5000 }]); // monthly
+        .mockResolvedValueOnce([{ _id: new Date().getMonth() + 1, amount: 5000 }]) // monthly
+        .mockResolvedValueOnce([
+          { _id: "currentWeek", totalAmount: 2000, totalDonations: 4 },
+          { _id: "previousWeek", totalAmount: 1000, totalDonations: 2 },
+        ]); // weekComparison
 
       jest.spyOn(Donation, "countDocuments").mockResolvedValueOnce(2); // pendingCount
+      jest.spyOn(User, "findById").mockReturnValueOnce({
+        select: jest.fn().mockResolvedValueOnce(validStreamer),
+      });
       jest.spyOn(Donation, "find").mockReturnValueOnce({
         sort: jest.fn().mockReturnValueOnce({
           limit: jest.fn().mockResolvedValueOnce([
@@ -304,6 +311,8 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.data.totalAmount).toBe(5000);
       expect(res.body.data.totalDonations).toBe(10);
       expect(res.body.data.pendingCount).toBe(2);
+      expect(res.body.data.amountPercentChange).toBe(100);
+      expect(res.body.data.donationsPercentChange).toBe(100);
       expect(res.body.data.topDonors[0].name).toBe("TopGamer");
       expect(res.body.data.topDonors[0].badge).toBe("MYTHIC");
       expect(res.body.data.chartData["7D"]).toHaveLength(7);

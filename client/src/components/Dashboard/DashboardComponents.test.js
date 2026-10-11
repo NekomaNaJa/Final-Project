@@ -78,33 +78,62 @@ describe('Dashboard Components', () => {
       );
       expect(screen.getByText('ยอดเงิน Crimson')).toBeInTheDocument();
     });
+
+    it('renders stats without percent badge when percent is omitted (e.g. pending items)', () => {
+      render(
+        <StatsCard
+          icon={Coins}
+          label="รายการรอตรวจ"
+          value={3}
+          unit="รายการ"
+          percentLabel="สถานะรอดำเนินการ"
+          accent="crimson"
+        />
+      );
+      expect(screen.getByText('รายการรอตรวจ')).toBeInTheDocument();
+      expect(screen.getByText(/3/)).toBeInTheDocument();
+      expect(screen.getByText('สถานะรอดำเนินการ')).toBeInTheDocument();
+      expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    });
   });
 
   describe('PaymentChannels', () => {
-    it('renders payment channels list', () => {
+    it('renders payment channels list with default disconnected status', () => {
       render(<PaymentChannels />);
       expect(screen.getByText('ช่องทางรับเงิน')).toBeInTheDocument();
       expect(screen.getByText('PromptPay')).toBeInTheDocument();
       expect(screen.getByText('TrueMoney Wallet')).toBeInTheDocument();
       expect(screen.getByText('Bank')).toBeInTheDocument();
     });
+
+    it('renders active status based on user payment config', () => {
+      const mockPayment = {
+        promptpay: { enabled: true, number: '0812345678' },
+        bank: { enabled: true, bankName: 'ธนาคารไทยพาณิชย์ (SCB)' },
+        truemoney: { enabled: false },
+      };
+      render(<PaymentChannels payment={mockPayment} />);
+      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBe(2);
+      expect(screen.getByText('ยังไม่เชื่อมต่อ')).toBeInTheDocument();
+    });
   });
 
   describe('TopDonors', () => {
-    it('renders top donors rank list', () => {
+    it('renders top donors empty state when no donors', () => {
       render(<TopDonors />);
       expect(screen.getByText('อันดับผู้โดเนท')).toBeInTheDocument();
-      expect(screen.getByText('MYTHIC')).toBeInTheDocument();
-      expect(screen.getByText('ARCANE')).toBeInTheDocument();
+      expect(screen.getByText('ยังไม่มีข้อมูลผู้สนับสนุน')).toBeInTheDocument();
     });
 
-    it('renders top donors with dynamic donor data', () => {
+    it('renders top donors with dynamic donor data without fake placeholders', () => {
       const mockDonors = [
         { rank: 1, name: 'ProGamer', totalAmount: 5000, badge: 'MYTHIC' },
       ];
       render(<TopDonors donors={mockDonors} />);
       expect(screen.getByText('ProGamer')).toBeInTheDocument();
       expect(screen.getByText('฿5,000')).toBeInTheDocument();
+      expect(screen.getByText('MYTHIC')).toBeInTheDocument();
+      expect(screen.queryByText('ARCANE')).not.toBeInTheDocument();
     });
   });
 
@@ -198,6 +227,16 @@ describe('Dashboard Components', () => {
       );
 
       expect(screen.getByText(/ภาพรวมการรับโดเนทของคุณวันนี้/i)).toBeInTheDocument();
+    });
+
+    it('does not render the share donation link button', () => {
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      expect(screen.queryByText('แชร์ลิงก์โดเนท')).not.toBeInTheDocument();
     });
   });
 });

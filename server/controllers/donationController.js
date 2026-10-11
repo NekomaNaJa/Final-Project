@@ -673,9 +673,80 @@ export const getDonationStats = async (req, res, next) => {
       });
     }
 
-    // 5. รายการบริจาคล่าสุด 5 รายการสำหรับ RealtimeFeed
+    // 5. สถิติเปรียบเทียบสัปดาห์ปัจจุบันเทียบกับสัปดาห์ที่ผ่านมา (Week-over-Week)
+    const now = new Date();
+    const sevenDaysAgoCutoff = new Date(now);
+    sevenDaysAgoCutoff.setDate(sevenDaysAgoCutoff.getDate() - 7);
+    const fourteenDaysAgoCutoff = new Date(now);
+    fourteenDaysAgoCutoff.setDate(fourteenDaysAgoCutoff.getDate() - 14);
+
+    const weekComparisonAgg = await Donation.aggregate([
+      {
+        $match: {
+          streamerId: streamerObjectId,
+          status: "approved",
+          createdAt: { $gte: fourteenDaysAgoCutoff },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $gte: ["$createdAt", sevenDaysAgoCutoff] },
+              "currentWeek",
+              "previousWeek",
+            ],
+          },
+          totalAmount: { $sum: "$amount" },
+          totalDonations: { $sum: 1 },
+        },
+      },
+    ]);
+
+    let currentWeekAmount = 0;
+    let currentWeekDonations = 0;
+    let previousWeekAmount = 0;
+    let previousWeekDonations = 0;
+
+    weekComparisonAgg.forEach((item) => {
+      if (item._id === "currentWeek") {
+        currentWeekAmount = item.totalAmount || 0;
+        currentWeekDonations = item.totalDonations || 0;
+      } else if (item._id === "previousWeek") {
+        previousWeekAmount = item.totalAmount || 0;
+        previousWeekDonations = item.totalDonations || 0;
+      }
+    });
+
+    const calculatePercentChange = (current, previous) => {
+      if (previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const amountPercentChange = calculatePercentChange(
+      currentWeekAmount,
+      previousWeekAmount
+    );
+    const donationsPercentChange = calculatePercentChange(
+      currentWeekDonations,
+      previousWeekDonations
+    );
+
+    // 6. ข้อมูลช่องทางรับเงินของสตรีมเมอร์
+    let payment = null;
+    try {
+      const streamer = await User.findById(streamerObjectId).select("payment");
+      payment = streamer?.payment || null;
+    } catch {
+      payment = null;
+    }
+
+    // 7. รายการบริจาคล่าสุด 5 รายการสำหรับ RealtimeFeed (เฉพาะที่ได้รับการอนุมัติแล้วเท่านั้น)
     const recentDonations = await Donation.find({
       streamerId: { $eq: streamerObjectId },
+      status: { $eq: "approved" },
     })
       .sort({ createdAt: -1 })
       .limit(5);
@@ -686,6 +757,8 @@ export const getDonationStats = async (req, res, next) => {
         totalAmount,
         totalDonations,
         pendingCount,
+        amountPercentChange,
+        donationsPercentChange,
         topDonors,
         chartData: {
           "7D": chart7D,
@@ -693,6 +766,7 @@ export const getDonationStats = async (req, res, next) => {
           ALL: chartAll,
         },
         recentDonations,
+        payment,
       },
     });
   } catch (err) {
