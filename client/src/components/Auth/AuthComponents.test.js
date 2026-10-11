@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import InputField from './InputField';
@@ -81,11 +81,229 @@ describe('Auth Components', () => {
   });
 
   describe('SocialAuthButtons', () => {
-    it('renders Google, Youtube, Twitch login options', () => {
-      render(<SocialAuthButtons />);
+    it('renders Google login option and does not render Youtube or Twitch', () => {
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons />
+        </MemoryRouter>
+      );
       expect(screen.getByText(/ดำเนินการต่อด้วย Google/i)).toBeInTheDocument();
-      expect(screen.getByText(/ดำเนินการต่อด้วย Youtube/i)).toBeInTheDocument();
-      expect(screen.getByText(/ดำเนินการต่อด้วย Twitch/i)).toBeInTheDocument();
+      expect(screen.queryByText(/ดำเนินการต่อด้วย Youtube/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/ดำเนินการต่อด้วย Twitch/i)).not.toBeInTheDocument();
+    });
+
+    it('opens demo modal and handles demo login when client ID is missing', async () => {
+      const handleSuccess = jest.fn();
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "mock_jwt_token",
+          user: { id: "1", username: "demo_user" },
+        }),
+      });
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onSuccess={handleSuccess} />
+        </MemoryRouter>
+      );
+
+      const googleBtn = screen.getByText(/ดำเนินการต่อด้วย Google/i);
+      fireEvent.click(googleBtn);
+
+      expect(screen.getByText("Google OAuth Service")).toBeInTheDocument();
+
+      const demoBtn = screen.getByText(/เข้าสู่ระบบด้วย Google \(Demo Mode\)/i);
+      fireEvent.click(demoBtn);
+
+      expect(await screen.findByText(/กำลังเชื่อมต่อกับ Google.../i)).toBeInTheDocument();
+    });
+
+    it('handles demo login failure gracefully with onError callback', async () => {
+      const handleError = jest.fn();
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ message: "Demo Login Failed" }),
+      });
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onError={handleError} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText(/ดำเนินการต่อด้วย Google/i));
+      fireEvent.click(screen.getByText(/เข้าสู่ระบบด้วย Google \(Demo Mode\)/i));
+
+      await waitFor(() => {
+        expect(handleError).toHaveBeenCalledWith("Demo Login Failed");
+      });
+    });
+
+    it('blocks Google click when onBeforeAuth returns false', () => {
+      const handleBeforeAuth = jest.fn().mockReturnValue(false);
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onBeforeAuth={handleBeforeAuth} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText(/ดำเนินการต่อด้วย Google/i));
+      expect(handleBeforeAuth).toHaveBeenCalled();
+      expect(screen.queryByText("Google OAuth Service")).not.toBeInTheDocument();
+    });
+
+    it('handles Google OAuth2 tokenClient popup flow when clientId is set', async () => {
+      const prevEnv = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = "real_google_client_id_123";
+
+      const handleSuccess = jest.fn();
+      let capturedCallback = null;
+      let capturedErrorCallback = null;
+
+      window.google = {
+        accounts: {
+          oauth2: {
+            initTokenClient: jest.fn(({ callback, error_callback }) => {
+              capturedCallback = callback;
+              capturedErrorCallback = error_callback;
+              return {
+                requestAccessToken: () => {},
+              };
+            }),
+          },
+        },
+      };
+
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "mock_oauth_jwt_token",
+          user: { id: "oauth_1", username: "oauth_streamer" },
+        }),
+      });
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onSuccess={handleSuccess} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText(/ดำเนินการต่อด้วย Google/i));
+      expect(window.google.accounts.oauth2.initTokenClient).toHaveBeenCalled();
+
+      // Trigger successful access token
+      await capturedCallback({ access_token: "test_access_token_xyz" });
+
+      expect(handleSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "mock_oauth_jwt_token" })
+      );
+
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = prevEnv;
+      delete window.google;
+    });
+
+    it('handles Google OAuth2 tokenClient error callback', async () => {
+      const prevEnv = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = "real_google_client_id_123";
+
+      const handleError = jest.fn();
+      let capturedErrorCallback = null;
+
+      window.google = {
+        accounts: {
+          oauth2: {
+            initTokenClient: jest.fn(({ error_callback }) => {
+              capturedErrorCallback = error_callback;
+              return {
+                requestAccessToken: () => {},
+              };
+            }),
+          },
+        },
+      };
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onError={handleError} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText(/ดำเนินการต่อด้วย Google/i));
+      capturedErrorCallback();
+
+      expect(handleError).toHaveBeenCalledWith("การเข้าสู่ระบบด้วย Google ถูกยกเลิกหรือล้มเหลว");
+
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = prevEnv;
+      delete window.google;
+    });
+
+    it('handles Google ID initialization flow when accounts.id is present', async () => {
+      const prevEnv = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = "real_google_client_id_123";
+
+      const handleSuccess = jest.fn();
+      let capturedIdCallback = null;
+
+      window.google = {
+        accounts: {
+          id: {
+            initialize: jest.fn(({ callback }) => {
+              capturedIdCallback = callback;
+            }),
+            prompt: jest.fn((notifCb) => {
+              notifCb({ isNotDisplayed: () => true, isSkippedMoment: () => false });
+            }),
+          },
+        },
+      };
+
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          token: "mock_id_jwt_token",
+          user: { id: "id_1", username: "id_streamer" },
+        }),
+      });
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onSuccess={handleSuccess} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText(/ดำเนินการต่อด้วย Google/i));
+      expect(window.google.accounts.id.initialize).toHaveBeenCalled();
+
+      await capturedIdCallback({ credential: "test_credential_jwt" });
+
+      expect(handleSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "mock_id_jwt_token" })
+      );
+
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = prevEnv;
+      delete window.google;
+    });
+
+    it('handles fallback message when clientId is set but window.google is not loaded', () => {
+      const prevEnv = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = "real_google_client_id_123";
+
+      const handleError = jest.fn();
+      delete window.google;
+
+      render(
+        <MemoryRouter>
+          <SocialAuthButtons onError={handleError} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText(/ดำเนินการต่อด้วย Google/i));
+      expect(handleError).toHaveBeenCalledWith(
+        "กำลังโหลดระบบ Google Sign-In กรุณาลองใหม่อีกครั้ง"
+      );
+
+      process.env.REACT_APP_GOOGLE_CLIENT_ID = prevEnv;
     });
   });
 });

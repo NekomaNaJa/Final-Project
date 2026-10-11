@@ -4,6 +4,7 @@ export const API_URL =
 export const API = {
   login: `${API_URL}/auth/login`,
   register: `${API_URL}/auth/register`,
+  googleAuth: `${API_URL}/auth/google`,
   usersMe: `${API_URL}/users/me`,
   usersPayment: `${API_URL}/users/payment`,
   usersDonationPage: `${API_URL}/users/donation-page`,
@@ -14,6 +15,23 @@ export const API = {
   donationsStats: `${API_URL}/donations/stats`,
   donationDetail: (id) => `${API_URL}/donations/${encodeURIComponent(id)}`,
   widgetsMe: `${API_URL}/widgets/me`,
+};
+
+/**
+ * เข้าสู่ระบบหรือสมัครสมาชิกด้วย Google OAuth (POST /api/auth/google)
+ */
+export const loginWithGoogle = async (payload) => {
+  const body = typeof payload === "string" ? { credential: payload } : payload;
+  const res = await fetch(API.googleAuth, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "การเข้าสู่ระบบด้วย Google ล้มเหลว");
+  }
+  return json;
 };
 
 export const getAuthToken = () => {

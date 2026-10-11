@@ -15,6 +15,7 @@ import {
   createDonation,
   fetchWidgetConfig,
   saveWidgetSettings,
+  loginWithGoogle,
   fetchPublicOverlayConfig,
 } from "./api";
 
@@ -27,6 +28,7 @@ describe("API utility functions", () => {
   test("API endpoints are properly defined", () => {
     expect(API.login).toBe(`${API_URL}/auth/login`);
     expect(API.register).toBe(`${API_URL}/auth/register`);
+    expect(API.googleAuth).toBe(`${API_URL}/auth/google`);
     expect(API.usersMe).toBe(`${API_URL}/users/me`);
     expect(API.usersPayment).toBe(`${API_URL}/users/payment`);
     expect(API.usersDonationPage).toBe(`${API_URL}/users/donation-page`);
@@ -35,6 +37,33 @@ describe("API utility functions", () => {
     expect(API.donations).toBe(`${API_URL}/donations`);
     expect(API.donationsStats).toBe(`${API_URL}/donations/stats`);
     expect(API.donationDetail("don123")).toBe(`${API_URL}/donations/don123`);
+  });
+
+  test("loginWithGoogle calls API.googleAuth and returns json", async () => {
+    const mockRes = { message: "เข้าสู่ระบบด้วย Google สำเร็จ", token: "tok123" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockRes,
+    });
+
+    const result = await loginWithGoogle("mock-credential");
+    expect(global.fetch).toHaveBeenCalledWith(
+      `${API_URL}/auth/google`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ credential: "mock-credential" }),
+      })
+    );
+    expect(result).toEqual(mockRes);
+  });
+
+  test("loginWithGoogle throws error on failure", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Token ไม่ถูกต้อง" }),
+    });
+
+    await expect(loginWithGoogle("invalid-token")).rejects.toThrow("Token ไม่ถูกต้อง");
   });
 
   test("getAuthToken returns token or empty string", () => {

@@ -94,7 +94,10 @@ const Login = () => {
         <div className="flex-1 h-px bg-[#374151]" />
       </div>
 
-      <SocialAuthButtons />
+      <SocialAuthButtons
+        onError={(msg) => setError(msg)}
+        onSuccess={() => navigate("/dashboard")}
+      />
     </AuthLayout>
   );
 };
