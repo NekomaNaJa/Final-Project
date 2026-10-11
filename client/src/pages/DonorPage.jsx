@@ -266,11 +266,21 @@ const DonorPage = () => {
         message: finalMessage,
         paymentMethod: donationData.method || activeTab,
         slipImage: slipBase64,
+        missionPrice: selectedMission ? Number(selectedMission.price) : undefined,
+        missionName: selectedMission ? selectedMission.name : undefined,
+        missionId: selectedMission ? selectedMission.id : undefined,
       });
+
+      let returnedMessage = finalMessage;
+      if (typeof res?.message === "string" && !res.message.startsWith("การบริจาค")) {
+        returnedMessage = res.message;
+      } else if (typeof res?.data?.message === "string") {
+        returnedMessage = res.data.message;
+      }
 
       setSubmittedDonation({
         donorName: res?.data?.donorName || res?.donorName || donorName || "Anonymous",
-        message: res?.data?.message || res?.message || finalMessage,
+        message: returnedMessage,
         ...donationData,
         amount: res?.data?.amount || res?.amount || donationData?.amount || min,
         donationId: res?.id || res?._id || res?.data?._id,

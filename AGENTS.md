@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (10 Suites, 206 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (10 Suites, 209 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -134,7 +134,7 @@ server/
 │   └── slipVerificationService.js → In-house Zero-Cost Slip QR & OCR Verification Engine (Jimp + jsQR + Tesseract.js Worker Lifecycle)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication & Google OAuth (25 tests)
-│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency (36 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency / Mission Verification (39 tests)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
 │   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (5 tests)
@@ -143,7 +143,7 @@ server/
 │   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (3 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (15 tests)
-│   ── รวมฝั่ง Server: 10 Test Suites, 206 Tests ผ่าน 100% (Coverage > 97%)
+│   ── รวมฝั่ง Server: 10 Test Suites, 209 Tests ผ่าน 100% (Coverage > 97%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -211,6 +211,22 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
    - ช่วยให้หน้าเว็บของผู้สนับสนุนได้รับสถานะสำเร็จและเปิดหน้าต่างขอบคุณอย่างราบรื่น 100%
 3. **การรักษาความปลอดภัยต่อการทุจริต**:
    - หากสลิปถูกนำมาใช้ซ้ำเกิน 15 วินาที หรือนำไปใช้กับสตรีมเมอร์คนละคน ระบบจะตอบกลับด้วยรหัสข้อผิดพลาด **`400 Bad Request`** พร้อมข้อความ *"สลิปนี้ถูกใช้งานไปแล้ว ไม่สามารถใช้ซ้ำได้"* ตามมาตรฐานความปลอดภัยอย่างเข้มงวด
+
+### 4.7 การตรวจสอบราคาภารกิจอัตโนมัติสำหรับช่องทางธนาคาร (Bank Mission Price Verification & Auto-strip Tag)
+
+ในหน้าการบริจาคผ่านช่องทาง **ธนาคาร (Bank)** ผู้สนับสนุนไม่ต้องระบุจำนวนเงินล่วงหน้า โดยระบบจะอ่านยอดเงินจริงจากสลิปผ่าน OCR/Mini QR Engine เมื่อผู้สนับสนุนเลือกภารกิจโดเนท (`[ภารกิจ: {name}]`):
+1. **การตรวจสอบเงื่อนไขยอดเงินจากสลิปเทียบกับราคาภารกิจ**:
+   - เมื่อระบบถอดรหัสจำนวนเงินจากสลิปได้สำเร็จ (`effectiveAmount`) และผ่านเกณฑ์ยอดเงินขั้นต่ำ (`effectiveAmount >= minAmount`)
+   - เซิร์ฟเวอร์จะตรวจสอบราคาของภารกิจที่เลือก (`targetMissionPrice`) จากข้อมูลวิดเจ็ต (`Widget`) ของสตรีมเมอร์ในฐานข้อมูล หรือจากพารามิเตอร์ที่ส่งมา
+2. **กรณีโอนเงินน้อยกว่าราคาภารกิจ (`effectiveAmount < targetMissionPrice`)**:
+   - หากจำนวนเงินที่โอนจริง **น้อยกว่าราคาภารกิจ** แต่ **ยังคงไม่ต่ำกว่ายอดบริจาคขั้นต่ำ** (`effectiveAmount >= minAmount`)
+   - ระบบจะ **ตัดแท็กภารกิจออกจากข้อความอัตโนมัติ** (`safeMessage.replace(/^\[ภารกิจ:.*?\]\s*/, "")`)
+   - ผลลัพธ์: การบริจาคจะยังคงสำเร็จตามปกติ แต่บน **Alert ใน OBS Studio**, **เสียงอ่าน TTS**, และ **ฐานข้อมูลประวัติการรับเงิน** จะแสดงเฉพาะข้อความให้กำลังใจของผู้สนับสนุนโดยไม่มีชื่อภารกิจ ป้องกันการสวมรอยภารกิจด้วยยอดเงินที่ไม่ครบ
+3. **กรณีโอนเงินครบตามราคาภารกิจ (`effectiveAmount >= targetMissionPrice`)**:
+   - ระบบจะ **คงแท็กภารกิจไว้ในข้อความตามเดิม 100%**
+   - Alert บน OBS Studio และ TTS จะแสดงและอ่านชื่อภารกิจอย่างสมบูรณ์
+4. **ขอบเขตการทำงานเฉพาะช่องทาง**:
+   - ระบบนี้ทำงานเฉพาะช่องทาง **Bank** เท่านั้น เนื่องจากช่องทาง **PromptPay** มีการล็อคยอดเงินตามราคาภารกิจไว้ตั้งแต่ขั้นตอนการสร้าง QR Code เรียบร้อยแล้ว
 
 ---
 
@@ -425,13 +441,13 @@ client/src/
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
 | **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 28 Suites (314 Tests ผ่าน 100%), Server: 10 Suites (206 Tests ผ่าน 100%, Coverage > 97%), รวม **38 Suites, 520 Tests ผ่าน 100%** |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 28 Suites (314 Tests ผ่าน 100%), Server: 10 Suites (209 Tests ผ่าน 100%, Coverage > 97%), รวม **38 Suites, 523 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง รองรับ `--forceExit` ป้องกัน Process ค้าง |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities, เพิ่ม Node Memory 4GB และ Exclude Binary Assets แก้ปัญหาสแกนค้างที่ 57% |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
 | **OCR Slip Verification & Bank Matching** | ✅ สมบูรณ์ | Phase 8 & Extension — In-House QR & OCR Verification Engine (Zero-Cost ด้วย jsQR + Jimp + Tesseract.js), ตรวจจับสลิป PromptPay / Bank Mini QR (ITMX), อ่านจำนวนเงินจากสลิปอัตโนมัติ (Zero-Touch), ตรวจสอบชื่อผู้รับเงินตรงกับบัญชีสตรีมเมอร์ (`isRecipientNameMatched`) พร้อมตัดคำนำหน้าชื่อไทย, ตรวจสอบเลขบัญชี 4 หลักสุดท้าย, ป้องกันสลิปซ้ำด้วย Sparse Unique Index บน `transRef`, และระบบ Auto-Approve แจ้งเตือน OBS ทันที |
 | **Phase 9 — Google OAuth & Performance** | ✅ สมบูรณ์ | ระบบ Google Identity Services (GIS) ทำงานได้จริงทั้ง Login & Register, Endpoint `POST /api/auth/google` สำหรับ Auto-Registration และ Link Account, ลบปุ่ม YouTube/Twitch ที่ไม่จำเป็น, Dynamic Domain ลิงก์โดเนท, ปรับแต่ง SonarCloud Heap Memory 4096MB แก้ปัญหาสแกนล่าช้า |
-| **Phase 10 — Mission Donate & Idempotency Engine** | ✅ สมบูรณ์ | เชื่อมต่อระบบภารกิจโดเนท Mission Cards สู่หน้าบริจาค (`/:username`) พร้อมป้ายล็อคแท็ก `[ 🔒 ภารกิจ: {name} ]` และล็อคช่องกรอกจำนวนเงิน (Locked Amount Input: readOnly, select-none, ไอคอนกุญแจ) ป้องกันการแก้ราคาภารกิจ, ป้องกันการกดส่งสลิปซ้ำสองชั้น (Multi-layer Submission Guard + useRef lock), ระบบ 15-second Backend Idempotency Window ป้องกัน Race condition ตอบกลับ 200 OK โดยไม่ยิง Socket ซ้ำ, รองรับภาพหน้าปก/พื้นหลัง และตัวกรองคำหยาบทั้งชื่อและข้อความ |
+| **Phase 10 — Mission Donate, Bank Verification & Idempotency** | ✅ สมบูรณ์ | เชื่อมต่อระบบภารกิจโดเนท Mission Cards สู่หน้าบริจาค (`/:username`) พร้อมป้ายล็อคแท็ก `[ 🔒 ภารกิจ: {name} ]` และล็อคช่องกรอกจำนวนเงิน (Locked Amount Input: readOnly, select-none, ไอคอนกุญแจ) ป้องกันการแก้ราคาภารกิจ, ระบบตรวจสอบราคาภารกิจโอนผ่านธนาคาร (Bank Mission Price Verification) ตัดแท็กภารกิจออกจาก Alert อัตโนมัติหากยอดเงินไม่ถึงราคาภารกิจแต่ ≥ ขั้นต่ำ, ป้องกันการกดส่งสลิปซ้ำสองชั้น (Multi-layer Submission Guard + useRef lock), ระบบ 15-second Backend Idempotency Window ป้องกัน Race condition ตอบกลับ 200 OK โดยไม่ยิง Socket ซ้ำ, รองรับภาพหน้าปก/พื้นหลัง และตัวกรองคำหยาบทั้งชื่อและข้อความ |
 
 ---
 
@@ -583,7 +599,7 @@ client/src/
   - **Donor Page Decoration & Profanity Filtering**:
     - รองรับการแสดงผลภาพหน้าปก (`coverImage`) และภาพพื้นหลัง (`backgroundImage`) พร้อม Dark Overlay
     - ขยายระบบตัวกรองคำหยาบ (Profanity Filter) ให้ครอบคลุมทั้งชื่อผู้สนับสนุน (`donorName`) และข้อความ (`message`)
-  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 206 Tests Coverage > 97%, Client 28 Suites 314 Tests รวม **38 Suites, 520 Tests ผ่าน 100%**) และผ่าน SonarCloud Quality Gate Coverage on New Code ≥ 80% (Clean Code, 0 Code Smells)
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 209 Tests Coverage > 97%, Client 28 Suites 314 Tests รวม **38 Suites, 523 Tests ผ่าน 100%**) และผ่าน SonarCloud Quality Gate Coverage on New Code ≥ 80% (Clean Code, 0 Code Smells)
 
 ---
 
@@ -725,7 +741,7 @@ client/src/
 2. **การวิเคราะห์ระบบ (System Analysis)**: วิเคราะห์ความต้องการของผู้ใช้ (Streamer, Donor) กำหนด Use Cases และออกแบบสถาปัตยกรรม Monorepo
 3. **การออกแบบระบบ (System & Database Design)**: ออกแบบ UI/UX บน Figma, กำหนด Mongoose Schema (5 Models: User, Donation, Widget, Mission, Blacklist) และออกแบบ REST API Endpoints
 4. **การพัฒนาระบบ (System Implementation)**: พัฒนาระบบ Client, Server, Socket.IO Events, In-House Slip Verification Engine, และ Google OAuth 2.0 GIS
-5. **การทดสอบและปรับปรุงระบบ (Testing & Quality Assurance)**: เขียน Unit/Integration Tests ครอบคลุม 38 Test Suites, 520 Tests ผ่าน 100% (Server 206 Tests, Client 314 Tests), ทดสอบความปลอดภัย NoSQL Guard, ป้องกัน Race Condition ด้วย Idempotency, และปรับแต่ง SonarCloud Quality Gate
+5. **การทดสอบและปรับปรุงระบบ (Testing & Quality Assurance)**: เขียน Unit/Integration Tests ครอบคลุม 38 Test Suites, 523 Tests ผ่าน 100% (Server 209 Tests, Client 314 Tests), ทดสอบความปลอดภัย NoSQL Guard, ป้องกัน Race Condition ด้วย Idempotency, และปรับแต่ง SonarCloud Quality Gate
 6. **การจัดทำเอกสารโครงงาน (Documentation)**: บันทึกเอกสารคู่มือระบบ (`AGENTS.md`) และจัดทำรูปเล่มรายงานโครงงานบทที่ 1 ถึงบทที่ 5
 7. **การนำเสนอโครงงาน (Project Defense)**: จัดเตรียมสไลด์และระบบต้นแบบเพื่อนำเสนอต่อคณะกรรมการ
 
@@ -829,12 +845,13 @@ client/src/
 - **FR-12 (Mission Donate Integration & Locked Tag/Amount)**: ระบบแสดงการ์ดภารกิจในหน้า Donor Page (`/:username`) เมื่อเลือกภารกิจจะตั้งยอดเงินอัตโนมัติ ล็อคแท็กภารกิจ `[ 🔒 ภารกิจ: {name} ]` ในกล่องข้อความ และล็อคช่องกรอกจำนวนเงิน (readOnly พร้อมไอคอนกุญแจ) ไม่ให้ผู้บริจาคลบหรือแก้ไขยอดเงินได้ และการันตีส่งแท็กภารกิจไปยัง Alert บน OBS Studio
 - **FR-13 (Donor Page Media Customization)**: สตรีมเมอร์สามารถตกแต่งหน้าโดเนทด้วยรูปภาพหน้าปก (`coverImage`) และรูปภาพพื้นหลัง (`backgroundImage`) พร้อมระบบ Dark Overlay เพื่อให้อ่านข้อความได้อย่างชัดเจน
 - **FR-14 (Comprehensive Profanity Filtering)**: ระบบกรองคำหยาบแบบครอบคลุมทั้งชื่อผู้สนับสนุน (`donorName`) และข้อความ (`message`) เพื่อความปลอดภัยของคอนเทนต์ในการถ่ายทอดสด
+- **FR-15 (Bank Mission Price Verification & Auto-strip Tag)**: ระบบตรวจสอบราคาภารกิจโอนผ่านธนาคารอัตโนมัติ หากยอดเงินจริงในสลิปน้อยกว่าราคาภารกิจแต่ ≥ ยอดบริจาคขั้นต่ำ ระบบจะตัดแท็กภารกิจออกจากข้อความบน Alert, TTS, และฐานข้อมูลอัตโนมัติเพื่อความโปร่งใส
 
 ##### ความต้องการที่ไม่ใช่เชิงหน้าที่ (Non-Functional Requirements: NFR)
 - **NFR-01 (Security)**: ระบบต้องป้องกัน NoSQL Injection, XSS, CSRF, Brute-force และเข้ารหัสรหัสผ่านด้วย `bcryptjs`
 - **NFR-02 (Performance & Latency)**: การส่งการแจ้งเตือน Real-time ผ่าน Socket.IO ไปยัง OBS Studio ต้องมีความล่าช้า (Latency) ต่ำกว่า 500 มิลลิวินาที
 - **NFR-03 (Zero-Cost Operation)**: ระบบตรวจสอบสลิปต้องทำงานได้ด้วย Open-source libraries ภายในเครื่อง โดยไม่มีค่าใช้จ่ายต่อครั้งของ API ภายนอก
-- **NFR-04 (High Reliability & Test Coverage)**: ชุดทดสอบของระบบต้องผ่าน 100% ครบทั้ง 38 Test Suites, 520 Tests พร้อม Code Coverage รวมสูงกว่า 97% และมีระบบ Auto-reconnect Socket
+- **NFR-04 (High Reliability & Test Coverage)**: ชุดทดสอบของระบบต้องผ่าน 100% ครบทั้ง 38 Test Suites, 523 Tests พร้อม Code Coverage รวมสูงกว่า 97% และมีระบบ Auto-reconnect Socket
 - **NFR-05 (Clean Stream UX)**: หน้า OBS Browser Source ต้องไม่มีปุ่มหรือสิ่งกีดขวางใดๆ ปรากฏบนจอถ่ายทอดสด
 
 #### 2) แผนภาพสถาปัตยกรรมระบบ (System Architecture)
@@ -1038,15 +1055,17 @@ stateDiagram-v2
 3. **Locked Amount Input Guard**:
    - เมื่อเลือกภารกิจ ช่องกรอกจำนวนเงินใน PromptPay จะถูกล็อคทันที (`readOnly`, `cursor-not-allowed`, ป้าย `[ 🔒 ล็อคตามภารกิจ ]`, ไอคอนแม่กุญแจ) บล็อคการพิมพ์และการกดปุ่มลูกศร ป้องกันผู้บริจาคแก้ไขยอดเงินผิดไปจากราคาภารกิจ
    - แสดงป้ายกำกับภารกิจครบทั้ง 3 ช่องทาง (PromptPay, ธนาคาร, TrueMoney) เพื่อความชัดเจน
+4. **Bank Mission Price Verification & Auto-strip Tag**:
+   - สำหรับช่องทางโอนผ่านธนาคาร (Bank) ระบบจะอ่านยอดเงินจริงจากสลิป หากพบว่าผู้สนับสนุนเลือกภารกิจ แต่ยอดเงินในสลิปน้อยกว่าราคาภารกิจ (แต่ยังคง ≥ ยอดขั้นต่ำที่กำหนด) ระบบจะตัดแท็กภารกิจออกจากข้อความบน Alert, TTS, และประวัติการรับเงินโดยอัตโนมัติ เพื่อป้องกันการอ้างภารกิจด้วยยอดเงินที่ไม่ครบ
 
 #### 4) ผลการทดสอบระบบ (Test Results & Metrics)
 
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **10 Suites** | **206 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **10 Suites** | **209 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 | **Client (Frontend React SPA)** | **28 Suites** | **314 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **38 Suites** | **520 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **38 Suites** | **523 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |
@@ -1079,7 +1098,7 @@ stateDiagram-v2
 3. ป้องกันการทุจริตและการใช้สลิปซ้ำได้ 100% ด้วยระบบ Sparse Unique Database Indexing ควบคู่กับ 15-second Idempotency Engine
 4. ตรวจสอบชื่อผู้รับเงินในสลิปกับชื่อบัญชีสตรีมเมอร์ได้อย่างถูกต้อง รองรับการตัดคำนำหน้าชื่อไทยและการย่อนามสกุล
 5. ซิงค์การแสดงผลบน OBS Studio ได้แบบเรียลไทม์ และมีระบบคำนวณยอดเงินสะสมจริงที่แม่นยำ
-6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 38 Test Suites รวม 520 Tests ผ่าน 100% พร้อมระดับความปลอดภัยและคุณภาพโค้ดเกรด A จาก SonarCloud
+6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 38 Test Suites รวม 523 Tests ผ่าน 100% พร้อมระดับความปลอดภัยและคุณภาพโค้ดเกรด A จาก SonarCloud
 
 #### 2) ตารางเปรียบเทียบคุณสมบัติ (Competitive Advantage Analysis)
 
@@ -1091,7 +1110,7 @@ stateDiagram-v2
 | **การป้องกันการกดส่งสลิปซ้ำ (Double Submit)** | มักขึ้น Error สลิปถูกใช้แล้วสร้างความสับสน | **Idempotent 200 OK + Multi-layer Lock ปลอดภัย 100%** |
 | **การอัปเดตการตั้งค่าวิดเจ็ตใน OBS** | สตรีมเมอร์ต้องกด Refresh Browser Source ใน OBS | **Live Sync ทันทีผ่าน Socket.IO โดยไม่ต้องแตะ OBS** |
 | **ความถูกต้องของยอด Goal และ Leaderboard** | บางครั้งนับยอดแจ้งเตือนทดสอบรวมเข้าไปด้วย | **คำนวณจากประวัติการบริจาคที่สำเร็จจริงในฐานข้อมูล** |
-| **การทดสอบความน่าเชื่อถือ (Code Coverage)** | ไม่เปิดเผยหรือไม่ครอบคลุม | **ทดสอบแบบ Automated ครบ 520 Tests (Coverage > 97%)** |
+| **การทดสอบความน่าเชื่อถือ (Code Coverage)** | ไม่เปิดเผยหรือไม่ครอบคลุม | **ทดสอบแบบ Automated ครบ 523 Tests (Coverage > 97%)** |
 
 #### 3) ปัญหาและอุปสรรคที่พบ พร้อมแนวทางแก้ไข (Problems & Solutions)
 1. **ปัญหา**: สลิปธนาคารของบางแอปพลิเคชัน (เช่น Krungthai NEXT) เป็น Mini QR ที่ไม่มี Tag 54 ระบุจำนวนเงิน
