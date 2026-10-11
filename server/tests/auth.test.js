@@ -315,5 +315,129 @@ describe("Auth Controller & Routes", () => {
       expect(res.status).toBe(500);
       expect(res.body.message).toBe("เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่");
     });
+
+    it("should authenticate with valid credential id_token via Google tokeninfo", async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google_valid_id",
+          email: "realtoken@gmail.com",
+          name: "Real Token User",
+          picture: "https://example.com/real.png",
+        }),
+      });
+
+      jest.spyOn(User, "findOne").mockResolvedValue(null);
+      jest.spyOn(User.prototype, "save").mockImplementation(function () {
+        this._id = "realUserId111";
+        return Promise.resolve(this);
+      });
+
+      const res = await request(app)
+        .post("/api/auth/google")
+        .send({ credential: "valid_google_credential_jwt" });
+
+      global.fetch = originalFetch;
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("เข้าสู่ระบบด้วย Google สำเร็จ");
+      expect(res.body.token).toBeDefined();
+      expect(res.body.data.user.email).toBe("realtoken@gmail.com");
+    });
+
+    it("should authenticate with valid accessToken via Google userinfo", async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google_access_id",
+          email: "accessuser@gmail.com",
+          name: "Access User",
+          picture: "https://example.com/access.png",
+        }),
+      });
+
+      jest.spyOn(User, "findOne").mockResolvedValue(null);
+      jest.spyOn(User.prototype, "save").mockImplementation(function () {
+        this._id = "accessUserId222";
+        return Promise.resolve(this);
+      });
+
+      const res = await request(app)
+        .post("/api/auth/google")
+        .send({ accessToken: "valid_google_access_token" });
+
+      global.fetch = originalFetch;
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("เข้าสู่ระบบด้วย Google สำเร็จ");
+      expect(res.body.token).toBeDefined();
+      expect(res.body.data.user.email).toBe("accessuser@gmail.com");
+    });
+
+    it("should return 400 when tokeninfo returns 200 but sub or email is missing", async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sub: "google_missing_email" }), // missing email
+      });
+
+      const res = await request(app)
+        .post("/api/auth/google")
+        .send({ credential: "incomplete_token" });
+
+      global.fetch = originalFetch;
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Google Token ไม่ถูกต้องหรือหมดอายุ");
+    });
+
+    it("should return 400 when userinfo returns 200 but sub or email is missing", async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ email: "incomplete@gmail.com" }), // missing sub
+      });
+
+      const res = await request(app)
+        .post("/api/auth/google")
+        .send({ accessToken: "incomplete_access_token" });
+
+      global.fetch = originalFetch;
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Google Access Token ไม่ถูกต้องหรือหมดอายุ");
+    });
+
+    it("should handle short email prefix and duplicate username resolution with counter", async () => {
+      // Short prefix (<3 chars): "ab@gmail.com"
+      // User.findOne:
+      // 1: lookup existing user by googleId or email -> null
+      // 2: username collision on candidate -> return { username: "user_654321" }
+      // 3: next candidate -> null
+      jest.spyOn(User, "findOne")
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ username: "user_654321" })
+        .mockResolvedValueOnce(null);
+
+      jest.spyOn(User.prototype, "save").mockImplementation(function () {
+        this._id = "shortPrefixUserId";
+        return Promise.resolve(this);
+      });
+
+      const res = await request(app)
+        .post("/api/auth/google")
+        .send({
+          mockUser: {
+            sub: "google_sub_654321",
+            email: "ab@gmail.com",
+            name: "",
+          },
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.user.username).toBe("user_654321_1");
+    });
   });
 });
