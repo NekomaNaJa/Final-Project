@@ -1,9 +1,25 @@
 import React, { useState } from "react";
 import { Eye, Copy, Check, ExternalLink } from "lucide-react";
 
-const DonatePageLink = ({ username = "Test" }) => {
+const PRODUCTION_URL = "https://final-project-orpin-five.vercel.app";
+
+const getBaseUrl = () => {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    if (
+      !window.location.hostname.includes("localhost") &&
+      !window.location.hostname.includes("127.0.0.1")
+    ) {
+      return window.location.origin;
+    }
+  }
+  return PRODUCTION_URL;
+};
+
+const DonatePageLink = ({ username = "Test", baseUrl = null }) => {
   const [copied, setCopied] = useState(false);
-  const donateUrl = `http://donix.app/${username}`;
+  const resolvedBaseUrl = baseUrl || getBaseUrl();
+  const donateUrl = `${resolvedBaseUrl}/${username}`;
+  const displayHost = donateUrl.replace(/^https?:\/\//, "");
 
   const handleCopy = async () => {
     try {
@@ -42,45 +58,15 @@ const DonatePageLink = ({ username = "Test" }) => {
             className="flex-1 bg-transparent text-xs sm:text-sm font-medium text-gray-200 focus:outline-none cursor-pointer select-all"
           />
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Instagram Icon */}
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noreferrer"
-              title="แชร์ไปยัง Instagram"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-linear-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white hover:opacity-90 transition-opacity"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" />
-              </svg>
-            </a>
-
-            {/* Twitch Icon */}
-            <a
-              href="https://twitch.tv"
-              target="_blank"
-              rel="noreferrer"
-              title="แชร์ไปยัง Twitch"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#9146ff] text-white hover:opacity-90 transition-opacity"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
-              </svg>
-            </a>
-
-            {/* Copy Link Button */}
-            <button
-              type="button"
-              onClick={handleCopy}
-              title="คัดลอกลิงก์"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#261f3d] text-gray-300 hover:bg-purple-600 hover:text-white transition-colors"
-            >
-              {copied ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
-            </button>
-          </div>
+          {/* Copy Link Button */}
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="คัดลอกลิงก์"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#261f3d] text-gray-300 hover:bg-purple-600 hover:text-white transition-colors"
+          >
+            {copied ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+          </button>
         </div>
 
         {copied && (
@@ -112,8 +98,8 @@ const DonatePageLink = ({ username = "Test" }) => {
           </div>
 
           <span className="flex items-center gap-1 rounded-full border border-purple-500/40 bg-purple-600/25 px-3 py-1 text-[11px] font-medium text-purple-200">
-            <span>donix.app/{username}</span>
-            <ExternalLink size={12} />
+            <span className="truncate max-w-[200px] sm:max-w-xs">{displayHost}</span>
+            <ExternalLink size={12} className="shrink-0" />
           </span>
         </a>
       </div>
