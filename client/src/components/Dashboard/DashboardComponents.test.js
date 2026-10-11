@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Coins } from 'lucide-react';
 import { Card, CardHeader } from './CardWrapper';
@@ -8,6 +8,16 @@ import TopDonors from './TopDonors';
 import RealtimeFeed from './RealtimeFeed';
 import DonationChart from './DonationChart';
 import Dashboard from '../../pages/Dashboard';
+import * as api from '../../utils/api';
+
+jest.mock('../../utils/api', () => {
+  const original = jest.requireActual('../../utils/api');
+  return {
+    ...original,
+    fetchDonationStats: jest.fn(),
+    fetchCurrentUser: jest.fn(),
+  };
+});
 
 describe('Dashboard Components', () => {
   describe('CardWrapper', () => {
@@ -79,6 +89,37 @@ describe('Dashboard Components', () => {
       expect(screen.getByText('ยอดเงิน Crimson')).toBeInTheDocument();
     });
 
+    it('renders negative percent with red styling', () => {
+      render(
+        <StatsCard
+          icon={Coins}
+          label="ยอดเงินลดลง"
+          value={800}
+          unit="บาท"
+          percent={-15}
+          percentLabel="เทียบกับสัปดาห์ก่อน"
+          accent="purple"
+        />
+      );
+      expect(screen.getByText('-15%')).toBeInTheDocument();
+      expect(screen.getByText('-15%')).toHaveClass('text-red-400');
+    });
+
+    it('renders zero percent with non-negative styling', () => {
+      render(
+        <StatsCard
+          icon={Coins}
+          label="ยอดเงินคงเดิม"
+          value={1000}
+          unit="บาท"
+          percent={0}
+          percentLabel="เทียบกับสัปดาห์ก่อน"
+          accent="purple"
+        />
+      );
+      expect(screen.getByText('0%')).toBeInTheDocument();
+    });
+
     it('renders stats without percent badge when percent is omitted (e.g. pending items)', () => {
       render(
         <StatsCard
@@ -116,6 +157,19 @@ describe('Dashboard Components', () => {
       expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBe(2);
       expect(screen.getByText('ยังไม่เชื่อมต่อ')).toBeInTheDocument();
     });
+
+    it('loads config from localStorage when payment prop is not provided', () => {
+      localStorage.setItem(
+        'donix_payment_config',
+        JSON.stringify({
+          promptpay: { enabled: true },
+          truemoney: { enabled: true },
+          bank: { enabled: true },
+        })
+      );
+      render(<PaymentChannels />);
+      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBe(3);
+    });
   });
 
   describe('TopDonors', () => {
@@ -135,6 +189,19 @@ describe('Dashboard Components', () => {
       expect(screen.getByText('MYTHIC')).toBeInTheDocument();
       expect(screen.queryByText('ARCANE')).not.toBeInTheDocument();
     });
+
+    it('renders top donors fallbacks for rank, name, badge and amount', () => {
+      const mockDonors = [
+        { rank: 1, name: 'Champion', totalAmount: 10000, badge: 'MYTHIC' },
+        { rank: 2, amount: 2000 },
+      ];
+      render(<TopDonors donors={mockDonors} />);
+      expect(screen.getByText('Champion')).toBeInTheDocument();
+      expect(screen.getByText('฿10,000')).toBeInTheDocument();
+      expect(screen.getByText('ผู้ไม่ประสงค์ออกนาม')).toBeInTheDocument();
+      expect(screen.getByText('฿2,000')).toBeInTheDocument();
+      expect(screen.getByText('SUPPORTER')).toBeInTheDocument();
+    });
   });
 
   describe('RealtimeFeed', () => {
@@ -152,6 +219,22 @@ describe('Dashboard Components', () => {
       expect(screen.getByText('Alice')).toBeInTheDocument();
       expect(screen.getByText('+฿200')).toBeInTheDocument();
       expect(screen.getByText('Keep fighting!')).toBeInTheDocument();
+    });
+
+    it('filters out non-approved items and handles missing fields gracefully', () => {
+      const mockFeed = [
+        { _id: 'd1', donorName: 'Supporter 1', amount: 300, status: 'approved', createdAt: '2026-10-10T12:00:00Z' },
+        { _id: 'd2', donorName: 'Pending Person', amount: 100, status: 'pending' },
+        { _id: 'd3', donorName: 'Rejected Person', amount: 50, status: 'rejected' },
+        { _id: 'd4', amount: 150, status: 'approved' },
+      ];
+      render(<RealtimeFeed feed={mockFeed} />);
+      expect(screen.getByText('Supporter 1')).toBeInTheDocument();
+      expect(screen.getByText('+฿300')).toBeInTheDocument();
+      expect(screen.queryByText('Pending Person')).not.toBeInTheDocument();
+      expect(screen.queryByText('Rejected Person')).not.toBeInTheDocument();
+      expect(screen.getByText('ผู้ไม่ประสงค์ออกนาม')).toBeInTheDocument();
+      expect(screen.getByText('+฿150')).toBeInTheDocument();
     });
   });
 
@@ -237,6 +320,174 @@ describe('Dashboard Components', () => {
       );
 
       expect(screen.queryByText('แชร์ลิงก์โดเนท')).not.toBeInTheDocument();
+    });
+
+    it('loads and renders dashboard stats and user payment data successfully', async () => {
+      jest.useRealTimers();
+      const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
+      localStorage.setItem('token', `header.${payload}.signature`);
+
+      api.fetchDonationStats.mockResolvedValueOnce({
+        totalAmount: 15000,
+        totalDonations: 30,
+        pendingCount: 2,
+        amountPercentChange: 20,
+        donationsPercentChange: 10,
+        topDonors: [{ name: 'SuperDonor', totalAmount: 7000, badge: 'MYTHIC' }],
+        chartData: { '7D': [{ d: 'จ', amount: 500 }] },
+        recentDonations: [{ donorName: 'Bob', amount: 500, status: 'approved' }],
+        payment: { promptpay: { enabled: true, number: '0812345678' } },
+      });
+
+      api.fetchCurrentUser.mockResolvedValueOnce({
+        username: 'nekoma_streamer',
+        payment: {
+          promptpay: { enabled: true, number: '0812345678' },
+          bank: { enabled: true, bankName: 'SCB' },
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/15,000/)).toBeInTheDocument();
+      });
+
+      expect(screen.getAllByText(/30/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText(/2/).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('+20%')).toBeInTheDocument();
+      expect(screen.getByText('+10%')).toBeInTheDocument();
+      expect(screen.getByText('SuperDonor')).toBeInTheDocument();
+      expect(screen.getByText('Bob')).toBeInTheDocument();
+      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('handles API errors gracefully during loadStats', async () => {
+      jest.useRealTimers();
+      const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
+      localStorage.setItem('token', `header.${payload}.signature`);
+
+      api.fetchDonationStats.mockRejectedValueOnce(new Error('Network error'));
+      api.fetchCurrentUser.mockRejectedValueOnce(new Error('User error'));
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByText(/ภาพรวมการรับโดเนทของคุณวันนี้/i)).toBeInTheDocument();
+      expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('handles empty response data with defaults in loadStats', async () => {
+      jest.useRealTimers();
+      const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
+      localStorage.setItem('token', `header.${payload}.signature`);
+
+      api.fetchDonationStats.mockResolvedValueOnce({});
+      api.fetchCurrentUser.mockResolvedValueOnce({});
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/ภาพรวมการรับโดเนทของคุณวันนี้/i)).toBeInTheDocument();
+      });
+      expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('does not update state if unmounted before API calls finish', async () => {
+      jest.useRealTimers();
+      const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
+      localStorage.setItem('token', `header.${payload}.signature`);
+
+      let resolveStats;
+      const statsPromise = new Promise((resolve) => {
+        resolveStats = resolve;
+      });
+
+      api.fetchDonationStats.mockReturnValueOnce(statsPromise);
+      api.fetchCurrentUser.mockResolvedValueOnce({});
+
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      unmount();
+      resolveStats({ totalAmount: 999 });
+    });
+
+    it('updates payment when only user profile returns payment data', async () => {
+      jest.useRealTimers();
+      const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
+      localStorage.setItem('token', `header.${payload}.signature`);
+
+      api.fetchDonationStats.mockResolvedValueOnce({
+        totalAmount: 100,
+      });
+      api.fetchCurrentUser.mockResolvedValueOnce({
+        payment: { promptpay: { enabled: true } },
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/100/)).toBeInTheDocument();
+      });
+      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Edge cases for components', () => {
+    it('handles unknown accent fallback in StatsCard', () => {
+      render(
+        <StatsCard
+          icon={Coins}
+          label="ยอดเงิน Unknown"
+          value={500}
+          unit="บาท"
+          accent="nonexistent"
+        />
+      );
+      expect(screen.getByText('ยอดเงิน Unknown')).toBeInTheDocument();
+    });
+
+    it('handles non-object payment prop gracefully in PaymentChannels', () => {
+      render(<PaymentChannels payment="invalid_string" />);
+      expect(screen.getByText('ช่องทางรับเงิน')).toBeInTheDocument();
+    });
+
+    it('handles donor with missing fields and fallback rank in TopDonors', () => {
+      const mockDonors = [
+        { _id: 'd1', rank: 3 },
+      ];
+      render(<TopDonors donors={mockDonors} />);
+      expect(screen.getByText('ผู้ไม่ประสงค์ออกนาม')).toBeInTheDocument();
+      expect(screen.getByText('฿0')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
+    });
+
+    it('handles realtime feed item with missing donorName', () => {
+      const mockFeed = [
+        { _id: 'f1', amount: 50, donorName: '' },
+      ];
+      render(<RealtimeFeed feed={mockFeed} />);
+      expect(screen.getByText('ผู้ไม่ประสงค์ออกนาม')).toBeInTheDocument();
+      expect(screen.getByText('+฿50')).toBeInTheDocument();
     });
   });
 });

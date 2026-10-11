@@ -25,7 +25,7 @@ const StatsCard = ({
   percentLabel,
   accent = "purple",
 }) => {
-  const a = accentMap[accent];
+  const a = accentMap[accent] || accentMap.purple;
   return (
     <section className="relative overflow-hidden rounded-xl border border-white/8 bg-abyss/60 p-5 backdrop-blur-xl hover:border-purple-500/40 transition-all">
       <div
