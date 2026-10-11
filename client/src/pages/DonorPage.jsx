@@ -31,6 +31,8 @@ const getInitialStreamerConfig = (username) => {
     charLimit: 200,
     filteredWords: [],
     coverImage: null,
+    backgroundImage: null,
+    avatar: null,
     payment: {
       promptpay: {
         enabled: true,
@@ -72,6 +74,7 @@ const getInitialStreamerConfig = (username) => {
           : config.charLimit,
         filteredWords: parsed.filteredWords || config.filteredWords,
         coverImage: parsed.coverImage || config.coverImage,
+        backgroundImage: parsed.backgroundImage || config.backgroundImage,
       };
     }
 
@@ -136,6 +139,10 @@ const DonorPage = () => {
               publicData.donationPage?.filteredWords || prev.filteredWords,
             coverImage:
               publicData.donationPage?.coverImage || prev.coverImage,
+            backgroundImage:
+              publicData.donationPage?.backgroundImage || prev.backgroundImage,
+            avatar:
+              publicData.avatar || prev.avatar,
             payment: {
               promptpay: {
                 ...prev.payment.promptpay,
@@ -208,13 +215,13 @@ const DonorPage = () => {
       });
 
       setSubmittedDonation({
-        donorName,
-        message,
+        donorName: res?.data?.donorName || res?.donorName || donorName || "Anonymous",
+        message: res?.data?.message || res?.message || message,
         ...donationData,
         amount: res?.data?.amount || res?.amount || donationData?.amount || min,
-        donationId: res?.id || res?._id,
-        status: res?.status || "pending",
-        transRef: res?.transRef,
+        donationId: res?.id || res?._id || res?.data?._id,
+        status: res?.data?.status || res?.status || "pending",
+        transRef: res?.data?.transRef || res?.transRef,
       });
     } catch (err) {
       setErrorFeedback(err?.message || "เกิดข้อผิดพลาดในการส่งข้อมูลการโดเนท");
@@ -243,6 +250,20 @@ const DonorPage = () => {
 
   return (
     <div className="relative min-h-screen bg-[#090812] font-sans text-white flex flex-col items-center justify-center py-8 px-4 sm:px-6 overflow-x-hidden">
+      {/* Custom Streamer Background Image (if configured) */}
+      {streamerConfig.backgroundImage && (
+        <div
+          data-testid="donor-custom-background"
+          className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-500"
+          style={{
+            backgroundImage: `url(${streamerConfig.backgroundImage})`,
+          }}
+        >
+          {/* Dark overlay backdrop to maintain high contrast and readability */}
+          <div className="absolute inset-0 bg-[#090812]/85 backdrop-blur-[2px]" />
+        </div>
+      )}
+
       {/* Ambient Gradient Background */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
@@ -287,6 +308,7 @@ const DonorPage = () => {
           isOnline={true}
           welcomeMessage={streamerConfig.welcomeMessage}
           coverImage={streamerConfig.coverImage}
+          avatar={streamerConfig.avatar}
         />
 
         {/* Donation Main Card */}

@@ -199,6 +199,81 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       expect(screen.queryByText("ส่งการโดเนทสำเร็จแล้ว!")).not.toBeInTheDocument();
     });
 
+    test("renders custom cover image, background image, and avatar when provided", async () => {
+      fetchPublicStreamer.mockResolvedValueOnce({
+        username: "StarStreamer",
+        avatar: "https://example.com/avatar.jpg",
+        donationPage: {
+          welcomeMessage: "ยินดีต้อนรับสู่ห้องสตรีม",
+          coverImage: "https://example.com/cover.jpg",
+          backgroundImage: "https://example.com/bg.jpg",
+          minAmount: 10,
+        },
+        payment: {
+          promptpay: { enabled: true, number: "0899999999" },
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/StarStreamer"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("donor-custom-background")).toBeInTheDocument();
+        const coverImg = screen.getByAltText("Cover Banner");
+        expect(coverImg).toHaveAttribute("src", "https://example.com/cover.jpg");
+        const avatarImg = screen.getByAltText("StarStreamer");
+        expect(avatarImg).toHaveAttribute("src", "https://example.com/avatar.jpg");
+      });
+    });
+
+    test("displays filtered donorName from api response in submitted card", async () => {
+      localStorage.setItem(
+        "donix_payment_config",
+        JSON.stringify({
+          bank: { enabled: true, bankName: "SCB", accountNumber: "123", accountName: "Owner" },
+        })
+      );
+      createDonation.mockResolvedValueOnce({
+        data: {
+          id: "don999",
+          status: "approved",
+          donorName: "ผู้ให้ ***",
+          amount: 50,
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/Streamer1"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const nameInput = screen.getByPlaceholderText("Anonymous");
+      fireEvent.change(nameInput, { target: { value: "ผู้ให้ คำหยาบ" } });
+
+      fireEvent.click(screen.getByText("ธนาคาร"));
+      expect(screen.getByText("SCB")).toBeInTheDocument();
+
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("ส่งการโดเนทสำเร็จแล้ว!")).toBeInTheDocument();
+        expect(screen.getByText("ผู้ให้ ***")).toBeInTheDocument();
+      });
+    });
+
     test("shows fallback error alert when donation fails without error message", async () => {
       createDonation.mockRejectedValueOnce({});
 

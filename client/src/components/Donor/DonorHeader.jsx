@@ -7,6 +7,7 @@ const DonorHeader = ({
   isOnline = true,
   welcomeMessage = "ข้อความต้อนรับ....",
   coverImage = null,
+  avatar = null,
 }) => {
   return (
     <div className="w-full flex flex-col items-center">
@@ -31,15 +32,27 @@ const DonorHeader = ({
         <div className="px-6 sm:px-8 pb-7 pt-2 flex flex-col items-center text-center relative">
           {/* Avatar Container */}
           <div className="relative -mt-20 sm:-mt-22 mb-3">
-            <div
-              className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#1e1738] flex items-center justify-center text-3xl sm:text-4xl font-extrabold text-white shadow-2xl transition-all ${
-                isOnline
-                  ? "ring-4 ring-red-500 shadow-[0_0_28px_rgba(239,68,68,0.7)]"
-                  : "ring-2 ring-gray-600"
-              }`}
-            >
-              {username?.[0]?.toUpperCase() || "T"}
-            </div>
+            {avatar ? (
+              <img
+                src={avatar}
+                alt={username}
+                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover bg-[#1e1738] shadow-2xl transition-all ${
+                  isOnline
+                    ? "ring-4 ring-red-500 shadow-[0_0_28px_rgba(239,68,68,0.7)]"
+                    : "ring-2 ring-gray-600"
+                }`}
+              />
+            ) : (
+              <div
+                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#1e1738] flex items-center justify-center text-3xl sm:text-4xl font-extrabold text-white shadow-2xl transition-all ${
+                  isOnline
+                    ? "ring-4 ring-red-500 shadow-[0_0_28px_rgba(239,68,68,0.7)]"
+                    : "ring-2 ring-gray-600"
+                }`}
+              >
+                {username?.[0]?.toUpperCase() || "T"}
+              </div>
+            )}
 
             {/* Status Badge */}
             <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 shrink-0">

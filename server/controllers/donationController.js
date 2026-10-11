@@ -147,10 +147,12 @@ export const createDonation = async (req, res, next) => {
 
     // 6. กรองข้อความและชื่อผู้บริจาค
     const safeMessage = sanitizeDonationMessage(message, streamer.donationPage);
-    const safeDonorName =
+    const rawDonorName =
       typeof donorName === "string" && donorName.trim()
         ? String(donorName).trim().slice(0, 50)
         : "Anonymous";
+    const safeDonorName =
+      sanitizeDonationMessage(rawDonorName, streamer.donationPage) || "Anonymous";
 
     const safeSlipImage =
       typeof slipImage === "string" && slipImage.trim()
