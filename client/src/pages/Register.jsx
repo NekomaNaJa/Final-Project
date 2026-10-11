@@ -147,7 +147,17 @@ const Register = () => {
         <div className="flex-1 h-px bg-[#374151]" />
       </div>
 
-      <SocialAuthButtons />
+      <SocialAuthButtons
+        onBeforeAuth={() => {
+          if (!agreed) {
+            setError("กรุณายอมรับข้อตกลงก่อน");
+            return false;
+          }
+          return true;
+        }}
+        onError={(msg) => setError(msg)}
+        onSuccess={() => navigate("/dashboard")}
+      />
 
       {/* Privacy Policy Modal */}
       {showPrivacy && (
