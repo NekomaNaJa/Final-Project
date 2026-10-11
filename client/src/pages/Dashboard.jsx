@@ -6,17 +6,11 @@ import StatsCard from "../components/Dashboard/StatsCard";
 import DonationChart from "../components/Dashboard/DonationChart";
 import TopDonors from "../components/Dashboard/TopDonors";
 import RealtimeFeed from "../components/Dashboard/RealtimeFeed";
-import PaymentChannels from "../components/Dashboard/PaymentChannels";
 import { Coins, Gem, Clock } from "lucide-react";
-import { fetchDonationStats, fetchCurrentUser } from "../utils/api";
-import { safeGetItem, safeSetItem } from "../utils/sanitizeStorage";
+import { fetchDonationStats } from "../utils/api";
 
 const Dashboard = () => {
   const user = useJwtUser();
-
-  const [paymentConfig, setPaymentConfig] = useState(() => {
-    return safeGetItem("donix_payment_config", null);
-  });
 
   const [stats, setStats] = useState({
     totalAmount: 0,
@@ -35,34 +29,18 @@ const Dashboard = () => {
     const loadStats = async () => {
       if (!localStorage.getItem("token")) return;
       try {
-        const [statsData, userData] = await Promise.allSettled([
-          fetchDonationStats(),
-          fetchCurrentUser(),
-        ]);
-
-        if (isMounted) {
-          if (statsData.status === "fulfilled" && statsData.value) {
-            const data = statsData.value;
-            setStats({
-              totalAmount: data.totalAmount || 0,
-              totalDonations: data.totalDonations || 0,
-              pendingCount: data.pendingCount || 0,
-              amountPercentChange: data.amountPercentChange ?? 0,
-              donationsPercentChange: data.donationsPercentChange ?? 0,
-              topDonors: data.topDonors || [],
-              chartData: data.chartData || null,
-              recentDonations: data.recentDonations || [],
-            });
-            if (data.payment) {
-              setPaymentConfig(data.payment);
-              safeSetItem("donix_payment_config", data.payment);
-            }
-          }
-
-          if (userData.status === "fulfilled" && userData.value?.payment) {
-            setPaymentConfig(userData.value.payment);
-            safeSetItem("donix_payment_config", userData.value.payment);
-          }
+        const data = await fetchDonationStats();
+        if (isMounted && data) {
+          setStats({
+            totalAmount: data.totalAmount || 0,
+            totalDonations: data.totalDonations || 0,
+            pendingCount: data.pendingCount || 0,
+            amountPercentChange: data.amountPercentChange ?? 0,
+            donationsPercentChange: data.donationsPercentChange ?? 0,
+            topDonors: data.topDonors || [],
+            chartData: data.chartData || null,
+            recentDonations: data.recentDonations || [],
+          });
         }
       } catch {
         // Silently catch errors in background dashboard fetch
@@ -140,12 +118,9 @@ const Dashboard = () => {
               <TopDonors donors={stats.topDonors} />
             </div>
 
-            {/* Feed + Payment */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
-                <RealtimeFeed feed={stats.recentDonations} />
-              </div>
-              <PaymentChannels payment={paymentConfig} />
+            {/* Realtime Feed (Full Width) */}
+            <div className="w-full">
+              <RealtimeFeed feed={stats.recentDonations} />
             </div>
           </main>
         </div>

@@ -322,7 +322,7 @@ describe('Dashboard Components', () => {
       expect(screen.queryByText('แชร์ลิงก์โดเนท')).not.toBeInTheDocument();
     });
 
-    it('loads and renders dashboard stats and user payment data successfully', async () => {
+    it('loads and renders dashboard stats and feed data successfully', async () => {
       jest.useRealTimers();
       const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
       localStorage.setItem('token', `header.${payload}.signature`);
@@ -336,15 +336,6 @@ describe('Dashboard Components', () => {
         topDonors: [{ name: 'SuperDonor', totalAmount: 7000, badge: 'MYTHIC' }],
         chartData: { '7D': [{ d: 'จ', amount: 500 }] },
         recentDonations: [{ donorName: 'Bob', amount: 500, status: 'approved' }],
-        payment: { promptpay: { enabled: true, number: '0812345678' } },
-      });
-
-      api.fetchCurrentUser.mockResolvedValueOnce({
-        username: 'nekoma_streamer',
-        payment: {
-          promptpay: { enabled: true, number: '0812345678' },
-          bank: { enabled: true, bankName: 'SCB' },
-        },
       });
 
       render(
@@ -363,7 +354,8 @@ describe('Dashboard Components', () => {
       expect(screen.getByText('+10%')).toBeInTheDocument();
       expect(screen.getByText('SuperDonor')).toBeInTheDocument();
       expect(screen.getByText('Bob')).toBeInTheDocument();
-      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('อนุมัติแล้ว')).toBeInTheDocument();
+      expect(screen.queryByText('ช่องทางรับเงิน')).not.toBeInTheDocument();
     });
 
     it('handles API errors gracefully during loadStats', async () => {
@@ -372,7 +364,6 @@ describe('Dashboard Components', () => {
       localStorage.setItem('token', `header.${payload}.signature`);
 
       api.fetchDonationStats.mockRejectedValueOnce(new Error('Network error'));
-      api.fetchCurrentUser.mockRejectedValueOnce(new Error('User error'));
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -390,7 +381,6 @@ describe('Dashboard Components', () => {
       localStorage.setItem('token', `header.${payload}.signature`);
 
       api.fetchDonationStats.mockResolvedValueOnce({});
-      api.fetchCurrentUser.mockResolvedValueOnce({});
 
       render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -415,7 +405,6 @@ describe('Dashboard Components', () => {
       });
 
       api.fetchDonationStats.mockReturnValueOnce(statsPromise);
-      api.fetchCurrentUser.mockResolvedValueOnce({});
 
       const { unmount } = render(
         <MemoryRouter initialEntries={['/dashboard']}>
@@ -425,30 +414,6 @@ describe('Dashboard Components', () => {
 
       unmount();
       resolveStats({ totalAmount: 999 });
-    });
-
-    it('updates payment when only user profile returns payment data', async () => {
-      jest.useRealTimers();
-      const payload = btoa(JSON.stringify({ username: 'nekoma_streamer' }));
-      localStorage.setItem('token', `header.${payload}.signature`);
-
-      api.fetchDonationStats.mockResolvedValueOnce({
-        totalAmount: 100,
-      });
-      api.fetchCurrentUser.mockResolvedValueOnce({
-        payment: { promptpay: { enabled: true } },
-      });
-
-      render(
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <Dashboard />
-        </MemoryRouter>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText(/100/)).toBeInTheDocument();
-      });
-      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBeGreaterThanOrEqual(1);
     });
   });
 
