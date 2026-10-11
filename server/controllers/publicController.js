@@ -31,12 +31,23 @@ export const getPublicStreamer = async (req, res, next) => {
       });
     }
 
+    // ดึงการตั้งค่าวิดเจ็ตของสตรีมเมอร์ (โดยเฉพาะ Mission Donate)
+    const widget = await Widget.findOne({ userId: { $eq: user._id } });
+
     const publicData = {
       username: user.username,
       nickname: user.nickname || "",
       avatar: user.avatar || "",
       bio: user.bio || "",
       isLive: Boolean(user.isLive),
+      mission: {
+        title: widget?.mission?.title || "ภารกิจสตรีมเมอร์วันนี้",
+        missions: Array.isArray(widget?.mission?.missions)
+          ? widget.mission.missions.map((m) =>
+              typeof m.toObject === "function" ? m.toObject() : m
+            )
+          : [],
+      },
       social: {
         facebook: user.social?.facebook || "",
         instagram: user.social?.instagram || "",
