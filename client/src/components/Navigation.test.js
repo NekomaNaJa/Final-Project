@@ -18,6 +18,7 @@ describe('Sidebar Component', () => {
     expect(screen.getByText('วิดเจ็ตรับเงิน')).toBeInTheDocument();
     expect(screen.getByText('ประวัติการรับเงิน')).toBeInTheDocument();
     expect(screen.getByText('ออกจากระบบ')).toBeInTheDocument();
+    expect(screen.queryByText('ตั้งค่า')).not.toBeInTheDocument();
   });
 
   it('handles custom onLogout callback or default logout removing token', () => {
