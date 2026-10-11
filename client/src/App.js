@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainPage from "./pages/MainPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import DonatePage from "./pages/DonatePage";
 import PaymentPage from "./pages/PaymentPage";
@@ -24,6 +25,7 @@ const App = () => {
         <Route path="/" element={<MainPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/how-it-works" element={<HowToUse />} />
         <Route

@@ -1,11 +1,17 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import AccountProfileCard from "./AccountProfileCard";
 import AccountTabs from "./AccountTabs";
 import ManageAccountCard from "./ManageAccountCard";
 import SecurityTab from "./SecurityTab";
 import SocialMediaTab from "./SocialMediaTab";
 import UserInfoTab from "./UserInfoTab";
+
+jest.mock("../../utils/api", () => ({
+  ...jest.requireActual("../../utils/api"),
+  sendLinkOtp: jest.fn().mockResolvedValue({ target: "user@test.com", type: "email" }),
+  verifyLinkOtp: jest.fn().mockResolvedValue({ email: "user@test.com", isEmailVerified: true }),
+}));
 
 describe("Account Components", () => {
   const mockUser = {
@@ -20,7 +26,7 @@ describe("Account Components", () => {
     test("renders user profile info and handles copy", () => {
       render(<AccountProfileCard user={mockUser} />);
       expect(screen.getByText("TestStreamer")).toBeInTheDocument();
-      expect(screen.getByText("donix.app/TestStreamer")).toBeInTheDocument();
+      expect(screen.getByText("https://final-project-orpin-five.vercel.app/TestStreamer")).toBeInTheDocument();
       expect(screen.getByText("2026-01-01")).toBeInTheDocument();
       expect(screen.getByText("25")).toBeInTheDocument();
       expect(screen.getByText("1200")).toBeInTheDocument();
@@ -57,6 +63,35 @@ describe("Account Components", () => {
       expect(screen.getByText("MANAGE ACCOUNT")).toBeInTheDocument();
       expect(screen.getAllByText("ยืนยันแล้ว").length).toBeGreaterThan(0);
       expect(screen.getAllByText("คลิกเพื่อเชื่อมต่อ").length).toBeGreaterThan(0);
+    });
+
+    test("opens OTP modal and handles send OTP and verify OTP", async () => {
+      const mockOnUpdateUser = jest.fn();
+      render(<ManageAccountCard user={{ email: "user@test.com", isEmailVerified: false }} onUpdateUser={mockOnUpdateUser} />);
+
+      const connectBtns = screen.getAllByText("คลิกเพื่อเชื่อมต่อ");
+      fireEvent.click(connectBtns[0]);
+
+      expect(screen.getByText("เชื่อมต่อและยืนยันอีเมล")).toBeInTheDocument();
+
+      const sendOtpBtn = screen.getByText("ส่งรหัส OTP");
+      fireEvent.click(sendOtpBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/รหัส OTP 6 หลัก/i)).toBeInTheDocument();
+      });
+
+      const otpInput = screen.getByPlaceholderText("123456");
+      fireEvent.change(otpInput, { target: { value: "654321" } });
+      expect(otpInput.value).toBe("654321");
+
+      const verifyBtn = screen.getByText("ยืนยันและเชื่อมต่อ");
+      fireEvent.click(verifyBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("เชื่อมต่อและยืนยันสำเร็จแล้ว")).toBeInTheDocument();
+      });
+      expect(mockOnUpdateUser).toHaveBeenCalled();
     });
   });
 

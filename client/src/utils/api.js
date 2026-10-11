@@ -15,6 +15,11 @@ export const API = {
   donationsStats: `${API_URL}/donations/stats`,
   donationDetail: (id) => `${API_URL}/donations/${encodeURIComponent(id)}`,
   widgetsMe: `${API_URL}/widgets/me`,
+  forgotPasswordSendOtp: `${API_URL}/auth/forgot-password/send-otp`,
+  forgotPasswordVerifyOtp: `${API_URL}/auth/forgot-password/verify-otp`,
+  forgotPasswordReset: `${API_URL}/auth/forgot-password/reset`,
+  linkOtpSend: `${API_URL}/users/link-otp/send`,
+  linkOtpVerify: `${API_URL}/users/link-otp/verify`,
 };
 
 /**
@@ -265,3 +270,84 @@ export const fetchPublicOverlayConfig = async (type, token) => {
   }
   return json.data;
 };
+
+/**
+ * ขอรหัส OTP สำหรับรีเซ็ตรหัสผ่าน (POST /api/auth/forgot-password/send-otp)
+ */
+export const sendForgotPasswordOtp = async (payload) => {
+  const res = await fetch(API.forgotPasswordSendOtp, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถส่งรหัส OTP ได้");
+  }
+  return json.data;
+};
+
+/**
+ * ยืนยันรหัส OTP สำหรับรีเซ็ตรหัสผ่าน (POST /api/auth/forgot-password/verify-otp)
+ */
+export const verifyForgotPasswordOtp = async (payload) => {
+  const res = await fetch(API.forgotPasswordVerifyOtp, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "รหัส OTP ไม่ถูกต้อง");
+  }
+  return json.data;
+};
+
+/**
+ * ตั้งรหัสผ่านใหม่หลังจากยืนยัน OTP สำเร็จ (POST /api/auth/forgot-password/reset)
+ */
+export const resetForgotPassword = async (payload) => {
+  const res = await fetch(API.forgotPasswordReset, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถรีเซ็ตรหัสผ่านได้");
+  }
+  return json;
+};
+
+/**
+ * ส่งรหัส OTP เพื่อเชื่อมต่อและยืนยันอีเมลหรือเบอร์โทรศัพท์ในหน้า Account (POST /api/users/link-otp/send)
+ */
+export const sendLinkOtp = async (payload) => {
+  const res = await fetch(API.linkOtpSend, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถส่งรหัส OTP ได้");
+  }
+  return json.data;
+};
+
+/**
+ * ยืนยันรหัส OTP เพื่อเชื่อมต่ออีเมลหรือเบอร์โทรศัพท์ในหน้า Account (POST /api/users/link-otp/verify)
+ */
+export const verifyLinkOtp = async (payload) => {
+  const res = await fetch(API.linkOtpVerify, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ยืนยันรหัส OTP ไม่สำเร็จ");
+  }
+  return json.data;
+};
+

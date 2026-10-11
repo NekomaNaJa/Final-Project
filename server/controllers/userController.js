@@ -1,9 +1,15 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import User from "../Models/User.js";
+import Otp from "../Models/Otp.js";
+import { sendEmailOtp, sendSmsOtp } from "../services/notificationService.js";
 import {
   isPasswordValid,
   getPasswordError,
 } from "../utils/passwordValidation.js";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^0[0-9]{9}$/;
 
 export const getMe = async (req, res, next) => {
   try {
@@ -543,6 +549,195 @@ export const changePassword = async (req, res, next) => {
     return res.json({
       message: "เปลี่ยนรหัสผ่านสำเร็จ",
       data: null,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const sendLinkOtp = async (req, res, next) => {
+  try {
+    const safeUserId = String(req.user?.userId || "");
+    const user = await User.findById(safeUserId);
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบผู้ใช้",
+        data: null,
+      });
+    }
+
+    const { target, type } = req.body;
+    if (typeof target !== "string" || typeof type !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeTarget = String(target).trim();
+    const safeType = String(type).trim().toLowerCase();
+
+    if (!["email", "phone"].includes(safeType)) {
+      return res.status(400).json({
+        message: "ประเภทข้อมูลไม่ถูกต้อง (ต้องเป็น email หรือ phone)",
+        data: null,
+      });
+    }
+
+    if (safeType === "email") {
+      if (!EMAIL_REGEX.test(safeTarget)) {
+        return res.status(400).json({
+          message: "รูปแบบอีเมลไม่ถูกต้อง",
+          data: null,
+        });
+      }
+
+      const existing = await User.findOne({
+        email: { $eq: safeTarget.toLowerCase() },
+        _id: { $ne: user._id },
+      });
+      if (existing) {
+        return res.status(400).json({
+          message: "อีเมลนี้ถูกใช้งานโดยบัญชีอื่นแล้ว",
+          data: null,
+        });
+      }
+    } else {
+      const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
+      if (!PHONE_REGEX.test(cleanPhone)) {
+        return res.status(400).json({
+          message: "รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 10 หลักขึ้นต้นด้วย 0)",
+          data: null,
+        });
+      }
+
+      const existing = await User.findOne({
+        phone: { $eq: cleanPhone },
+        _id: { $ne: user._id },
+      });
+      if (existing) {
+        return res.status(400).json({
+          message: "เบอร์โทรศัพท์นี้ถูกใช้งานโดยบัญชีอื่นแล้ว",
+          data: null,
+        });
+      }
+    }
+
+    const purpose = safeType === "email" ? "verify_email" : "verify_phone";
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await Otp.deleteMany({
+      target: { $eq: safeTarget },
+      purpose: { $eq: purpose },
+    });
+
+    await Otp.create({
+      target: safeTarget,
+      type: safeType,
+      purpose,
+      otp: otpCode,
+      expiresAt,
+    });
+
+    if (safeType === "email") {
+      await sendEmailOtp(safeTarget, otpCode, purpose);
+    } else {
+      await sendSmsOtp(safeTarget, otpCode, purpose);
+    }
+
+    res.json({
+      message: `ส่งรหัส OTP ไปยัง ${safeTarget} เรียบร้อยแล้ว`,
+      data: {
+        target: safeTarget,
+        type: safeType,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const verifyLinkOtp = async (req, res, next) => {
+  try {
+    const safeUserId = String(req.user?.userId || "");
+    const user = await User.findById(safeUserId);
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบผู้ใช้",
+        data: null,
+      });
+    }
+
+    const { target, type, otp } = req.body;
+    if (typeof target !== "string" || typeof type !== "string" || typeof otp !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeTarget = String(target).trim();
+    const safeType = String(type).trim().toLowerCase();
+    const safeOtp = String(otp).trim();
+
+    const purpose = safeType === "email" ? "verify_email" : "verify_phone";
+
+    const otpRecord = await Otp.findOne({
+      target: { $eq: safeTarget },
+      purpose: { $eq: purpose },
+      type: { $eq: safeType },
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        message: "รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.expiresAt < new Date()) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      return res.status(400).json({
+        message: "รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.attempts >= 5) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      return res.status(400).json({
+        message: "คุณกรอกรหัสผิดเกินจำนวนครั้งที่กำหนด กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.otp !== safeOtp) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({
+        message: "รหัส OTP ไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    await Otp.deleteOne({ _id: otpRecord._id });
+
+    if (safeType === "email") {
+      user.email = safeTarget.toLowerCase();
+      user.isEmailVerified = true;
+    } else {
+      user.phone = safeTarget.replace(/[^0-9]/g, "");
+      user.isPhoneVerified = true;
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(safeUserId).select("-password");
+
+    res.json({
+      message: safeType === "email" ? "เชื่อมต่อและยืนยันอีเมลสำเร็จ" : "เชื่อมต่อและยืนยันเบอร์โทรศัพท์สำเร็จ",
+      data: updatedUser,
     });
   } catch (err) {
     next(err);

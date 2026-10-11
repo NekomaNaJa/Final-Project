@@ -1,6 +1,9 @@
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../Models/User.js";
+import Otp from "../Models/Otp.js";
+import { sendEmailOtp, sendSmsOtp } from "../services/notificationService.js";
 import {
   isPasswordValid,
   getPasswordError,
@@ -8,6 +11,20 @@ import {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+
+const maskTarget = (target, type) => {
+  if (type === "email") {
+    const [local, domain] = target.split("@");
+    if (!domain) return target;
+    const maskedLocal = local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : `${local[0]}***`;
+    return `${maskedLocal}@${domain}`;
+  }
+  const cleaned = target.replace(/[^0-9]/g, "");
+  if (cleaned.length >= 9) {
+    return `${cleaned.slice(0, 3)}-***-${cleaned.slice(-4)}`;
+  }
+  return target;
+};
 
 export const register = async (req, res, next) => {
   try {
@@ -303,3 +320,242 @@ export const googleAuth = async (req, res, next) => {
     next(err);
   }
 };
+
+export const forgotPasswordSendOtp = async (req, res, next) => {
+  try {
+    const { identifier, channel } = req.body;
+
+    if (typeof identifier !== "string" || typeof channel !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeIdentifier = String(identifier).trim();
+    const safeChannel = String(channel).trim().toLowerCase();
+
+    if (!["email", "sms"].includes(safeChannel)) {
+      return res.status(400).json({
+        message: "ช่องทางการส่งรหัสไม่ถูกต้อง (ต้องเป็น email หรือ sms)",
+        data: null,
+      });
+    }
+
+    const cleanPhone = safeIdentifier.replace(/[^0-9]/g, "");
+
+    const user = await User.findOne({
+      $or: [
+        { email: { $eq: safeIdentifier.toLowerCase() } },
+        { phone: { $eq: cleanPhone } },
+        { username: { $eq: safeIdentifier } },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบบัญชีผู้ใช้ในระบบ",
+        data: null,
+      });
+    }
+
+    let target = "";
+    if (safeChannel === "email") {
+      if (!user.email) {
+        return res.status(400).json({
+          message: "บัญชีนี้ไม่มีอีเมลที่ลงทะเบียนไว้",
+          data: null,
+        });
+      }
+      target = user.email;
+    } else {
+      if (!user.phone) {
+        return res.status(400).json({
+          message: "บัญชีนี้ยังไม่ได้เชื่อมต่อเบอร์โทรศัพท์ กรุณาเลือกยืนยันผ่านอีเมล",
+          data: null,
+        });
+      }
+      target = user.phone;
+    }
+
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await Otp.deleteMany({
+      target: { $eq: target },
+      purpose: { $eq: "forgot_password" },
+    });
+
+    await Otp.create({
+      target,
+      type: safeChannel === "email" ? "email" : "phone",
+      purpose: "forgot_password",
+      otp: otpCode,
+      expiresAt,
+    });
+
+    if (safeChannel === "email") {
+      await sendEmailOtp(target, otpCode, "forgot_password");
+    } else {
+      await sendSmsOtp(target, otpCode, "forgot_password");
+    }
+
+    const masked = maskTarget(target, safeChannel === "email" ? "email" : "phone");
+
+    res.json({
+      message: `ส่งรหัส OTP ไปยัง ${masked} เรียบร้อยแล้ว`,
+      data: {
+        channel: safeChannel,
+        maskedTarget: masked,
+        target,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const forgotPasswordVerifyOtp = async (req, res, next) => {
+  try {
+    const { target, otp } = req.body;
+
+    if (typeof target !== "string" || typeof otp !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeTarget = String(target).trim();
+    const safeOtp = String(otp).trim();
+
+    const otpRecord = await Otp.findOne({
+      target: { $eq: safeTarget },
+      purpose: { $eq: "forgot_password" },
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        message: "รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.expiresAt < new Date()) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      return res.status(400).json({
+        message: "รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.attempts >= 5) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+      return res.status(400).json({
+        message: "คุณกรอกรหัสผิดเกินจำนวนครั้งที่กำหนด กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.otp !== safeOtp) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({
+        message: "รหัส OTP ไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
+    const user = await User.findOne({
+      $or: [
+        { email: { $eq: safeTarget.toLowerCase() } },
+        { phone: { $eq: cleanPhone } },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบข้อมูลผู้ใช้สำหรับรหัส OTP นี้",
+        data: null,
+      });
+    }
+
+    await Otp.deleteOne({ _id: otpRecord._id });
+
+    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    const resetToken = jwt.sign(
+      { userId: user._id, purpose: "password_reset" },
+      secret,
+      { expiresIn: "15m" }
+    );
+
+    res.json({
+      message: "ยืนยันรหัส OTP สำเร็จ",
+      data: {
+        resetToken,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const forgotPasswordReset = async (req, res, next) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (typeof resetToken !== "string" || typeof newPassword !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const secret = process.env.JWT_SECRET || "donix_jwt_secret_dev";
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, secret);
+    } catch {
+      return res.status(400).json({
+        message: "โทเค็นการรีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว กรุณาทำรายการใหม่",
+        data: null,
+      });
+    }
+
+    if (decoded.purpose !== "password_reset" || !decoded.userId) {
+      return res.status(400).json({
+        message: "โทเค็นไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    if (!isPasswordValid(newPassword)) {
+      return res.status(400).json({
+        message: getPasswordError(newPassword),
+        data: null,
+      });
+    }
+
+    const safeUserId = String(decoded.userId);
+    const user = await User.findById(safeUserId);
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบบัญชีผู้ใช้",
+        data: null,
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({
+      message: "ตั้งรหัสผ่านใหม่สำเร็จแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่",
+      data: null,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

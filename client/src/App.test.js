@@ -56,4 +56,12 @@ describe("App routing for new pages", () => {
     render(<App />);
     expect(screen.getByTestId("overlay-alert-container")).toBeInTheDocument();
   });
+
+  test("/forgot-password renders ForgotPassword page", () => {
+    window.history.pushState({}, "", "/forgot-password");
+    render(<App />);
+    expect(
+      screen.getByRole("heading", { level: 2, name: "ลืมรหัสผ่าน" })
+    ).toBeInTheDocument();
+  });
 });
