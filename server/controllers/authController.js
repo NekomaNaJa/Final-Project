@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../Models/User.js";
@@ -20,7 +20,7 @@ const maskTarget = (target, type) => {
     const maskedLocal = local.length > 2 ? `${local[0]}***${local[local.length - 1]}` : `${local[0]}***`;
     return `${maskedLocal}@${domain}`;
   }
-  const cleaned = target.replace(/[^0-9]/g, "");
+  const cleaned = target.replace(/\D/g, "");
   if (cleaned.length >= 9) {
     return `${cleaned.slice(0, 3)}-***-${cleaned.slice(-4)}`;
   }
@@ -185,6 +185,63 @@ export const login = async (req, res, next) => {
   }
 };
 
+const findOrCreateGoogleUser = async (googleProfile) => {
+  const safeGoogleId = googleProfile.sub;
+  const safeEmail = googleProfile.email;
+let user = await User.findOne({
+  $or: [
+    { googleId: { $eq: safeGoogleId } },
+    { email: { $eq: safeEmail } },
+  ],
+});
+
+if (user) {
+  let isUpdated = false;
+  if (!user.googleId) {
+    user.googleId = safeGoogleId;
+    isUpdated = true;
+  }
+  if (!user.avatar && googleProfile.picture) {
+    user.avatar = googleProfile.picture;
+    isUpdated = true;
+  }
+  if (!user.isEmailVerified) {
+    user.isEmailVerified = true;
+    isUpdated = true;
+  }
+  if (isUpdated) {
+    await user.save();
+  }
+} else {
+  let baseUsername = safeEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+  if (baseUsername.length < 3) {
+    baseUsername = `user_${safeGoogleId.slice(-6)}`;
+  }
+  baseUsername = baseUsername.slice(0, 20);
+
+  let candidateUsername = baseUsername;
+  let counter = 1;
+  while (await User.findOne({ username: { $eq: candidateUsername } })) {
+    candidateUsername = `${baseUsername.slice(0, 15)}_${counter}`;
+    counter++;
+  }
+
+  user = new User({
+    username: candidateUsername,
+    email: safeEmail,
+    googleId: safeGoogleId,
+    fullName: googleProfile.name || "",
+    nickname: googleProfile.name ? googleProfile.name.split(" ")[0] : candidateUsername,
+    avatar: googleProfile.picture || "",
+    isEmailVerified: true,
+    password: null,
+  });
+  await user.save();
+}
+
+  return user;
+};
+
 export const googleAuth = async (req, res, next) => {
   try {
     const { credential, accessToken, mockUser } = req.body;
@@ -241,59 +298,7 @@ export const googleAuth = async (req, res, next) => {
       });
     }
 
-    const safeGoogleId = googleProfile.sub;
-    const safeEmail = googleProfile.email;
-
-    let user = await User.findOne({
-      $or: [
-        { googleId: { $eq: safeGoogleId } },
-        { email: { $eq: safeEmail } },
-      ],
-    });
-
-    if (user) {
-      let isUpdated = false;
-      if (!user.googleId) {
-        user.googleId = safeGoogleId;
-        isUpdated = true;
-      }
-      if (!user.avatar && googleProfile.picture) {
-        user.avatar = googleProfile.picture;
-        isUpdated = true;
-      }
-      if (!user.isEmailVerified) {
-        user.isEmailVerified = true;
-        isUpdated = true;
-      }
-      if (isUpdated) {
-        await user.save();
-      }
-    } else {
-      let baseUsername = safeEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
-      if (baseUsername.length < 3) {
-        baseUsername = `user_${safeGoogleId.slice(-6)}`;
-      }
-      baseUsername = baseUsername.slice(0, 20);
-
-      let candidateUsername = baseUsername;
-      let counter = 1;
-      while (await User.findOne({ username: { $eq: candidateUsername } })) {
-        candidateUsername = `${baseUsername.slice(0, 15)}_${counter}`;
-        counter++;
-      }
-
-      user = new User({
-        username: candidateUsername,
-        email: safeEmail,
-        googleId: safeGoogleId,
-        fullName: googleProfile.name || "",
-        nickname: googleProfile.name ? googleProfile.name.split(" ")[0] : candidateUsername,
-        avatar: googleProfile.picture || "",
-        isEmailVerified: true,
-        password: null,
-      });
-      await user.save();
-    }
+    const user = await findOrCreateGoogleUser(googleProfile);
 
     const secret = getJwtSecret();
     const token = jwt.sign(
@@ -343,7 +348,7 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
       });
     }
 
-    const cleanPhone = safeIdentifier.replace(/[^0-9]/g, "");
+    const cleanPhone = safeIdentifier.replace(/\D/g, "");
 
     const user = await User.findOne({
       $or: [
@@ -477,7 +482,7 @@ export const forgotPasswordVerifyOtp = async (req, res, next) => {
       });
     }
 
-    const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
+    const cleanPhone = safeTarget.replace(/\D/g, "");
     const user = await User.findOne({
       $or: [
         { email: { $eq: safeTarget.toLowerCase() } },

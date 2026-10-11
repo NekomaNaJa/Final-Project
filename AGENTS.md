@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (10 Suites, 209 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (12 Suites, 251 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (28 Suites, 314 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (29 Suites, 367 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -131,19 +131,22 @@ server/
 │   ├── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 │   └── widgets.js               → เส้นทาง /api/widgets (GET /me, PUT /me)
 ├── services/
+│   ├── notificationService.js   → บริการส่ง OTP ผ่าน Email (Nodemailer SMTP/Gmail) & SMS (Twilio) เน้น Fail-closed (503 EMAIL_NOT_CONFIGURED เมื่อไม่ได้ตั้งค่า SMTP, ไม่ fake สำเร็จ)
 │   └── slipVerificationService.js → In-house Zero-Cost Slip QR & OCR Verification Engine (Jimp + jsQR + Tesseract.js Worker Lifecycle)
 ├── tests/
-│   ├── auth.test.js             → ชุดทดสอบ Authentication & Google OAuth (25 tests)
-│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency / Mission Verification (39 tests)
-│   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
+│   ├── auth.test.js             → ชุดทดสอบ Authentication & Google OAuth + Forgot Password OTP (41 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency / Mission Verification (41 tests)
+│   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (6 tests)
+│   ├── jwtSecret.test.js        → ชุดทดสอบ JWT Secret Generator (3 tests)
+│   ├── notificationService.test.js → ชุดทดสอบ Email/SMS OTP Service (Fail-closed, TLS, Masked Logs) (10 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
-│   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (5 tests)
-│   ├── slipParser.test.js       → ชุดทดสอบ Thai Slip & QR Parser Utility (31 tests)
+│   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (10 tests)
+│   ├── slipParser.test.js       → ชุดทดสอบ Thai Slip & QR Parser Utility (42 tests)
 │   ├── slipVerificationService.test.js → ชุดทดสอบ Zero-Cost QR/OCR Engine (8 tests)
-│   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests)
-│   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (3 tests)
-│   └── widgets.test.js          → ชุดทดสอบ Widgets Route (15 tests)
-│   ── รวมฝั่ง Server: 10 Test Suites, 209 Tests ผ่าน 100% (Coverage > 97%)
+│   ├── users.test.js            → ชุดทดสอบ Users Route & Email/Phone Link OTP (67 tests)
+│   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (5 tests)
+│   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests)
+│   ── รวมฝั่ง Server: 12 Test Suites, 251 Tests ผ่าน 100% (Coverage ~96%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -227,6 +230,21 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
    - Alert บน OBS Studio และ TTS จะแสดงและอ่านชื่อภารกิจอย่างสมบูรณ์
 4. **ขอบเขตการทำงานเฉพาะช่องทาง**:
    - ระบบนี้ทำงานเฉพาะช่องทาง **Bank** เท่านั้น เนื่องจากช่องทาง **PromptPay** มีการล็อคยอดเงินตามราคาภารกิจไว้ตั้งแต่ขั้นตอนการสร้าง QR Code เรียบร้อยแล้ว
+
+### 4.8 นโยบาย Fail-closed สำหรับการส่ง OTP ผ่านอีเมล (Email OTP Fail-closed Policy)
+
+`notificationService.js` **ห้ามรายงานความสำเร็จปลอม** (Fake Success) เมื่อไม่สามารถส่งอีเมลได้จริง เพื่อป้องกันผู้ใช้เข้าใจผิดว่าตนได้รับรหัส OTP แล้ว ทั้งที่ไม่มีอีเมลส่งออกไป:
+
+1. **ไม่มีการตั้งค่า SMTP/Gmail (`EMAIL_NOT_CONFIGURED`)**:
+   - หากไม่มี `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` และไม่มี `GMAIL_USER`/`GMAIL_PASS` ฟังก์ชัน `sendEmailOtp` จะ **throw Error("EMAIL_NOT_CONFIGURED")** ทันที (ไม่คืนค่า `{ success: true, simulated: true }`)
+   - Controller ที่เรียกใช้ (`authController.js`, `userController.js`) จะจับข้อผิดพลาด ลบ OTP ที่เพิ่งสร้างด้วย `Otp.deleteMany` และตอบกลับ **HTTP 503** พร้อมข้อความ *"ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ"*
+2. **การส่งล้มเหลว (`EMAIL_DELIVERY_FAILED`)**:
+   - หาก Transporter ถูกสร้างสำเร็จแต่ `sendMail` ล้มเหลว (หรือผู้รับถูกปฏิเสธ) ระบบจะ **throw Error("EMAIL_DELIVERY_FAILED")** และ Controller ตอบกลับ **HTTP 503** พร้อมข้อความ *"ไม่สามารถส่งอีเมล OTP ได้ กรุณาลองใหม่อีกครั้ง"*
+3. **ความปลอดภัยของ Log (Log Hygiene)**:
+   - ห้ามบันทึกค่า OTP ลง Log ทุกกรณี และปิดบังอีเมล/เบอร์โทรด้วย `maskAddress()` (เช่น `ab***yz`) ก่อนบันทึก
+   - ตัดอักขระขึ้นบรรทัดใหม่ (CR/LF) จากข้อความ Error ด้วย `stripNewlines()` ก่อนส่งเข้า Logger เพื่อป้องกัน **Log Injection (SonarQube S5144)**
+4. **การบังคับใช้ TLS**: SMTP Transporter กำหนด `secure: port === 465` และ `requireTLS: port !== 465` รวมถึง Gmail Transporter กำหนด `requireTLS: true` เพื่อป้องกัน **Insecure Protocol (SonarQube S5332)**
+5. **ช่องทาง SMS**: ยังคงมี fallback แบบ Simulated Log เมื่อ Twilio ไม่ได้ตั้งค่าหรือส่งล้มเหลว (สำหรับการพัฒนาในเครื่อง) แต่ต้องปิดบังเบอร์โทรเช่นเดียวกัน
 
 ---
 
@@ -441,7 +459,7 @@ client/src/
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
 | **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 28 Suites (314 Tests ผ่าน 100%), Server: 10 Suites (209 Tests ผ่าน 100%, Coverage > 97%), รวม **38 Suites, 523 Tests ผ่าน 100%** |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 29 Suites (367 Tests ผ่าน 100%), Server: 12 Suites (251 Tests ผ่าน 100%, Coverage ~96%), รวม **41 Suites, 618 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง รองรับ `--forceExit` ป้องกัน Process ค้าง |
 | **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities, เพิ่ม Node Memory 4GB และ Exclude Binary Assets แก้ปัญหาสแกนค้างที่ 57% |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
@@ -741,7 +759,7 @@ client/src/
 2. **การวิเคราะห์ระบบ (System Analysis)**: วิเคราะห์ความต้องการของผู้ใช้ (Streamer, Donor) กำหนด Use Cases และออกแบบสถาปัตยกรรม Monorepo
 3. **การออกแบบระบบ (System & Database Design)**: ออกแบบ UI/UX บน Figma, กำหนด Mongoose Schema (5 Models: User, Donation, Widget, Mission, Blacklist) และออกแบบ REST API Endpoints
 4. **การพัฒนาระบบ (System Implementation)**: พัฒนาระบบ Client, Server, Socket.IO Events, In-House Slip Verification Engine, และ Google OAuth 2.0 GIS
-5. **การทดสอบและปรับปรุงระบบ (Testing & Quality Assurance)**: เขียน Unit/Integration Tests ครอบคลุม 38 Test Suites, 523 Tests ผ่าน 100% (Server 209 Tests, Client 314 Tests), ทดสอบความปลอดภัย NoSQL Guard, ป้องกัน Race Condition ด้วย Idempotency, และปรับแต่ง SonarCloud Quality Gate
+5. **การทดสอบและปรับปรุงระบบ (Testing & Quality Assurance)**: เขียน Unit/Integration Tests ครอบคลุม 41 Test Suites, 618 Tests ผ่าน 100% (Server 251 Tests, Client 367 Tests), ทดสอบความปลอดภัย NoSQL Guard, ป้องกัน Race Condition ด้วย Idempotency, และปรับแต่ง SonarCloud Quality Gate
 6. **การจัดทำเอกสารโครงงาน (Documentation)**: บันทึกเอกสารคู่มือระบบ (`AGENTS.md`) และจัดทำรูปเล่มรายงานโครงงานบทที่ 1 ถึงบทที่ 5
 7. **การนำเสนอโครงงาน (Project Defense)**: จัดเตรียมสไลด์และระบบต้นแบบเพื่อนำเสนอต่อคณะกรรมการ
 
@@ -851,7 +869,7 @@ client/src/
 - **NFR-01 (Security)**: ระบบต้องป้องกัน NoSQL Injection, XSS, CSRF, Brute-force และเข้ารหัสรหัสผ่านด้วย `bcryptjs`
 - **NFR-02 (Performance & Latency)**: การส่งการแจ้งเตือน Real-time ผ่าน Socket.IO ไปยัง OBS Studio ต้องมีความล่าช้า (Latency) ต่ำกว่า 500 มิลลิวินาที
 - **NFR-03 (Zero-Cost Operation)**: ระบบตรวจสอบสลิปต้องทำงานได้ด้วย Open-source libraries ภายในเครื่อง โดยไม่มีค่าใช้จ่ายต่อครั้งของ API ภายนอก
-- **NFR-04 (High Reliability & Test Coverage)**: ชุดทดสอบของระบบต้องผ่าน 100% ครบทั้ง 38 Test Suites, 523 Tests พร้อม Code Coverage รวมสูงกว่า 97% และมีระบบ Auto-reconnect Socket
+- **NFR-04 (High Reliability & Test Coverage)**: ชุดทดสอบของระบบต้องผ่าน 100% ครบทั้ง 41 Test Suites, 618 Tests พร้อม Code Coverage รวมสูงกว่า 95% และมีระบบ Auto-reconnect Socket
 - **NFR-05 (Clean Stream UX)**: หน้า OBS Browser Source ต้องไม่มีปุ่มหรือสิ่งกีดขวางใดๆ ปรากฏบนจอถ่ายทอดสด
 
 #### 2) แผนภาพสถาปัตยกรรมระบบ (System Architecture)
@@ -1063,19 +1081,19 @@ stateDiagram-v2
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **10 Suites** | **209 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **Client (Frontend React SPA)** | **28 Suites** | **314 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **38 Suites** | **523 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **12 Suites** | **251 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Client (Frontend React SPA)** | **29 Suites** | **367 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **41 Suites** | **618 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `controllers/` | 97.29% | 88.18% | 96.00% | 97.43% | ✅ เกินเกณฑ์มาตรฐาน |
-| `middleware/` | 100.00% | 91.66% | 100.00% | 100.00% | ✅ ผ่าน 100% |
+| `controllers/` | 95.10% | 86.61% | 97.22% | 95.39% | ✅ เกินเกณฑ์มาตรฐาน |
+| `middleware/` | 100.00% | 90.90% | 100.00% | 100.00% | ✅ ผ่าน 100% |
 | `routes/` | 100.00% | 100.00% | 100.00% | 100.00% | ✅ ผ่าน 100% |
-| `services/` | 91.04% | 92.13% | 100.00% | 92.42% | ✅ เกินเกณฑ์มาตรฐาน |
-| `utils/` | 97.48% | 80.27% | 100.00% | 97.42% | ✅ เกินเกณฑ์มาตรฐาน |
-| **ภาพรวมไฟล์ทั้งหมด (All Files)** | **97.01%** | **86.77%** | **98.14%** | **97.19%** | **✅ ยอดเยี่ยม (> 97%)** |
+| `services/` | 93.23% | 88.23% | 100.00% | 95.34% | ✅ เกินเกณฑ์มาตรฐาน |
+| `utils/` | 97.65% | 83.08% | 100.00% | 97.57% | ✅ เกินเกณฑ์มาตรฐาน |
+| **ภาพรวมไฟล์ทั้งหมด (All Files)** | **95.63%** | **86.11%** | **98.71%** | **96.02%** | **✅ เกินเกณฑ์มาตรฐาน (> 95%)** |
 
 ##### ผลการตรวจสอบคุณภาพและความปลอดภัยด้วย SonarCloud
 - **Quality Gate Status**: Failed ในการวิเคราะห์ Pull Request ล่าสุดที่ผู้ใช้แจ้ง (ต้องตรวจสอบใหม่หลัง push การแก้ไข)
@@ -1098,7 +1116,7 @@ stateDiagram-v2
 3. ป้องกันการทุจริตและการใช้สลิปซ้ำได้ 100% ด้วยระบบ Sparse Unique Database Indexing ควบคู่กับ 15-second Idempotency Engine
 4. ตรวจสอบชื่อผู้รับเงินในสลิปกับชื่อบัญชีสตรีมเมอร์ได้อย่างถูกต้อง รองรับการตัดคำนำหน้าชื่อไทยและการย่อนามสกุล
 5. ซิงค์การแสดงผลบน OBS Studio ได้แบบเรียลไทม์ และมีระบบคำนวณยอดเงินสะสมจริงที่แม่นยำ
-6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 38 Test Suites รวม 523 Tests ผ่าน 100% โดยผล SonarCloud ล่าสุดที่รายงานยังไม่ผ่าน Quality Gate และต้องสแกนยืนยันหลังแก้ไข
+6. มีชุดทดสอบระบบอัตโนมัติครอบคลุม 41 Test Suites รวม 618 Tests ผ่าน 100% โดยผล SonarCloud ล่าสุดที่รายงานยังไม่ผ่าน Quality Gate และต้องสแกนยืนยันหลังแก้ไข
 
 #### 2) ตารางเปรียบเทียบคุณสมบัติ (Competitive Advantage Analysis)
 
@@ -1110,7 +1128,7 @@ stateDiagram-v2
 | **การป้องกันการกดส่งสลิปซ้ำ (Double Submit)** | มักขึ้น Error สลิปถูกใช้แล้วสร้างความสับสน | **Idempotent 200 OK + Multi-layer Lock ปลอดภัย 100%** |
 | **การอัปเดตการตั้งค่าวิดเจ็ตใน OBS** | สตรีมเมอร์ต้องกด Refresh Browser Source ใน OBS | **Live Sync ทันทีผ่าน Socket.IO โดยไม่ต้องแตะ OBS** |
 | **ความถูกต้องของยอด Goal และ Leaderboard** | บางครั้งนับยอดแจ้งเตือนทดสอบรวมเข้าไปด้วย | **คำนวณจากประวัติการบริจาคที่สำเร็จจริงในฐานข้อมูล** |
-| **การทดสอบความน่าเชื่อถือ (Code Coverage)** | ไม่เปิดเผยหรือไม่ครอบคลุม | **ทดสอบแบบ Automated ครบ 523 Tests (Coverage > 97%)** |
+| **การทดสอบความน่าเชื่อถือ (Code Coverage)** | ไม่เปิดเผยหรือไม่ครอบคลุม | **ทดสอบแบบ Automated ครบ 618 Tests (Coverage > 95%)** |
 
 #### 3) ปัญหาและอุปสรรคที่พบ พร้อมแนวทางแก้ไข (Problems & Solutions)
 1. **ปัญหา**: สลิปธนาคารของบางแอปพลิเคชัน (เช่น Krungthai NEXT) เป็น Mini QR ที่ไม่มี Tag 54 ระบุจำนวนเงิน
@@ -1137,11 +1155,13 @@ stateDiagram-v2
 ## 13. SonarQube remediation guide (อัปเดต 12 ตุลาคม 2026)
 
 > **สถานะ:** GitHub PR แสดง `Quality Gate failed` เพราะ `Security Rating on New Code = B` ขณะที่ต้องได้ `A` การมีแพตช์ใน ZIP **ไม่เท่ากับ** การผ่าน SonarCloud; ต้องทดสอบและสแกนใหม่
+>
+> **ความคืบหน้า:** ช่องโหว่ความปลอดภัยใน `notificationService.js` (S5144 Log Injection และ S5332 Insecure Protocol) ได้รับการแก้ไขแล้ว พร้อมปรับนโยบาย OTP เป็น Fail-closed (ดูหัวข้อ 4.8) และอัปเดตชุดทดสอบให้สอดคล้อง (12 Suites, 251 Tests) ยังต้อง push และรอผลสแกน SonarCloud รอบใหม่เพื่อยืนยัน Security Rating = A
 
 ### 13.1 Security findings (แก้ก่อน)
 
 1. `server/controllers/userController.js`: regular expression ที่เสี่ยง super-linear backtracking (ReDoS) — ตรวจสอบ regex และ input bounds, ใช้การตรวจสอบที่มี runtime เป็นเชิงเส้น และเพิ่ม test สำหรับ input ยาว/ผิดรูปแบบ
-2. `server/services/notificationService.js`: log injection จาก user-controlled input — normalize/escape CR, LF และ control characters ก่อนส่งไป logger; อย่า log token, secrets หรือข้อมูลส่วนตัวที่ไม่จำเป็น
+2. `server/services/notificationService.js`: log injection จาก user-controlled input — **แก้ไขแล้ว** ด้วย `maskAddress()` + `stripNewlines()`, ไม่บันทึก OTP/ข้อมูลส่วนตัว และบังคับ TLS บน Transporter (S5332)
 
 ### 13.2 Maintainability findings
 

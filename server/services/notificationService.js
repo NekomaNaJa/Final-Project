@@ -96,7 +96,7 @@ export const sendEmailOtp = async (email, otp, purpose) => {
 };
 
 export const sendSmsOtp = async (phone, otp, purpose) => {
-  const safePhone = String(phone).trim().replace(/[^0-9]/g, "");
+  const safePhone = String(phone).trim().replace(/\D/g, "");
   const safeOtp = String(otp).trim();
 
   // Convert Thai phone (e.g. 0812345678) to international E.164 (+66812345678)

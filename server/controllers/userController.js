@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import User from "../Models/User.js";
 import Otp from "../Models/Otp.js";
@@ -8,8 +8,16 @@ import {
   getPasswordError,
 } from "../utils/passwordValidation.js";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^0[0-9]{9}$/;
+// Bounded, linear-time email shape validation without regex backtracking.
+const EMAIL_REGEX = { test(value) {
+  if (typeof value !== "string" || value.length > 254 || /\s/.test(value)) return false;
+  const at = value.indexOf("@");
+  if (at < 1 || at !== value.lastIndexOf("@")) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.lastIndexOf(".");
+  return dot > 0 && dot < domain.length - 1;
+} };
+const PHONE_REGEX = /^0\d{9}$/;
 
 export const getMe = async (req, res, next) => {
   try {
@@ -603,7 +611,7 @@ export const sendLinkOtp = async (req, res, next) => {
         });
       }
     } else {
-      const cleanPhone = safeTarget.replace(/[^0-9]/g, "");
+      const cleanPhone = safeTarget.replace(/\D/g, "");
       if (!PHONE_REGEX.test(cleanPhone)) {
         return res.status(400).json({
           message: "รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นตัวเลข 10 หลักขึ้นต้นด้วย 0)",
@@ -738,7 +746,7 @@ export const verifyLinkOtp = async (req, res, next) => {
       user.email = safeTarget.toLowerCase();
       user.isEmailVerified = true;
     } else {
-      user.phone = safeTarget.replace(/[^0-9]/g, "");
+      user.phone = safeTarget.replace(/\D/g, "");
       user.isPhoneVerified = true;
     }
 
