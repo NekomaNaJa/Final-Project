@@ -76,6 +76,7 @@ const donationSchema = new mongoose.Schema(
 // Compound index for querying streamer donations ordered by newest first
 donationSchema.index({ streamerId: 1, createdAt: -1 });
 donationSchema.index({ streamerId: 1, status: 1 });
+donationSchema.index({ streamerId: 1, status: 1, createdAt: -1 });
 
 // Unique sparse index on transRef to prevent duplicate slips across the system
 donationSchema.index(

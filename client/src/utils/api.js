@@ -20,6 +20,19 @@ export const API = {
   forgotPasswordReset: `${API_URL}/auth/forgot-password/reset`,
   linkOtpSend: `${API_URL}/users/link-otp/send`,
   linkOtpVerify: `${API_URL}/users/link-otp/verify`,
+  health: `${API_URL}/health`,
+};
+
+/**
+ * อุ่นเครื่องเซิร์ฟเวอร์แบบเบื้องหลัง (Fire-and-forget Warmup Ping)
+ * เพื่อปลุก Render Web Service ให้พร้อมใช้งานทันทีโดยไม่หน่วง UI
+ */
+export const pingServerWarmup = () => {
+  try {
+    void fetch(API.health, { method: "GET" }).catch(() => {});
+  } catch {
+    // Ignored
+  }
 };
 
 /**

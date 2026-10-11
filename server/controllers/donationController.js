@@ -498,50 +498,182 @@ export const getDonationStats = async (req, res, next) => {
 
     const streamerObjectId = new mongoose.Types.ObjectId(String(rawUserId));
 
-    // 1. ผลรวมยอดเงินและจำนวนครั้งที่ได้รับการสนับสนุน (สถานะ approved)
-    const summaryAgg = await Donation.aggregate([
-      {
-        $match: {
-          streamerId: streamerObjectId,
-          status: "approved",
+    // 1. กำหนดช่วงเวลาล่วงหน้าสำหรับการรวมข้อมูลและเปรียบเทียบสถิติ
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const currentYear = new Date().getFullYear();
+
+    const now = new Date();
+    const sevenDaysAgoCutoff = new Date(now);
+    sevenDaysAgoCutoff.setDate(sevenDaysAgoCutoff.getDate() - 7);
+    const fourteenDaysAgoCutoff = new Date(now);
+    fourteenDaysAgoCutoff.setDate(fourteenDaysAgoCutoff.getDate() - 14);
+
+    const fetchStreamerPayment = async () => {
+      try {
+        const streamer = await User.findById(streamerObjectId).select("payment");
+        return streamer?.payment || null;
+      } catch {
+        return null;
+      }
+    };
+
+    // รันการสืบค้นข้อมูลทั้งหมดพร้อมกันแบบคู่ขนาน (Concurrent Parallel Queries)
+    // ลด Round-Trip Latency ไปยัง MongoDB Atlas จาก 9 ครั้งติดต่อกันเหลือเพียง 1 ช่วงเวลา
+    const [
+      summaryAgg,
+      topDonorsAgg,
+      daily7Agg,
+      daily30Agg,
+      monthlyAgg,
+      weekComparisonAgg,
+      pendingCount,
+      payment,
+      recentDonations,
+    ] = await Promise.all([
+      // 1. ผลรวมยอดเงินและจำนวนครั้งที่ได้รับการสนับสนุน (สถานะ approved)
+      Donation.aggregate([
+        {
+          $match: {
+            streamerId: streamerObjectId,
+            status: "approved",
+          },
         },
-      },
-      {
-        $group: {
-          _id: null,
-          totalAmount: { $sum: "$amount" },
-          totalDonations: { $sum: 1 },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: "$amount" },
+            totalDonations: { $sum: 1 },
+          },
         },
-      },
+      ]),
+      // 2. รายชื่อผู้สนับสนุนอันดับต้นๆ (Top Donors)
+      Donation.aggregate([
+        {
+          $match: {
+            streamerId: streamerObjectId,
+            status: "approved",
+          },
+        },
+        {
+          $group: {
+            _id: "$donorName",
+            totalAmount: { $sum: "$amount" },
+            donationCount: { $sum: 1 },
+          },
+        },
+        { $sort: { totalAmount: -1 } },
+        { $limit: 5 },
+      ]),
+      // 3. สถิติสำหรับวาดกราฟ 7 วัน
+      Donation.aggregate([
+        {
+          $match: {
+            streamerId: streamerObjectId,
+            status: "approved",
+            createdAt: { $gte: sevenDaysAgo },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$createdAt",
+                timezone: "+07:00",
+              },
+            },
+            amount: { $sum: "$amount" },
+          },
+        },
+      ]),
+      // 4. สถิติสำหรับวาดกราฟ 30 วัน
+      Donation.aggregate([
+        {
+          $match: {
+            streamerId: streamerObjectId,
+            status: "approved",
+            createdAt: { $gte: thirtyDaysAgo },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$createdAt",
+                timezone: "+07:00",
+              },
+            },
+            amount: { $sum: "$amount" },
+          },
+        },
+      ]),
+      // 5. สถิติสำหรับวาดกราฟทั้งปี
+      Donation.aggregate([
+        {
+          $match: {
+            streamerId: streamerObjectId,
+            status: "approved",
+            createdAt: {
+              $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+            },
+          },
+        },
+        {
+          $group: {
+            _id: { $month: "$createdAt" },
+            amount: { $sum: "$amount" },
+          },
+        },
+      ]),
+      // 6. สถิติเปรียบเทียบสัปดาห์ปัจจุบันเทียบกับสัปดาห์ที่ผ่านมา (Week-over-Week)
+      Donation.aggregate([
+        {
+          $match: {
+            streamerId: streamerObjectId,
+            status: "approved",
+            createdAt: { $gte: fourteenDaysAgoCutoff },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              $cond: [
+                { $gte: ["$createdAt", sevenDaysAgoCutoff] },
+                "currentWeek",
+                "previousWeek",
+              ],
+            },
+            totalAmount: { $sum: "$amount" },
+            totalDonations: { $sum: 1 },
+          },
+        },
+      ]),
+      // 7. จำนวนรายการที่รอตรวจสอบ
+      Donation.countDocuments({
+        streamerId: { $eq: streamerObjectId },
+        status: { $eq: "pending" },
+      }),
+      // 8. ข้อมูลช่องทางรับเงินของสตรีมเมอร์
+      fetchStreamerPayment(),
+      // 9. รายการบริจาคล่าสุด 5 รายการสำหรับ RealtimeFeed
+      Donation.find({
+        streamerId: { $eq: streamerObjectId },
+        status: { $eq: "approved" },
+      })
+        .sort({ createdAt: -1 })
+        .limit(5),
     ]);
 
     const totalAmount = summaryAgg[0]?.totalAmount || 0;
     const totalDonations = summaryAgg[0]?.totalDonations || 0;
-
-    // 2. จำนวนรายการที่รอตรวจสอบ
-    const pendingCount = await Donation.countDocuments({
-      streamerId: { $eq: streamerObjectId },
-      status: { $eq: "pending" },
-    });
-
-    // 3. รายชื่อผู้สนับสนุนอันดับต้นๆ (Top Donors)
-    const topDonorsAgg = await Donation.aggregate([
-      {
-        $match: {
-          streamerId: streamerObjectId,
-          status: "approved",
-        },
-      },
-      {
-        $group: {
-          _id: "$donorName",
-          totalAmount: { $sum: "$amount" },
-          donationCount: { $sum: 1 },
-        },
-      },
-      { $sort: { totalAmount: -1 } },
-      { $limit: 5 },
-    ]);
 
     const topDonors = topDonorsAgg.map((item, index) => ({
       rank: index + 1,
@@ -550,33 +682,6 @@ export const getDonationStats = async (req, res, next) => {
       donationCount: item.donationCount,
       badge: DONOR_BADGES[index] || "SUPPORTER",
     }));
-
-    // 4. สถิติสำหรับวาดกราฟ DonationChart (7D, 30D, ALL)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-
-    const daily7Agg = await Donation.aggregate([
-      {
-        $match: {
-          streamerId: streamerObjectId,
-          status: "approved",
-          createdAt: { $gte: sevenDaysAgo },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$createdAt",
-              timezone: "+07:00",
-            },
-          },
-          amount: { $sum: "$amount" },
-        },
-      },
-    ]);
 
     const daily7Map = new Map();
     daily7Agg.forEach((d) => daily7Map.set(d._id, d.amount));
@@ -596,32 +701,6 @@ export const getDonationStats = async (req, res, next) => {
       });
     }
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
-
-    const daily30Agg = await Donation.aggregate([
-      {
-        $match: {
-          streamerId: streamerObjectId,
-          status: "approved",
-          createdAt: { $gte: thirtyDaysAgo },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$createdAt",
-              timezone: "+07:00",
-            },
-          },
-          amount: { $sum: "$amount" },
-        },
-      },
-    ]);
-
     const daily30Map = new Map();
     daily30Agg.forEach((d) => daily30Map.set(d._id, d.amount));
 
@@ -640,25 +719,6 @@ export const getDonationStats = async (req, res, next) => {
       });
     }
 
-    const currentYear = new Date().getFullYear();
-    const monthlyAgg = await Donation.aggregate([
-      {
-        $match: {
-          streamerId: streamerObjectId,
-          status: "approved",
-          createdAt: {
-            $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
-          },
-        },
-      },
-      {
-        $group: {
-          _id: { $month: "$createdAt" },
-          amount: { $sum: "$amount" },
-        },
-      },
-    ]);
-
     const monthlyMap = new Map();
     monthlyAgg.forEach((m) => monthlyMap.set(m._id, m.amount));
 
@@ -672,36 +732,6 @@ export const getDonationStats = async (req, res, next) => {
         amount: monthlyMap.get(m + 1) || 0,
       });
     }
-
-    // 5. สถิติเปรียบเทียบสัปดาห์ปัจจุบันเทียบกับสัปดาห์ที่ผ่านมา (Week-over-Week)
-    const now = new Date();
-    const sevenDaysAgoCutoff = new Date(now);
-    sevenDaysAgoCutoff.setDate(sevenDaysAgoCutoff.getDate() - 7);
-    const fourteenDaysAgoCutoff = new Date(now);
-    fourteenDaysAgoCutoff.setDate(fourteenDaysAgoCutoff.getDate() - 14);
-
-    const weekComparisonAgg = await Donation.aggregate([
-      {
-        $match: {
-          streamerId: streamerObjectId,
-          status: "approved",
-          createdAt: { $gte: fourteenDaysAgoCutoff },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $gte: ["$createdAt", sevenDaysAgoCutoff] },
-              "currentWeek",
-              "previousWeek",
-            ],
-          },
-          totalAmount: { $sum: "$amount" },
-          totalDonations: { $sum: 1 },
-        },
-      },
-    ]);
 
     let currentWeekAmount = 0;
     let currentWeekDonations = 0;
@@ -733,23 +763,6 @@ export const getDonationStats = async (req, res, next) => {
       currentWeekDonations,
       previousWeekDonations
     );
-
-    // 6. ข้อมูลช่องทางรับเงินของสตรีมเมอร์
-    let payment = null;
-    try {
-      const streamer = await User.findById(streamerObjectId).select("payment");
-      payment = streamer?.payment || null;
-    } catch {
-      payment = null;
-    }
-
-    // 7. รายการบริจาคล่าสุด 5 รายการสำหรับ RealtimeFeed (เฉพาะที่ได้รับการอนุมัติแล้วเท่านั้น)
-    const recentDonations = await Donation.find({
-      streamerId: { $eq: streamerObjectId },
-      status: { $eq: "approved" },
-    })
-      .sort({ createdAt: -1 })
-      .limit(5);
 
     return res.json({
       message: "ดึงข้อมูลสถิติสำเร็จ",

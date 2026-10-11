@@ -461,11 +461,12 @@ client/src/
 | **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
 | **Test Suites**              | ✅ สมบูรณ์       | Client: 29 Suites (367 Tests ผ่าน 100%), Server: 12 Suites (251 Tests ผ่าน 100%, Coverage ~96%), รวม **41 Suites, 618 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง รองรับ `--forceExit` ป้องกัน Process ค้าง |
-| **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities, เพิ่ม Node Memory 4GB และ Exclude Binary Assets แก้ปัญหาสแกนค้างที่ 57% |
+| **SonarCloud Quality Gate**  | ⏳ รอสแกนยืนยัน  | PR #95 แสดง `Quality Gate failed` เฉพาะเงื่อนไข `Security Rating on New Code = B` (ต้องได้ A); ได้แก้ S5144 (Log Injection) และ S5332 (Insecure Protocol) ใน `notificationService.js` แล้ว พร้อมปรับ OTP เป็น Fail-closed — ต้อง push และสแกนรอบใหม่เพื่อยืนยัน Security = A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
 | **OCR Slip Verification & Bank Matching** | ✅ สมบูรณ์ | Phase 8 & Extension — In-House QR & OCR Verification Engine (Zero-Cost ด้วย jsQR + Jimp + Tesseract.js), ตรวจจับสลิป PromptPay / Bank Mini QR (ITMX), อ่านจำนวนเงินจากสลิปอัตโนมัติ (Zero-Touch), ตรวจสอบชื่อผู้รับเงินตรงกับบัญชีสตรีมเมอร์ (`isRecipientNameMatched`) พร้อมตัดคำนำหน้าชื่อไทย, ตรวจสอบเลขบัญชี 4 หลักสุดท้าย, ป้องกันสลิปซ้ำด้วย Sparse Unique Index บน `transRef`, และระบบ Auto-Approve แจ้งเตือน OBS ทันที |
 | **Phase 9 — Google OAuth & Performance** | ✅ สมบูรณ์ | ระบบ Google Identity Services (GIS) ทำงานได้จริงทั้ง Login & Register, Endpoint `POST /api/auth/google` สำหรับ Auto-Registration และ Link Account, ลบปุ่ม YouTube/Twitch ที่ไม่จำเป็น, Dynamic Domain ลิงก์โดเนท, ปรับแต่ง SonarCloud Heap Memory 4096MB แก้ปัญหาสแกนล่าช้า |
 | **Phase 10 — Mission Donate, Bank Verification & Idempotency** | ✅ สมบูรณ์ | เชื่อมต่อระบบภารกิจโดเนท Mission Cards สู่หน้าบริจาค (`/:username`) พร้อมป้ายล็อคแท็ก `[ 🔒 ภารกิจ: {name} ]` และล็อคช่องกรอกจำนวนเงิน (Locked Amount Input: readOnly, select-none, ไอคอนกุญแจ) ป้องกันการแก้ราคาภารกิจ, ระบบตรวจสอบราคาภารกิจโอนผ่านธนาคาร (Bank Mission Price Verification) ตัดแท็กภารกิจออกจาก Alert อัตโนมัติหากยอดเงินไม่ถึงราคาภารกิจแต่ ≥ ขั้นต่ำ, ป้องกันการกดส่งสลิปซ้ำสองชั้น (Multi-layer Submission Guard + useRef lock), ระบบ 15-second Backend Idempotency Window ป้องกัน Race condition ตอบกลับ 200 OK โดยไม่ยิง Socket ซ้ำ, รองรับภาพหน้าปก/พื้นหลัง และตัวกรองคำหยาบทั้งชื่อและข้อความ |
+| **Phase 11 — Forgot Password OTP, Email Fail-closed & SonarQube Security Hardening** | ⏳ รอสแกนยืนยัน | หน้า Account และ Forgot Password OTP (Email/SMS), ปรับ `notificationService.js` เป็น Fail-closed (throw `EMAIL_NOT_CONFIGURED`/`EMAIL_DELIVERY_FAILED`, Controller ตอบ 503), ปิดบังอีเมล/เบอร์ด้วย `maskAddress()` และตัด CR/LF ด้วย `stripNewlines()` แก้ S5144, บังคับ TLS (`requireTLS`) แก้ S5332, อัปเดตชุดทดสอบเป็น 41 Suites / 618 Tests |
 
 ---
 
@@ -618,6 +619,19 @@ client/src/
     - รองรับการแสดงผลภาพหน้าปก (`coverImage`) และภาพพื้นหลัง (`backgroundImage`) พร้อม Dark Overlay
     - ขยายระบบตัวกรองคำหยาบ (Profanity Filter) ให้ครอบคลุมทั้งชื่อผู้สนับสนุน (`donorName`) และข้อความ (`message`)
   - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 209 Tests Coverage > 97%, Client 28 Suites 314 Tests รวม **38 Suites, 523 Tests ผ่าน 100%**) และผ่าน SonarCloud Quality Gate Coverage on New Code ≥ 80% (Clean Code, 0 Code Smells)
+
+- **Phase 11: Forgot Password OTP, Email Fail-closed & SonarQube Security Hardening (รอสแกนยืนยัน ⏳)**
+  - **Forgot Password / Account OTP (Email & SMS)**:
+    - เพิ่มหน้าจอ Forgot Password และระบบยืนยัน OTP ผ่านอีเมล/เบอร์โทรศัพท์ในหน้า Account (เชื่อมต่อ `authController.js`, `userController.js`)
+    - จัดเก็บและลบรหัส OTP ในฐานข้อมูลอย่างปลอดภัย พร้อมจำกัดอายุการใช้งาน
+  - **นโยบาย Email OTP แบบ Fail-closed (`notificationService.js`)**:
+    - ยกเลิกการรายงานความสำเร็จปลอม (Fake Success) เมื่อไม่ได้ตั้งค่า SMTP/Gmail — ฟังก์ชัน `sendEmailOtp` โยน `EMAIL_NOT_CONFIGURED` และ Controller ตอบกลับ **HTTP 503** พร้อมลบ OTP ที่สร้างไว้
+    - หากส่งอีเมลล้มเหลว โยน `EMAIL_DELIVERY_FAILED` และ Controller ตอบกลับ **HTTP 503**
+    - ปิดบังข้อมูลส่วนตัวด้วย `maskAddress()` และตัด CR/LF ด้วย `stripNewlines()` ก่อนบันทึก Log (ไม่ log ค่า OTP ทุกกรณี)
+  - **SonarQube Security Hardening (แก้ S5144 & S5332)**:
+    - แก้ช่องโหว่ Log Injection (S5144) ใน `notificationService.js` ด้วย `maskAddress()` + `stripNewlines()`
+    - บังคับใช้ TLS บน SMTP/Gmail Transporter (`secure`, `requireTLS: true`) แก้ Insecure Protocol (S5332)
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 12 Suites 251 Tests Coverage ~96%, Client 29 Suites 367 Tests รวม **41 Suites, 618 Tests ผ่าน 100%**)
 
 ---
 

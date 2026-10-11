@@ -21,13 +21,24 @@ const getUserFromToken = () => {
   }
 };
 
+const getInitialUser = () => {
+  try {
+    const cached = localStorage.getItem("donix_user_profile");
+    if (cached) return JSON.parse(cached);
+  } catch {
+    // Ignored
+  }
+  return getUserFromToken();
+};
+
 const Account = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(() => getUserFromToken());
+  const [user, setUser] = useState(getInitialUser);
   const [feedback, setFeedback] = useState(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("donix_user_profile");
     navigate("/login");
   };
 
@@ -41,11 +52,23 @@ const Account = () => {
     try {
       const data = await fetchCurrentUser();
       if (data) {
-        setUser((prev) => ({ ...prev, ...data }));
+        setUser((prev) => {
+          const updated = { ...prev, ...data };
+          try {
+            localStorage.setItem(
+              "donix_user_profile",
+              JSON.stringify(updated)
+            );
+          } catch {
+            // Ignored
+          }
+          return updated;
+        });
       }
     } catch (err) {
       if (err.message?.includes("ไม่ได้รับอนุญาต") || err.message?.includes("หมดอายุ")) {
         localStorage.removeItem("token");
+        localStorage.removeItem("donix_user_profile");
         navigate("/login");
       }
     }
@@ -66,7 +89,15 @@ const Account = () => {
       }
 
       const updated = await updateCurrentUser(payload);
-      setUser((prev) => ({ ...prev, ...updated }));
+      setUser((prev) => {
+        const next = { ...prev, ...updated };
+        try {
+          localStorage.setItem("donix_user_profile", JSON.stringify(next));
+        } catch {
+          // Ignored
+        }
+        return next;
+      });
       setFeedback({ type: "success", message: "บันทึกข้อมูลเรียบร้อยแล้ว" });
       setTimeout(() => setFeedback(null), 4000);
       return { success: true };
