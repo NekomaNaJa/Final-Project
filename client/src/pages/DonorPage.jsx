@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, Lock } from "lucide-react";
 import DonorHeader from "../components/Donor/DonorHeader";
 import DonorMissionList from "../components/Donor/DonorMissionList";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
@@ -141,16 +141,12 @@ const DonorPage = () => {
     if (!mission || selectedMission?.id === mission.id) {
       setSelectedMission(null);
       setPresetAmount(null);
-      setMessage((prev) => prev.replace(/^\[ภารกิจ:.*?\]\s*/, ""));
     } else {
       setSelectedMission(mission);
       setPresetAmount(Number(mission.price));
-      setMessage((prev) => {
-        const cleanPrev = prev.replace(/^\[ภารกิจ:.*?\]\s*/, "");
-        const tag = `[ภารกิจ: ${mission.name}]`;
-        return cleanPrev ? `${tag} ${cleanPrev}` : tag;
-      });
     }
+    // Clean any mission tag prefix from message so raw text stays user-only
+    setMessage((prev) => (prev ? prev.replace(/^\[ภารกิจ:.*?\]\s*/, "") : ""));
   };
 
   // Fetch updated public data from API when available
@@ -245,18 +241,25 @@ const DonorPage = () => {
 
     try {
       const slipBase64 = await fileToBase64(donationData.slipFile);
+      const cleanCustomMessage = (message || "").replace(/^\[ภารกิจ:.*?\]\s*/, "").trim();
+      const finalMessage = selectedMission
+        ? (cleanCustomMessage
+            ? `[ภารกิจ: ${selectedMission.name}] ${cleanCustomMessage}`
+            : `[ภารกิจ: ${selectedMission.name}]`)
+        : cleanCustomMessage || message || "";
+
       const res = await createDonation({
         username,
         donorName: donorName || "Anonymous",
         amount: numericAmount,
-        message,
+        message: finalMessage,
         paymentMethod: donationData.method || activeTab,
         slipImage: slipBase64,
       });
 
       setSubmittedDonation({
         donorName: res?.data?.donorName || res?.donorName || donorName || "Anonymous",
-        message: res?.data?.message || res?.message || message,
+        message: res?.data?.message || res?.message || finalMessage,
         ...donationData,
         amount: res?.data?.amount || res?.amount || donationData?.amount || min,
         donationId: res?.id || res?._id || res?.data?._id,
@@ -289,6 +292,11 @@ const DonorPage = () => {
       }
     }
   };
+
+  const missionTag = selectedMission ? `[ภารกิจ: ${selectedMission.name}] ` : "";
+  const charLimit = Number(streamerConfig.charLimit) || 200;
+  const maxCustomLength = Math.max(0, charLimit - missionTag.length);
+  const totalMessageLength = missionTag.length + (message ? message.length : 0);
 
   return (
     <div className="relative min-h-screen bg-[#090812] font-sans text-white flex flex-col items-center justify-center py-8 px-4 sm:px-6 overflow-x-hidden">
@@ -410,25 +418,50 @@ const DonorPage = () => {
                 />
               </div>
 
-              {/* Message Textarea */}
+              {/* Message Textarea Container with Locked Mission Tag */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label htmlFor="donor-message-input" className="text-sm font-semibold text-[#d4cfdf]">
                     ข้อความ
                   </label>
                   <span className="text-xs text-gray-500 font-medium">
-                    {message.length}/{streamerConfig.charLimit || 200}
+                    {totalMessageLength}/{charLimit}
                   </span>
                 </div>
-                <textarea
-                  id="donor-message-input"
-                  rows={3}
-                  maxLength={streamerConfig.charLimit || 200}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="พิมพ์ข้อความที่ต้องการส่งถึงสตรีมเมอร์..."
-                  className="w-full rounded-2xl border border-[#2e2648] bg-[#110d22] px-6 py-4 text-sm sm:text-base font-medium text-white placeholder-[#6e6682] focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all resize-none leading-relaxed shadow-inner"
-                />
+                <div className="w-full rounded-2xl border border-[#2e2648] bg-[#110d22] px-6 py-4 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/30 transition-all shadow-inner flex flex-col gap-2.5">
+                  {/* Locked Mission Badge - Cannot be deleted by donor */}
+                  {selectedMission && (
+                    <div
+                      data-testid="locked-mission-badge"
+                      className="inline-flex items-center gap-1.5 self-start rounded-xl border border-purple-500/40 bg-purple-950/70 px-3 py-1.5 text-xs text-purple-200 select-none shadow-sm"
+                    >
+                      <span className="flex items-center gap-1 font-bold text-amber-400">
+                        <Lock size={13} className="text-amber-400 shrink-0" />
+                        <span>ภารกิจ:</span>
+                      </span>
+                      <span className="font-semibold text-white">
+                        {selectedMission.name}
+                      </span>
+                      <span className="text-[10px] text-purple-300/80 font-normal">
+                        (ล็อคไว้ - แจ้งเตือนใน Alert อัตโนมัติ)
+                      </span>
+                    </div>
+                  )}
+
+                  <textarea
+                    id="donor-message-input"
+                    rows={selectedMission ? 2 : 3}
+                    maxLength={maxCustomLength}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder={
+                      selectedMission
+                        ? "พิมพ์ข้อความเพิ่มเติมถึงสตรีมเมอร์ (ไม่บังคับ)..."
+                        : "พิมพ์ข้อความที่ต้องการส่งถึงสตรีมเมอร์..."
+                    }
+                    className="w-full border-none bg-transparent p-0 text-sm sm:text-base font-medium text-white placeholder-[#6e6682] focus:outline-none resize-none leading-relaxed"
+                  />
+                </div>
               </div>
             </div>
 
