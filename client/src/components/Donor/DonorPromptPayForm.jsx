@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { QrCode } from "lucide-react";
+import { QrCode, Lock } from "lucide-react";
 import DonorSlipUpload from "./DonorSlipUpload";
 
 const DonorPromptPayForm = ({
@@ -11,6 +11,9 @@ const DonorPromptPayForm = ({
   isSubmitting = false,
 }) => {
   const [amount, setAmount] = useState(() => {
+    if (selectedMission?.price !== undefined && selectedMission?.price !== null) {
+      return selectedMission.price;
+    }
     if (presetAmount !== null && presetAmount !== undefined) {
       return presetAmount;
     }
@@ -19,33 +22,42 @@ const DonorPromptPayForm = ({
   const [slipFile, setSlipFile] = useState(null);
   const [qrUrl, setQrUrl] = useState("");
 
-  // Sync amount when presetAmount changes
+  // Sync amount when selectedMission or presetAmount changes
   useEffect(() => {
-    if (presetAmount !== null && presetAmount !== undefined) {
+    if (selectedMission?.price !== undefined && selectedMission?.price !== null) {
+      setAmount(selectedMission.price);
+    } else if (presetAmount !== null && presetAmount !== undefined) {
       setAmount(presetAmount);
     }
-  }, [presetAmount]);
+  }, [selectedMission, presetAmount]);
 
   // Sync amount with minAmount whenever minAmount changes
   useEffect(() => {
     setAmount((prev) => {
+      if (selectedMission?.price !== undefined && selectedMission?.price !== null) {
+        return selectedMission.price;
+      }
       if (minAmount > 0 && (Number(prev) < minAmount || !prev)) {
         return minAmount;
       }
       return prev;
     });
-  }, [minAmount]);
+  }, [minAmount, selectedMission]);
 
   // Update PromptPay QR code whenever amount or promptpayNumber changes
   useEffect(() => {
-    const validAmount = Number(amount) >= minAmount ? Number(amount) : minAmount || 1;
+    let currentAmt = Number(amount);
+    if (selectedMission?.price !== undefined && selectedMission?.price !== null) {
+      currentAmt = Number(selectedMission.price);
+    }
+    const validAmount = currentAmt >= minAmount ? currentAmt : minAmount || 1;
     const cleanNumber = promptpayNumber ? promptpayNumber.replace(/[^0-9]/g, "") : "";
     if (cleanNumber) {
       setQrUrl(`https://promptpay.io/${cleanNumber}/${validAmount}.png`);
     } else {
       setQrUrl("");
     }
-  }, [amount, promptpayNumber, minAmount]);
+  }, [amount, promptpayNumber, minAmount, selectedMission]);
 
   const isSubmittingRef = useRef(false);
 
@@ -56,6 +68,10 @@ const DonorPromptPayForm = ({
   }, [isSubmitting]);
 
   const handleBlur = () => {
+    if (selectedMission?.price !== undefined && selectedMission?.price !== null) {
+      setAmount(selectedMission.price);
+      return;
+    }
     const num = Number(amount);
     if (Number.isNaN(num) || num < minAmount) {
       setAmount(minAmount);
@@ -67,7 +83,12 @@ const DonorPromptPayForm = ({
     if (isSubmitting || isSubmittingRef.current) {
       return;
     }
-    if (Number(amount) < minAmount) {
+    const finalAmount =
+      selectedMission?.price !== undefined && selectedMission?.price !== null
+        ? Number(selectedMission.price)
+        : Number(amount);
+
+    if (finalAmount < minAmount) {
       alert(`จำนวนเงินขั้นต่ำคือ ${minAmount} บาท`);
       setAmount(minAmount);
       return;
@@ -78,37 +99,73 @@ const DonorPromptPayForm = ({
     }
     isSubmittingRef.current = true;
     if (onSubmit) {
-      onSubmit({ amount: Number(amount), slipFile, method: "promptpay" });
+      onSubmit({ amount: finalAmount, slipFile, method: "promptpay" });
     }
   };
+
+  const isLocked = Boolean(selectedMission);
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-5">
       {/* Amount Input */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label htmlFor="donor-promptpay-amount" className="text-sm font-semibold text-[#d4cfdf]">
-            จำนวนเงิน (บาท)
+          <label htmlFor="donor-promptpay-amount" className="text-sm font-semibold text-[#d4cfdf] flex items-center gap-2">
+            <span>จำนวนเงิน (บาท)</span>
+            {isLocked && (
+              <span
+                data-testid="amount-locked-badge"
+                className="inline-flex items-center gap-1 text-[11px] text-amber-300 font-bold bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg select-none"
+              >
+                <Lock size={11} className="text-amber-400" />
+                <span>ล็อคตามภารกิจ</span>
+              </span>
+            )}
           </label>
-          {minAmount > 0 && (
+          {minAmount > 0 && !isLocked && (
             <span className="text-xs text-purple-300 font-medium">
               ขั้นต่ำ {minAmount} บาท
             </span>
           )}
         </div>
-        <input
-          id="donor-promptpay-amount"
-          type="number"
-          min={minAmount || 1}
-          step="1"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          onBlur={handleBlur}
-          placeholder={`ขั้นต่ำ ${minAmount} บาท`}
-          required
-          className="w-full rounded-2xl border border-[#2e2648] bg-[#110d22] px-6 py-4 text-base sm:text-lg font-extrabold text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all shadow-inner"
-        />
-        {Number(amount) < minAmount && amount !== "" && (
+        <div className="relative">
+          <input
+            id="donor-promptpay-amount"
+            type="number"
+            min={minAmount || 1}
+            step="1"
+            value={amount}
+            readOnly={isLocked}
+            onChange={(e) => {
+              if (!isLocked) {
+                setAmount(e.target.value);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (isLocked && e.key !== "Tab") {
+                e.preventDefault();
+              }
+            }}
+            onBlur={handleBlur}
+            placeholder={`ขั้นต่ำ ${minAmount} บาท`}
+            required
+            className={`w-full rounded-2xl border px-6 py-4 text-base sm:text-lg font-extrabold transition-all shadow-inner ${
+              isLocked
+                ? "border-purple-500/50 bg-[#16102d] text-amber-300 cursor-not-allowed select-none pr-12 focus:outline-none"
+                : "border-[#2e2648] bg-[#110d22] text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+            }`}
+          />
+          {isLocked && (
+            <div
+              data-testid="amount-locked-icon"
+              className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-amber-400 pointer-events-none select-none"
+              title="ล็อคจำนวนเงินตามภารกิจที่เลือก"
+            >
+              <Lock size={18} />
+            </div>
+          )}
+        </div>
+        {Number(amount) < minAmount && amount !== "" && !isLocked && (
           <p className="text-xs font-semibold text-amber-400">
             ⚠️ ยอดเงินต้องไม่ต่ำกว่า {minAmount} บาท
           </p>
