@@ -7,16 +7,23 @@ import DonationChart from "../components/Dashboard/DonationChart";
 import TopDonors from "../components/Dashboard/TopDonors";
 import RealtimeFeed from "../components/Dashboard/RealtimeFeed";
 import PaymentChannels from "../components/Dashboard/PaymentChannels";
-import { Sword, Coins, Gem, Clock } from "lucide-react";
-import { fetchDonationStats } from "../utils/api";
+import { Coins, Gem, Clock } from "lucide-react";
+import { fetchDonationStats, fetchCurrentUser } from "../utils/api";
+import { safeGetItem, safeSetItem } from "../utils/sanitizeStorage";
 
 const Dashboard = () => {
   const user = useJwtUser();
+
+  const [paymentConfig, setPaymentConfig] = useState(() => {
+    return safeGetItem("donix_payment_config", null);
+  });
 
   const [stats, setStats] = useState({
     totalAmount: 0,
     totalDonations: 0,
     pendingCount: 0,
+    amountPercentChange: 0,
+    donationsPercentChange: 0,
     topDonors: [],
     chartData: null,
     recentDonations: [],
@@ -28,16 +35,34 @@ const Dashboard = () => {
     const loadStats = async () => {
       if (!localStorage.getItem("token")) return;
       try {
-        const data = await fetchDonationStats();
-        if (isMounted && data) {
-          setStats({
-            totalAmount: data.totalAmount || 0,
-            totalDonations: data.totalDonations || 0,
-            pendingCount: data.pendingCount || 0,
-            topDonors: data.topDonors || [],
-            chartData: data.chartData || null,
-            recentDonations: data.recentDonations || [],
-          });
+        const [statsData, userData] = await Promise.allSettled([
+          fetchDonationStats(),
+          fetchCurrentUser(),
+        ]);
+
+        if (isMounted) {
+          if (statsData.status === "fulfilled" && statsData.value) {
+            const data = statsData.value;
+            setStats({
+              totalAmount: data.totalAmount || 0,
+              totalDonations: data.totalDonations || 0,
+              pendingCount: data.pendingCount || 0,
+              amountPercentChange: data.amountPercentChange ?? 0,
+              donationsPercentChange: data.donationsPercentChange ?? 0,
+              topDonors: data.topDonors || [],
+              chartData: data.chartData || null,
+              recentDonations: data.recentDonations || [],
+            });
+            if (data.payment) {
+              setPaymentConfig(data.payment);
+              safeSetItem("donix_payment_config", data.payment);
+            }
+          }
+
+          if (userData.status === "fulfilled" && userData.value?.payment) {
+            setPaymentConfig(userData.value.payment);
+            safeSetItem("donix_payment_config", userData.value.payment);
+          }
         }
       } catch {
         // Silently catch errors in background dashboard fetch
@@ -75,13 +100,6 @@ const Dashboard = () => {
                   ภาพรวมการรับโดเนทของคุณวันนี้
                 </p>
               </div>
-              <button
-                type="button"
-                className="hidden md:inline-flex items-center gap-2 rounded-lg border border-purple-500/40 bg-purple-600/10 px-4 py-2.5 text-xs uppercase tracking-[0.2em] text-purple-400 hover:bg-purple-600 hover:text-white transition-all"
-              >
-                <Sword size={14} />
-                แชร์ลิงก์โดเนท
-              </button>
             </div>
 
             {/* Stats */}
@@ -91,7 +109,7 @@ const Dashboard = () => {
                 label="ยอดการรับเงิน"
                 value={stats.totalAmount}
                 unit="บาท"
-                percent={0}
+                percent={stats.amountPercentChange}
                 percentLabel="เทียบกับสัปดาห์ที่แล้ว"
                 accent="purple"
               />
@@ -100,7 +118,7 @@ const Dashboard = () => {
                 label="จำนวนโดเนท"
                 value={stats.totalDonations}
                 unit="ครั้ง"
-                percent={0}
+                percent={stats.donationsPercentChange}
                 percentLabel="เทียบกับสัปดาห์ที่แล้ว"
                 accent="gold"
               />
@@ -109,7 +127,6 @@ const Dashboard = () => {
                 label="รายการรอตรวจ"
                 value={stats.pendingCount}
                 unit="รายการ"
-                percent={0}
                 percentLabel="สถานะรอดำเนินการ"
                 accent="crimson"
               />
@@ -128,7 +145,7 @@ const Dashboard = () => {
               <div className="lg:col-span-2">
                 <RealtimeFeed feed={stats.recentDonations} />
               </div>
-              <PaymentChannels />
+              <PaymentChannels payment={paymentConfig} />
             </div>
           </main>
         </div>

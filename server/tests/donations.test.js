@@ -279,9 +279,16 @@ describe("Donations Routes (Analytics & Management)", () => {
           { _id: new Date().toISOString().slice(0, 10), amount: 1500 },
         ]) // daily 7D
         .mockResolvedValueOnce([]) // daily 30D
-        .mockResolvedValueOnce([{ _id: new Date().getMonth() + 1, amount: 5000 }]); // monthly
+        .mockResolvedValueOnce([{ _id: new Date().getMonth() + 1, amount: 5000 }]) // monthly
+        .mockResolvedValueOnce([
+          { _id: "currentWeek", totalAmount: 2000, totalDonations: 4 },
+          { _id: "previousWeek", totalAmount: 1000, totalDonations: 2 },
+        ]); // weekComparison
 
       jest.spyOn(Donation, "countDocuments").mockResolvedValueOnce(2); // pendingCount
+      jest.spyOn(User, "findById").mockReturnValueOnce({
+        select: jest.fn().mockResolvedValueOnce(validStreamer),
+      });
       jest.spyOn(Donation, "find").mockReturnValueOnce({
         sort: jest.fn().mockReturnValueOnce({
           limit: jest.fn().mockResolvedValueOnce([
@@ -304,6 +311,8 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.data.totalAmount).toBe(5000);
       expect(res.body.data.totalDonations).toBe(10);
       expect(res.body.data.pendingCount).toBe(2);
+      expect(res.body.data.amountPercentChange).toBe(100);
+      expect(res.body.data.donationsPercentChange).toBe(100);
       expect(res.body.data.topDonors[0].name).toBe("TopGamer");
       expect(res.body.data.topDonors[0].badge).toBe("MYTHIC");
       expect(res.body.data.chartData["7D"]).toHaveLength(7);
@@ -319,6 +328,71 @@ describe("Donations Routes (Analytics & Management)", () => {
         .set("Authorization", `Bearer ${token}`);
 
       expect(res.status).toBe(500);
+    });
+
+    it("should calculate 0% when both weeks have zero donations and handle User.findById failure gracefully", async () => {
+      jest
+        .spyOn(Donation, "aggregate")
+        .mockResolvedValueOnce([{ totalAmount: 0, totalDonations: 0 }]) // summary
+        .mockResolvedValueOnce([]) // topDonors
+        .mockResolvedValueOnce([]) // daily 7D
+        .mockResolvedValueOnce([]) // daily 30D
+        .mockResolvedValueOnce([]) // monthly
+        .mockResolvedValueOnce([
+          { _id: "currentWeek", totalAmount: 0, totalDonations: 0 },
+          { _id: "previousWeek", totalAmount: 0, totalDonations: 0 },
+        ]); // weekComparison
+
+      jest.spyOn(Donation, "countDocuments").mockResolvedValueOnce(0); // pendingCount
+      jest.spyOn(User, "findById").mockImplementationOnce(() => {
+        throw new Error("DB Error");
+      });
+      jest.spyOn(Donation, "find").mockReturnValueOnce({
+        sort: jest.fn().mockReturnValueOnce({
+          limit: jest.fn().mockResolvedValueOnce([]),
+        }),
+      });
+
+      const res = await request(app)
+        .get("/api/donations/stats")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.amountPercentChange).toBe(0);
+      expect(res.body.data.donationsPercentChange).toBe(0);
+      expect(res.body.data.payment).toBeNull();
+    });
+
+    it("should calculate 100% when previous week has zero and current week has donations", async () => {
+      jest
+        .spyOn(Donation, "aggregate")
+        .mockResolvedValueOnce([{ totalAmount: 500, totalDonations: 2 }]) // summary
+        .mockResolvedValueOnce([]) // topDonors
+        .mockResolvedValueOnce([]) // daily 7D
+        .mockResolvedValueOnce([]) // daily 30D
+        .mockResolvedValueOnce([]) // monthly
+        .mockResolvedValueOnce([
+          { _id: "currentWeek", totalAmount: 500, totalDonations: 2 },
+          { _id: "previousWeek", totalAmount: 0, totalDonations: 0 },
+        ]); // weekComparison
+
+      jest.spyOn(Donation, "countDocuments").mockResolvedValueOnce(0);
+      jest.spyOn(User, "findById").mockReturnValueOnce({
+        select: jest.fn().mockResolvedValueOnce(null),
+      });
+      jest.spyOn(Donation, "find").mockReturnValueOnce({
+        sort: jest.fn().mockReturnValueOnce({
+          limit: jest.fn().mockResolvedValueOnce([]),
+        }),
+      });
+
+      const res = await request(app)
+        .get("/api/donations/stats")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.amountPercentChange).toBe(100);
+      expect(res.body.data.donationsPercentChange).toBe(100);
     });
   });
 

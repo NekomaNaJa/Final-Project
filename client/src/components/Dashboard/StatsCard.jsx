@@ -25,7 +25,7 @@ const StatsCard = ({
   percentLabel,
   accent = "purple",
 }) => {
-  const a = accentMap[accent];
+  const a = accentMap[accent] || accentMap.purple;
   return (
     <section className="relative overflow-hidden rounded-xl border border-white/8 bg-abyss/60 p-5 backdrop-blur-xl hover:border-purple-500/40 transition-all">
       <div
@@ -48,9 +48,17 @@ const StatsCard = ({
         </div>
       </div>
       <div className="relative mt-4 flex items-center gap-2 text-xs">
-        <span className={`rounded-full px-2 py-0.5 font-semibold ${a.badge}`}>
-          +{percent}%
-        </span>
+        {percent !== undefined && percent !== null && (
+          <span
+            className={`rounded-full px-2 py-0.5 font-semibold ${
+              typeof percent === "number" && percent < 0
+                ? "bg-red-500/20 text-red-400"
+                : a.badge
+            }`}
+          >
+            {typeof percent === "number" && percent > 0 ? `+${percent}%` : `${percent}%`}
+          </span>
+        )}
         <span className="text-gray-500">{percentLabel}</span>
       </div>
     </section>
