@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (10 Suites, 191 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (10 Suites, 205 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (26 Suites, 279 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (28 Suites, 292 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -85,6 +85,7 @@ $env:CI="true"; npm run build
 - **Production URL**: `https://final-project-orpin-five.vercel.app`
 - **Base URL ของ API**: กำหนดผ่าน `REACT_APP_API_URL` (Default ในเครื่อง: `http://localhost:5000/api`)
 - **Vercel Environment Variable**: `REACT_APP_API_URL=https://final-project-xntd.onrender.com/api`
+- **Google OAuth Client ID**: กำหนดผ่าน `REACT_APP_GOOGLE_CLIENT_ID` (สำหรับ Google Identity Services / GIS ในหน้า Login & Register พร้อม Demo Mode รองรับ Local Dev)
 - การจัดการสิทธิ์และการสื่อสารข้ามโดเมนใช้ CORS จากฝั่ง Server
 - การอ่าน JWT Token บน Client มีการจัดการ base64url-safe string decoding ใน `useJwtUser.js`
 
@@ -108,7 +109,7 @@ server/
 ├── config/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── controllers/
-│   ├── authController.js        → Logic การลงทะเบียนและการเข้าสู่ระบบ (register, login)
+│   ├── authController.js        → Logic การลงทะเบียน การเข้าสู่ระบบ และ Google OAuth (register, login, googleAuth)
 │   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, updateDonationStatus)
 │   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page และ Overlay Config พร้อม Aggregation (getPublicStreamer, getPublicOverlayConfig)
 │   ├── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
@@ -124,7 +125,7 @@ server/
 │   ├── User.js                  → Central User Schema
 │   └── Widget.js                → Central Widget Schema (alert, goal, leaderboard, mission, token)
 ├── routes/
-│   ├── auth.js                  → เส้นทาง /api/auth (register, login) พร้อม authLimiter
+│   ├── auth.js                  → เส้นทาง /api/auth (register, login, google) พร้อม authLimiter
 │   ├── donations.js             → เส้นทาง /api/donations (POST /, GET /, GET /stats, PATCH /:id)
 │   ├── public.js                → เส้นทาง /api/public (GET /:username, GET /overlay/:widgetType/:token)
 │   ├── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
@@ -132,7 +133,7 @@ server/
 ├── services/
 │   └── slipVerificationService.js → In-house Zero-Cost Slip QR & OCR Verification Engine (Jimp + jsQR + Tesseract.js Worker Lifecycle)
 ├── tests/
-│   ├── auth.test.js             → ชุดทดสอบ Authentication (13 tests)
+│   ├── auth.test.js             → ชุดทดสอบ Authentication & Google OAuth (25 tests)
 │   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching (35 tests)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (5 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
@@ -142,7 +143,7 @@ server/
 │   ├── users.test.js            → ชุดทดสอบ Users Route (60 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (3 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (15 tests)
-│   ── รวมฝั่ง Server: 10 Test Suites, 190 Tests ผ่าน 100% (Coverage > 97%)
+│   ── รวมฝั่ง Server: 10 Test Suites, 205 Tests ผ่าน 100% (Coverage > 97%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -245,8 +246,8 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 #### 2) หน้าเข้าสู่ระบบและสมัครสมาชิก (Auth)
 
-- **Login (`/login`)**: รองรับการล็อกอินด้วย Email และรหัสผ่าน หรือ Google OAuth พร้อมแจ้งเตือนข้อผิดพลาด
-- **Register (`/register`)**: ระบบสมัครสมาชิก พร้อม `PasswordChecklist` ตรวจสอบความปลอดภัยแบบเรียลไทม์ 5 ข้อ (ความยาว, ตัวพิมพ์เล็ก, ตัวพิมพ์ใหญ่, ตัวเลข, อักขระพิเศษ)
+- **Login (`/login`)**: รองรับการเข้าสู่ระบบด้วย Email/Password และ **Google OAuth** (ตัดปุ่ม YouTube และ Twitch ออก) ทำงานร่วมกับ Google Identity Services (GIS) Popup / One Tap และเชื่อมต่อ backend `/api/auth/google` ออก JWT Token จริง
+- **Register (`/register`)**: ระบบสมัครสมาชิก พร้อม `PasswordChecklist` ตรวจสอบความปลอดภัย 5 ข้อแบบเรียลไทม์ และรองรับ **Google OAuth** ลงทะเบียนและเข้าสู่ระบบทันที (ตรวจสอบความยินยอมเงื่อนไขการใช้งานก่อนเปิด Popup)
 
 #### 3) หน้าแดชบอร์ด (Dashboard) — `/dashboard`
 
@@ -267,7 +268,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 #### 5) หน้าตกแต่งหน้ารับเงิน (DonatePage) — `/donate-page`
 
-- **DonatePageLink**: ลิงก์ส่วนตัว `donix.app/{username}`, ปุ่มคัดลอกลิงก์, ปุ่มแชร์, ปุ่มเปิดหน้า Donor Page
+- **DonatePageLink**: ลิงก์ส่วนตัวแบบ Dynamic Domain ตาม Origin จริง (`window.location.origin/{username}` เช่น `https://final-project-orpin-five.vercel.app/{username}`), ปุ่มคัดลอกลิงก์, ปุ่มเปิดหน้า Donor Page (ตัดปุ่มไอคอน IG และ Twitch ที่ไม่จำเป็นออก)
 - **DecorateSection**: แก้ไขข้อความต้อนรับ, ข้อความขอบคุณ, กำหนดยอดโดเนทขั้นต่ำ, อัปโหลดรูปภาพหน้าปกและพื้นหลัง
 - **MessageFilterSection**: กำหนดความยาวตัวอักษรสูงสุด, สวิตช์เปิด/ปิดตัวกรองคำหยาบ, ระบบแท็กคำที่ต้องการบล็อก
 - **SocialMediaSection**: เชื่อมต่อและแสดงผลลิงก์โซเชียลมีเดีย 6 แพลตฟอร์ม
@@ -396,18 +397,19 @@ client/src/
 | ส่วนงาน                      | สถานะ            | รายละเอียด                                                                                                 |
 | :--------------------------- | :--------------- | :--------------------------------------------------------------------------------------------------------- |
 | **Backend Foundation**       | ✅ สมบูรณ์       | สถาปัตยกรรมแยก `app.js`/`index.js`, Helmet, Rate Limiter, Error Handler กลาง, Response `{ message, data }` |
-| **Auth System**              | ✅ สมบูรณ์       | Register, Login, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting                |
+| **Auth System**              | ✅ สมบูรณ์       | Register, Login, Google OAuth จริงผ่าน Google Identity Services (GIS TokenClient Popup & One-Tap), ตัดปุ่ม YouTube/Twitch ที่ไม่จำเป็นออก, JWT Token, Password Checklist, ป้องกัน NoSQL Injection, Auth Rate Limiting |
 | **Frontend Pages (12 หน้า)** | ✅ สมบูรณ์       | ทุกหน้าเชื่อมต่อใน `App.js` พร้อม Navigation Bar และ Responsive UI                                         |
 | **Widget System**            | ✅ สมบูรณ์       | 4 รูปแบบ (Alert, Goal, Leaderboard, Mission) + Live Preview + OBS Browser URL                              |
 | **Phase 4 — REST API Migration** | ✅ สมบูรณ์  | Account (`GET/PUT /api/users/me`), Payment (`PUT /api/users/payment`), DonatePage (`PUT /api/users/donation-page`) ย้ายขึ้น MongoDB แล้วทั้งหมด |
 | **Phase 5 — Cloud Deployment**   | ✅ สมบูรณ์  | Server บน Render (`final-project-xntd.onrender.com`), Client บน Vercel (`final-project-orpin-five.vercel.app`), Database บน MongoDB Atlas |
 | **Phase 6 — Donation Pipeline & Backoffice** | ✅ สมบูรณ์ | Public API, Donation Submission, Slip Upload, Dashboard Analytics (`/stats`), History Table (`/`), Status Update (`PATCH /:id`) |
 | **Phase 7 — Real-time Alert & OBS Widget System** | ✅ สมบูรณ์ (PR #57–#66) | OBS Browser Sources ครบ 3 วิดเจ็ต (Alert, Goal, Leaderboard), FIFO Alert Queue, Web Audio API Presets, Google TTS Direct, Socket.IO Real-time (`donation-alert`, `widget-config-update`), คำนวณยอด Goal สะสมอัตโนมัติ, Persistent Reconnect, Typography & Clean Stream Display, Widget REST API & Models (`Widget`, `Mission`, `Blacklist`) |
-| **Test Suites**              | ✅ สมบูรณ์       | Client: 26 Suites (279 Tests ผ่าน 100%), Server: 10 Suites (191 Tests ผ่าน 100%, Coverage > 97%), รวม **36 Suites, 470 Tests ผ่าน 100%** |
+| **Test Suites**              | ✅ สมบูรณ์       | Client: 28 Suites (292 Tests ผ่าน 100%), Server: 10 Suites (205 Tests ผ่าน 100%, Coverage > 97%), รวม **38 Suites, 497 Tests ผ่าน 100%** |
 | **CI / CD Pipeline**         | ✅ สมบูรณ์       | GitHub Actions (`client`, `server`, `sonar`) ผ่านทุก Check พร้อมส่ง Coverage ทั้งสองฝั่ง รองรับ `--forceExit` ป้องกัน Process ค้าง |
-| **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities    |
+| **SonarCloud Quality Gate**  | ✅ ผ่าน          | Security: A, Reliability: A, Duplication ≤ 3%, Coverage on New Code ≥ 80.0%, 0 Bugs, 0 Vulnerabilities, เพิ่ม Node Memory 4GB และ Exclude Binary Assets แก้ปัญหาสแกนค้างที่ 57% |
 | **Database Models**          | ✅ สมบูรณ์       | มีครบ 5 Models: `User`, `Donation`, `Widget`, `Mission`, `Blacklist` บน MongoDB Atlas                     |
 | **OCR Slip Verification & Bank Matching** | ✅ สมบูรณ์ | Phase 8 & Extension — In-House QR & OCR Verification Engine (Zero-Cost ด้วย jsQR + Jimp + Tesseract.js), ตรวจจับสลิป PromptPay / Bank Mini QR (ITMX), อ่านจำนวนเงินจากสลิปอัตโนมัติ (Zero-Touch), ตรวจสอบชื่อผู้รับเงินตรงกับบัญชีสตรีมเมอร์ (`isRecipientNameMatched`) พร้อมตัดคำนำหน้าชื่อไทย, ตรวจสอบเลขบัญชี 4 หลักสุดท้าย, ป้องกันสลิปซ้ำด้วย Sparse Unique Index บน `transRef`, และระบบ Auto-Approve แจ้งเตือน OBS ทันที |
+| **Phase 9 — Google OAuth & Performance** | ✅ สมบูรณ์ | ระบบ Google Identity Services (GIS) ทำงานได้จริงทั้ง Login & Register, Endpoint `POST /api/auth/google` สำหรับ Auto-Registration และ Link Account, ลบปุ่ม YouTube/Twitch ที่ไม่จำเป็น, Dynamic Domain ลิงก์โดเนท, ปรับแต่ง SonarCloud Heap Memory 4096MB แก้ปัญหาสแกนล่าช้า |
 
 ---
 
@@ -431,6 +433,9 @@ client/src/
 - **Coverage on New Code**: ต้องไม่ต่ำกว่า **80%** (ปัจจุบันทำได้ > 88%)
 - **Duplication on New Code**: ต้องไม่เกิน **3%**
 - **Security Hotspots & Bugs**: ต้องเป็น **0**
+- **การเพิ่มประสิทธิภาพการสแกน (Performance & Memory)**:
+  - กำหนด `sonar.javascript.node.maxspace=4096` ใน `sonar-project.properties` เพื่อขยายหน่วยความจำ Node.js Engine บน GitHub Actions ป้องกันปัญหากระบวนการสแกนหยุดชะงักที่ 57%
+  - ตัดการสแกนไฟล์ขนาดใหญ่ที่ไม่จำเป็น: `**/*.traineddata` (โมเดล OCR ภาษาไทย/อังกฤษขนาด 6+ MB), `**/package-lock.json`, และรูปภาพ Static Assets `client/src/assets/**`
 
 ---
 
@@ -524,6 +529,20 @@ client/src/
     - เพิ่มแฟล็ก `--forceExit` ในสคริปต์ `test` และ `test:coverage` ใน `server/package.json` ป้องกันปัญหากระบวนการค้างบน GitHub Actions
     - เพิ่ม `*.traineddata` ลงใน `.gitignore` ป้องกันการบันทึกไฟล์ Binary ของภาษาเข้าสู่ Git
   - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 191 Tests Coverage > 97%, Client 26 Suites 279 Tests รวม **36 Suites, 470 Tests ผ่าน 100%**) และ Build สำหรับ Production ผ่านฉลุย (0 Warnings, 0 Errors)
+
+- **Phase 9: Real Google OAuth Integration, Social Auth Clean-up & CI Performance (เสร็จสมบูรณ์ ✅)**
+  - **Google Identity Services (GIS) & Backend Integration**:
+    - Backend Endpoint `POST /api/auth/google`: ตรวจสอบความถูกต้องของ Google Token กับ Google API (`id_token` ผ่าน Google Tokeninfo API หรือ `access_token` ผ่าน Google Userinfo API)
+    - Auto-Registration & Account Linking: ตรวจสอบผู้ใช้จาก `googleId` หรือ `email` หากเป็นผู้ใช้ใหม่จะทำการลงทะเบียนและออกบัญชีให้อัตโนมัติด้วย Random Password และ Email Verified พร้อมออก DONIX JWT ทันที
+    - Client GIS SDK: เชื่อมต่อด้วย `window.google.accounts.oauth2.initTokenClient` (Popup Flow) พร้อมรองรับ fallback สู่ One Tap (`id.initialize`) และโหมด Demo สำหรับ Local Development เมื่อยังไม่ได้กำหนด `REACT_APP_GOOGLE_CLIENT_ID`
+    - Security & Consent: ในหน้า `Register` มีการตรวจสอบเงื่อนไขข้อตกลงการใช้งาน (`termsAccepted`) ก่อนเรียกหน้าต่าง Google Popup
+  - **Social Auth & Donate Page Link Clean-up**:
+    - ลบปุ่มล็อกอิน YouTube และ Twitch ที่ไม่ได้ใช้งานออกจากหน้า Login และ Register เพื่อความกระชับและตรงตามระบบจริง
+    - ปรับปรุง `DonatePageLink` ให้ใช้โดเมนปัจจุบันแบบไดนามิก (`window.location.origin/{username}`) แทนการ Hardcode `donix.app` พร้อมลบปุ่มไอคอนแชร์โซเชียลมีเดียที่ไม่จำเป็นออก
+  - **SonarCloud & CI Performance Optimization**:
+    - กำหนด `sonar.javascript.node.maxspace=4096` แก้ไขปัญหา SonarCloud Scanner หยุดชะงักที่ 57%
+    - ละเว้นการวิเคราะห์ไฟล์ Binary OCR `*.traineddata`, `package-lock.json`, และรูปภาพ Static Assets
+  - ครอบคลุมชุดทดสอบ Jest ทั้งหมด (Server 10 Suites 205 Tests Coverage > 97%, Client 28 Suites 292 Tests รวม **38 Suites, 497 Tests ผ่าน 100%**) และผ่าน SonarCloud Quality Gate Coverage on New Code ≥ 80%
 
 ---
 
@@ -795,9 +814,9 @@ stateDiagram-v2
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **10 Suites** | **191 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **Client (Frontend React SPA)** | **26 Suites** | **279 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **36 Suites** | **470 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **10 Suites** | **205 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Client (Frontend React SPA)** | **28 Suites** | **292 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **38 Suites** | **497 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |
