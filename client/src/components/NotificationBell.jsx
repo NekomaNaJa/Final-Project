@@ -56,11 +56,13 @@ const NotificationBell = ({ username }) => {
     try {
       setLoading(true);
       const data = await fetchDonationHistory({ page: 1, limit: 15 });
-      const donationsList = Array.isArray(data?.donations)
-        ? data.donations
-        : Array.isArray(data)
-        ? data
-        : [];
+
+      let donationsList = [];
+      if (Array.isArray(data?.donations)) {
+        donationsList = data.donations;
+      } else if (Array.isArray(data)) {
+        donationsList = data;
+      }
 
       const readIds = new Set(getSavedReadIds());
 
@@ -172,6 +174,84 @@ const NotificationBell = ({ username }) => {
     );
   };
 
+  const renderNotificationContent = () => {
+    if (loading) {
+      return (
+        <div className="py-8 text-center text-xs text-gray-500">
+          กำลังโหลดการแจ้งเตือน...
+        </div>
+      );
+    }
+
+    if (notifications.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-gray-500 mb-3">
+            <BellOff size={22} />
+          </div>
+          <p className="text-xs font-medium text-gray-300">
+            ยังไม่มีการแจ้งเตือนการโดเนท
+          </p>
+          <p className="text-[11px] text-gray-500 mt-1">
+            เมื่อมีผู้สนับสนุนโดเนทเข้ามา การแจ้งเตือนจะแสดงที่นี่
+          </p>
+        </div>
+      );
+    }
+
+    return notifications.map((item) => (
+      <button
+        type="button"
+        key={item.id}
+        onClick={() => markSingleAsRead(item.id)}
+        className={`w-full text-left flex items-start gap-3 p-3.5 transition-colors focus:outline-none focus:bg-white/10 ${
+          item.isRead
+            ? "bg-transparent hover:bg-white/5 text-gray-400"
+            : "bg-purple-950/20 hover:bg-purple-900/30 text-white"
+        }`}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-500/20 to-purple-600/20 text-pink-400 border border-pink-500/30 mt-0.5">
+          <Heart size={14} className="fill-pink-500/40" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold truncate text-white">
+              {item.donorName}
+            </p>
+            <span className="shrink-0 text-xs font-bold text-emerald-400">
+              +{item.amount.toLocaleString()} ฿
+            </span>
+          </div>
+
+          <p className="text-[11px] text-gray-300 mt-0.5">
+            โดเนทเข้ามา{" "}
+            <span className="font-semibold text-purple-300">
+              {item.amount.toLocaleString()} บาท
+            </span>
+          </p>
+
+          {item.message && (
+            <p className="text-[11px] text-gray-400 mt-1 italic line-clamp-2 bg-white/5 rounded-md px-2 py-1">
+              "{item.message}"
+            </p>
+          )}
+
+          <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
+            <span>{formatTimeAgo(item.createdAt)}</span>
+            <span className="rounded bg-white/5 px-1.5 py-0.5 text-gray-400">
+              {item.paymentMethod}
+            </span>
+          </div>
+        </div>
+
+        {!item.isRead && (
+          <span className="h-2 w-2 rounded-full bg-purple-400 shrink-0 mt-1.5 ring-2 ring-purple-400/20" />
+        )}
+      </button>
+    ));
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* ปุ่มกระดิ่งแจ้งเตือน */}
@@ -227,74 +307,7 @@ const NotificationBell = ({ username }) => {
 
           {/* Body: รายการโดเนท */}
           <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
-            {loading ? (
-              <div className="py-8 text-center text-xs text-gray-500">
-                กำลังโหลดการแจ้งเตือน...
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-gray-500 mb-3">
-                  <BellOff size={22} />
-                </div>
-                <p className="text-xs font-medium text-gray-300">
-                  ยังไม่มีการแจ้งเตือนการโดเนท
-                </p>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  เมื่อมีผู้สนับสนุนโดเนทเข้ามา การแจ้งเตือนจะแสดงที่นี่
-                </p>
-              </div>
-            ) : (
-              notifications.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => markSingleAsRead(item.id)}
-                  className={`flex items-start gap-3 p-3.5 transition-colors cursor-pointer ${
-                    item.isRead
-                      ? "bg-transparent hover:bg-white/5 text-gray-400"
-                      : "bg-purple-950/20 hover:bg-purple-900/30 text-white"
-                  }`}
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-500/20 to-purple-600/20 text-pink-400 border border-pink-500/30 mt-0.5">
-                    <Heart size={14} className="fill-pink-500/40" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold truncate text-white">
-                        {item.donorName}
-                      </p>
-                      <span className="shrink-0 text-xs font-bold text-emerald-400">
-                        +{item.amount.toLocaleString()} ฿
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-gray-300 mt-0.5">
-                      โดเนทเข้ามา{" "}
-                      <span className="font-semibold text-purple-300">
-                        {item.amount.toLocaleString()} บาท
-                      </span>
-                    </p>
-
-                    {item.message && (
-                      <p className="text-[11px] text-gray-400 mt-1 italic line-clamp-2 bg-white/5 rounded-md px-2 py-1">
-                        "{item.message}"
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
-                      <span>{formatTimeAgo(item.createdAt)}</span>
-                      <span className="rounded bg-white/5 px-1.5 py-0.5 text-gray-400">
-                        {item.paymentMethod}
-                      </span>
-                    </div>
-                  </div>
-
-                  {!item.isRead && (
-                    <span className="h-2 w-2 rounded-full bg-purple-400 shrink-0 mt-1.5 ring-2 ring-purple-400/20" />
-                  )}
-                </div>
-              ))
-            )}
+            {renderNotificationContent()}
           </div>
 
           {/* Footer: ลิงก์ไปหน้าประวัติ */}
