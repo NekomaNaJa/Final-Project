@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import HistoryPage from "./HistoryPage";
-import SlipModal from "../components/Histor/SlipModal";
+import SlipModal, { clearSlipCache } from "../components/Histor/SlipModal";
 import * as api from "../utils/api";
 
 jest.mock("../utils/api", () => {
@@ -645,7 +645,7 @@ describe("HistoryPage", () => {
       });
     });
 
-    test("handles fetchDonationSlip failure gracefully and displays empty slip notice", async () => {
+    test("handles fetchDonationSlip failure gracefully and allows retry to succeed", async () => {
       api.fetchDonationSlip.mockRejectedValueOnce(new Error("Network error"));
 
       render(
@@ -668,6 +668,119 @@ describe("HistoryPage", () => {
       await waitFor(() => {
         expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
       });
+
+      const retryBtn = screen.getByRole("button", { name: /ลองโหลดรูปสลิปอีกครั้ง/ });
+      expect(retryBtn).toBeInTheDocument();
+
+      // Now mock success on retry
+      api.fetchDonationSlip.mockResolvedValueOnce({
+        slipImage: "data:image/png;base64,retrySuccess123",
+      });
+
+      fireEvent.click(retryBtn);
+
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledTimes(2);
+      });
+
+      await waitFor(() => {
+        const img = screen.getByAltText("สลิปหลักฐานการโอน");
+        expect(img).toHaveAttribute("src", "data:image/png;base64,retrySuccess123");
+      });
+    });
+
+    test("caches loaded slip and serves from cache on subsequent opens without re-fetching", async () => {
+      clearSlipCache();
+      api.fetchDonationSlip.mockResolvedValueOnce({
+        slipImage: "data:image/png;base64,cachedSlip",
+      });
+
+      const { unmount } = render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            raw: { _id: "cached-don-id" },
+            donorName: "Cached Supporter",
+            amount: 250,
+            paymentMethod: "promptpay",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledWith("cached-don-id");
+      });
+
+      await waitFor(() => {
+        expect(screen.getByAltText("สลิปหลักฐานการโอน")).toHaveAttribute(
+          "src",
+          "data:image/png;base64,cachedSlip"
+        );
+      });
+
+      unmount();
+
+      // Open second modal with same ID - should hit cache
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            raw: { id: "cached-don-id" },
+            donorName: "Cached Supporter",
+            amount: 250,
+            paymentMethod: "promptpay",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      // Verify no extra API call was made
+      expect(api.fetchDonationSlip).toHaveBeenCalledTimes(1);
+      expect(screen.getByAltText("สลิปหลักฐานการโอน")).toHaveAttribute(
+        "src",
+        "data:image/png;base64,cachedSlip"
+      );
+
+      // Test clearSlipCache
+      clearSlipCache();
+      api.fetchDonationSlip.mockResolvedValueOnce({
+        slipImage: "data:image/png;base64,afterClearSlip",
+      });
+
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "cached-don-id",
+            donorName: "Cached Supporter",
+            amount: 250,
+            paymentMethod: "promptpay",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    test("handles donation without ID gracefully", () => {
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            donorName: "No ID Supporter",
+            amount: 100,
+            paymentMethod: "bank",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(api.fetchDonationSlip).not.toHaveBeenCalled();
+      expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
     });
 
     test("does not fetch slipImage when payment method is truemoney", () => {
@@ -686,6 +799,57 @@ describe("HistoryPage", () => {
 
       expect(api.fetchDonationSlip).not.toHaveBeenCalled();
       expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
+    });
+
+    test("handles fetchDonationSlip returning null slipImage or null data response", async () => {
+      api.fetchDonationSlip.mockResolvedValueOnce({ slipImage: null });
+
+      const { unmount } = render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-null-img",
+            donorName: "Supporter Null",
+            amount: 200,
+            paymentMethod: "bank",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledWith("slip-null-img");
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
+      });
+
+      unmount();
+
+      // Test when data response is completely null/undefined
+      api.fetchDonationSlip.mockResolvedValueOnce(null);
+
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            raw: { _id: "slip-empty-resp" },
+            donorName: "Supporter Empty",
+            amount: 200,
+            paymentMethod: "bank",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledWith("slip-empty-resp");
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
+      });
     });
   });
 });

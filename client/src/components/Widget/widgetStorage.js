@@ -180,21 +180,7 @@ export const getWidgetConfig = () => {
 };
 
 export const saveWidgetConfig = (config) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); // NOSONAR
-  } catch {
-    try {
-      const stripped = {
-        ...config,
-        alert: {
-          ...config?.alert,
-          overlayImage: null,
-          customSoundFile: null,
-        },
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
-    } catch {}
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(config)); // NOSONAR
 };
 
 export const getBrowserSourceUrl = (type, username) => {

@@ -106,41 +106,7 @@ const SlipModal = ({
       return;
     }
 
-    if (slipCache.has(donationId)) {
-      setLoadedSlipImage(slipCache.get(donationId));
-      setLoadingSlip(false);
-      setSlipError(false);
-      return;
-    }
-
-    let isMounted = true;
-    setLoadingSlip(true);
-    setSlipError(false);
-
-    Promise.resolve(fetchDonationSlip(donationId))
-      .then((data) => {
-        if (isMounted) {
-          const img = data?.slipImage || null;
-          slipCache.set(donationId, img);
-          setLoadedSlipImage(img);
-          setSlipError(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setLoadedSlipImage(null);
-          setSlipError(true);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoadingSlip(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    loadSlip(donationId);
   }, [donation, isOpen]);
 
   useEffect(() => {
