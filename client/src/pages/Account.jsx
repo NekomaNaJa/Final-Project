@@ -8,6 +8,14 @@ import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
 import { fetchCurrentUser, updateCurrentUser, changePassword } from "../utils/api";
 
+let inMemoryUserProfile = null;
+let inMemoryUserUsername = null;
+
+export const clearUserCache = () => {
+  inMemoryUserProfile = null;
+  inMemoryUserUsername = null;
+};
+
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
   if (!token) return null;
@@ -23,12 +31,16 @@ const getUserFromToken = () => {
 
 const getInitialUser = () => {
   try {
-    const cached = localStorage.getItem("donix_user_profile");
-    if (cached) return JSON.parse(cached);
+    localStorage.removeItem("donix_user_profile");
   } catch {
     // Ignored
   }
-  return getUserFromToken();
+  const tokenUser = getUserFromToken();
+  if (!tokenUser) return null;
+  if (inMemoryUserProfile && inMemoryUserUsername === tokenUser.username) {
+    return inMemoryUserProfile;
+  }
+  return tokenUser;
 };
 
 const Account = () => {
@@ -37,8 +49,13 @@ const Account = () => {
   const [feedback, setFeedback] = useState(null);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("donix_user_profile");
+    clearUserCache();
+    try {
+      localStorage.removeItem("token");
+      localStorage.removeItem("donix_user_profile");
+    } catch {
+      // Ignored
+    }
     navigate("/login");
   };
 
@@ -53,22 +70,21 @@ const Account = () => {
       const data = await fetchCurrentUser();
       if (data) {
         setUser((prev) => {
-          const updated = { ...prev, ...data };
-          try {
-            localStorage.setItem(
-              "donix_user_profile",
-              JSON.stringify(updated)
-            );
-          } catch {
-            // Ignored
-          }
-          return updated;
+          const merged = { ...prev, ...data };
+          inMemoryUserProfile = merged;
+          inMemoryUserUsername = merged.username;
+          return merged;
         });
       }
     } catch (err) {
       if (err.message?.includes("ไม่ได้รับอนุญาต") || err.message?.includes("หมดอายุ")) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("donix_user_profile");
+        clearUserCache();
+        try {
+          localStorage.removeItem("token");
+          localStorage.removeItem("donix_user_profile");
+        } catch {
+          // Ignored
+        }
         navigate("/login");
       }
     }
@@ -90,13 +106,10 @@ const Account = () => {
 
       const updated = await updateCurrentUser(payload);
       setUser((prev) => {
-        const next = { ...prev, ...updated };
-        try {
-          localStorage.setItem("donix_user_profile", JSON.stringify(next));
-        } catch {
-          // Ignored
-        }
-        return next;
+        const merged = { ...prev, ...updated };
+        inMemoryUserProfile = merged;
+        inMemoryUserUsername = merged.username;
+        return merged;
       });
       setFeedback({ type: "success", message: "บันทึกข้อมูลเรียบร้อยแล้ว" });
       setTimeout(() => setFeedback(null), 4000);

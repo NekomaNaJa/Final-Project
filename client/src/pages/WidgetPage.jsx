@@ -10,11 +10,7 @@ import LeaderboardPanel from "../components/Widget/LeaderboardPanel";
 import MissionDonatePanel from "../components/Widget/MissionDonatePanel";
 import WidgetPreview from "../components/Widget/WidgetPreview";
 import BrowserSourceCard from "../components/Widget/BrowserSourceCard";
-import {
-  DEFAULT_WIDGET_CONFIG,
-  getWidgetConfig,
-  saveWidgetConfig,
-} from "../components/Widget/widgetStorage";
+import { DEFAULT_WIDGET_CONFIG } from "../components/Widget/widgetStorage";
 import { fetchWidgetConfig, saveWidgetSettings } from "../utils/api";
 import { playAlertSound, speakAlertText } from "../utils/alertAudio";
 import { emitTestAlert, emitWidgetConfigUpdate } from "../utils/socket";
@@ -32,16 +28,38 @@ const getUserFromToken = () => {
   }
 };
 
+let inMemoryWidgetCache = null;
+let inMemoryWidgetToken = "";
+let inMemoryCachedUsername = null;
+
+export const clearWidgetCache = () => {
+  inMemoryWidgetCache = null;
+  inMemoryWidgetToken = "";
+  inMemoryCachedUsername = null;
+};
+
 const WidgetPage = () => {
   const navigate = useNavigate();
   const user = getUserFromToken();
+  const activeUsername = user?.username || "";
+
+  const isCacheValid =
+    Boolean(inMemoryWidgetCache) &&
+    inMemoryCachedUsername === activeUsername;
+
   const [activeTab, setActiveTab] = useState("alert");
-  const [config, setConfig] = useState(getWidgetConfig);
-  const [savedConfig, setSavedConfig] = useState(getWidgetConfig);
-  const [widgetToken, setWidgetToken] = useState("");
+  const [config, setConfig] = useState(
+    isCacheValid ? inMemoryWidgetCache : DEFAULT_WIDGET_CONFIG
+  );
+  const [savedConfig, setSavedConfig] = useState(
+    isCacheValid ? inMemoryWidgetCache : DEFAULT_WIDGET_CONFIG
+  );
+  const [widgetToken, setWidgetToken] = useState(
+    isCacheValid ? inMemoryWidgetToken : ""
+  );
   const [playing, setPlaying] = useState(false);
 
-  // ดึงการตั้งค่าวิดเจ็ตจาก DB ผ่าน API เมื่อโหลดหน้าเว็บ
+  // ดึงการตั้งค่าวิดเจ็ตและ Token จาก Cloud Database (MongoDB) ผ่าน API เมื่อโหลดหน้าเว็บ
   useEffect(() => {
     let isMounted = true;
     const loadConfig = async () => {
@@ -50,6 +68,7 @@ const WidgetPage = () => {
         if (isMounted && data) {
           if (data.token) {
             setWidgetToken(data.token);
+            inMemoryWidgetToken = data.token;
           }
           const merged = {
             alert: { ...DEFAULT_WIDGET_CONFIG.alert, ...data.alert },
@@ -62,10 +81,11 @@ const WidgetPage = () => {
           };
           setConfig(merged);
           setSavedConfig(merged);
-          saveWidgetConfig(merged);
+          inMemoryWidgetCache = merged;
+          inMemoryCachedUsername = activeUsername;
         }
       } catch {
-        // หากเชื่อมต่อ API ไม่ได้ ให้ใช้ข้อมูลจาก localStorage ต่อไป
+        // หากเชื่อมต่อ API ไม่ได้ จะใช้ค่าปัจจุบันที่แสดงอยู่
       }
     };
 
@@ -73,9 +93,10 @@ const WidgetPage = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeUsername]);
 
   const handleLogout = () => {
+    clearWidgetCache();
     localStorage.removeItem("token");
     navigate("/login");
   };
@@ -110,7 +131,10 @@ const WidgetPage = () => {
       const activeToken = result?.token || widgetToken;
       if (result?.token) {
         setWidgetToken(result.token);
+        inMemoryWidgetToken = result.token;
       }
+      inMemoryWidgetCache = config;
+      inMemoryCachedUsername = activeUsername;
       if (activeToken) {
         emitWidgetConfigUpdate({
           token: activeToken,
@@ -119,10 +143,10 @@ const WidgetPage = () => {
           ...config,
         });
       }
-      saveWidgetConfig(config);
       setSavedConfig(config);
     } catch {
-      // Fallback บันทึกลง localStorage หากเกิดข้อผิดพลาด
+      inMemoryWidgetCache = config;
+      inMemoryCachedUsername = activeUsername;
       if (widgetToken) {
         emitWidgetConfigUpdate({
           token: widgetToken,
@@ -131,7 +155,6 @@ const WidgetPage = () => {
           ...config,
         });
       }
-      saveWidgetConfig(config);
       setSavedConfig(config);
     }
   };
@@ -267,7 +290,7 @@ const WidgetPage = () => {
               />
               <BrowserSourceCard
                 type={activeTab}
-                username={user?.username}
+                username=""
                 token={widgetToken}
                 isLive={isLive}
                 onTest={activeTab === "alert" ? handleTest : null}

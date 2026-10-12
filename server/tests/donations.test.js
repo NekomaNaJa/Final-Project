@@ -211,9 +211,11 @@ describe("Donations Routes (Analytics & Management)", () => {
 
       jest.spyOn(Donation, "countDocuments").mockResolvedValueOnce(1);
       jest.spyOn(Donation, "find").mockReturnValueOnce({
-        sort: jest.fn().mockReturnValueOnce({
-          skip: jest.fn().mockReturnValueOnce({
-            limit: jest.fn().mockResolvedValueOnce(mockDonations),
+        select: jest.fn().mockReturnValueOnce({
+          sort: jest.fn().mockReturnValueOnce({
+            skip: jest.fn().mockReturnValueOnce({
+              limit: jest.fn().mockResolvedValueOnce(mockDonations),
+            }),
           }),
         }),
       });
@@ -236,9 +238,11 @@ describe("Donations Routes (Analytics & Management)", () => {
     it("should filter by status and search keyword", async () => {
       jest.spyOn(Donation, "countDocuments").mockResolvedValueOnce(0);
       jest.spyOn(Donation, "find").mockReturnValueOnce({
-        sort: jest.fn().mockReturnValueOnce({
-          skip: jest.fn().mockReturnValueOnce({
-            limit: jest.fn().mockResolvedValueOnce([]),
+        select: jest.fn().mockReturnValueOnce({
+          sort: jest.fn().mockReturnValueOnce({
+            skip: jest.fn().mockReturnValueOnce({
+              limit: jest.fn().mockResolvedValueOnce([]),
+            }),
           }),
         }),
       });
@@ -291,15 +295,17 @@ describe("Donations Routes (Analytics & Management)", () => {
         select: jest.fn().mockResolvedValueOnce(validStreamer),
       });
       jest.spyOn(Donation, "find").mockReturnValueOnce({
-        sort: jest.fn().mockReturnValueOnce({
-          limit: jest.fn().mockResolvedValueOnce([
-            {
-              _id: mockDonationId,
-              donorName: "RecentDonor",
-              amount: 200,
-              status: "approved",
-            },
-          ]),
+        select: jest.fn().mockReturnValueOnce({
+          sort: jest.fn().mockReturnValueOnce({
+            limit: jest.fn().mockResolvedValueOnce([
+              {
+                _id: mockDonationId,
+                donorName: "RecentDonor",
+                amount: 200,
+                status: "approved",
+              },
+            ]),
+          }),
         }),
       });
 
@@ -349,8 +355,10 @@ describe("Donations Routes (Analytics & Management)", () => {
         throw new Error("DB Error");
       });
       jest.spyOn(Donation, "find").mockReturnValueOnce({
-        sort: jest.fn().mockReturnValueOnce({
-          limit: jest.fn().mockResolvedValueOnce([]),
+        select: jest.fn().mockReturnValueOnce({
+          sort: jest.fn().mockReturnValueOnce({
+            limit: jest.fn().mockResolvedValueOnce([]),
+          }),
         }),
       });
 
@@ -382,8 +390,10 @@ describe("Donations Routes (Analytics & Management)", () => {
         select: jest.fn().mockResolvedValueOnce(null),
       });
       jest.spyOn(Donation, "find").mockReturnValueOnce({
-        sort: jest.fn().mockReturnValueOnce({
-          limit: jest.fn().mockResolvedValueOnce([]),
+        select: jest.fn().mockReturnValueOnce({
+          sort: jest.fn().mockReturnValueOnce({
+            limit: jest.fn().mockResolvedValueOnce([]),
+          }),
         }),
       });
 
@@ -394,6 +404,82 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.status).toBe(200);
       expect(res.body.data.amountPercentChange).toBe(100);
       expect(res.body.data.donationsPercentChange).toBe(100);
+    });
+  });
+
+  describe("GET /api/donations/:id/slip", () => {
+    it("should return 401 when Authorization is missing", async () => {
+      const res = await request(app).get(`/api/donations/${mockDonationId}/slip`);
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบ");
+    });
+
+    it("should return 400 when donation ID is invalid", async () => {
+      const res = await request(app)
+        .get("/api/donations/invalid-id/slip")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("ID รายการบริจาคไม่ถูกต้อง");
+    });
+
+    it("should return 404 when donation is not found", async () => {
+      jest.spyOn(Donation, "findOne").mockReturnValueOnce({
+        select: jest.fn().mockResolvedValueOnce(null),
+      });
+
+      const res = await request(app)
+        .get(`/api/donations/${mockDonationId}/slip`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("ไม่พบรายการบริจาค");
+    });
+
+    it("should return 403 when donation belongs to another streamer", async () => {
+      jest.spyOn(Donation, "findOne").mockReturnValueOnce({
+        select: jest.fn().mockResolvedValueOnce({
+          _id: mockDonationId,
+          streamerId: new mongoose.Types.ObjectId(),
+          slipImage: "data:image/png;base64,mockslip",
+        }),
+      });
+
+      const res = await request(app)
+        .get(`/api/donations/${mockDonationId}/slip`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe("ไม่มีสิทธิ์เข้าถึงรายการบริจาคนี้");
+    });
+
+    it("should return 200 with slipImage when donation belongs to streamer", async () => {
+      jest.spyOn(Donation, "findOne").mockReturnValueOnce({
+        select: jest.fn().mockResolvedValueOnce({
+          _id: mockDonationId,
+          streamerId: mockUserId,
+          slipImage: "data:image/png;base64,mockslip",
+        }),
+      });
+
+      const res = await request(app)
+        .get(`/api/donations/${mockDonationId}/slip`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("ดึงรูปสลิปสำเร็จ");
+      expect(res.body.data.slipImage).toBe("data:image/png;base64,mockslip");
+    });
+
+    it("should handle server errors gracefully on slip fetch", async () => {
+      jest.spyOn(Donation, "findOne").mockImplementationOnce(() => {
+        throw new Error("DB Error");
+      });
+
+      const res = await request(app)
+        .get(`/api/donations/${mockDonationId}/slip`)
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(500);
     });
   });
 
