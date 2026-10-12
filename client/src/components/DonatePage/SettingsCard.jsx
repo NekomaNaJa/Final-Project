@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Check } from "lucide-react";
 
-const SettingsCard = ({ title, subtitle, onSave, children, className = "" }) => {
+const SettingsCard = ({ title, subtitle, onSave, saveText = "บันทึก", children, className = "" }) => {
   const [isSaved, setIsSaved] = useState(false);
 
   const handleSave = () => {
@@ -48,7 +48,7 @@ const SettingsCard = ({ title, subtitle, onSave, children, className = "" }) => 
               <span>บันทึกแล้ว</span>
             </>
           ) : (
-            <span>บันทึก</span>
+            <span>{saveText}</span>
           )}
         </button>
       </div>

@@ -154,7 +154,7 @@ const DonatePage = () => {
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
           {/* Topbar with breadcrumb */}
-          <Topbar username={user?.username} breadcrumb="หน้ารับเงิน" />
+          <Topbar username={user?.username} avatar={user?.avatar} breadcrumb="หน้ารับเงิน" />
 
           {/* Page Content */}
           <main className="mx-auto w-full max-w-[960px] px-4 py-8 sm:px-6 lg:px-8 space-y-6">

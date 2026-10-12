@@ -54,6 +54,9 @@ const AccountProfileCard = ({ user, onSave }) => {
           const resultUrl = reader.result;
           if (resultUrl) {
             await onSave?.({ avatar: resultUrl });
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("donix_avatar_changed", { detail: resultUrl }));
+            }
           }
         } catch (err) {
           setAvatarError(err.message || "เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์");
@@ -96,6 +99,9 @@ const AccountProfileCard = ({ user, onSave }) => {
       setIsUploading(true);
       setAvatarError(null);
       await onSave?.({ avatar: "" });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("donix_avatar_changed", { detail: "" }));
+      }
     } catch (err) {
       setAvatarError(err.message || "เกิดข้อผิดพลาดในการลบรูปโปรไฟล์");
     } finally {

@@ -212,7 +212,7 @@ const PaymentPage = () => {
       {/* Main Content Area */}
       <div className="relative z-10 flex-1 min-w-0 flex flex-col pb-16">
         {/* Topbar with breadcrumb */}
-        <Topbar username={user?.username} breadcrumb="บัญชีรับเงิน" />
+        <Topbar username={user?.username} avatar={user?.avatar} breadcrumb="บัญชีรับเงิน" />
 
         {/* Page Content */}
         <main className="mx-auto w-full max-w-[1240px] px-6 sm:px-10 lg:px-14 py-10 space-y-8">

@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
+import { fetchCurrentUser } from "../utils/api";
 
 const getDecodedUsername = () => {
   try {
@@ -15,8 +16,62 @@ const getDecodedUsername = () => {
   }
 };
 
+const getCachedAvatar = () => {
+  try {
+    const cached = localStorage.getItem("donix_user_profile");
+    if (cached) {
+      return JSON.parse(cached)?.avatar || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
 const DashboardNavbar = ({ username, avatar, breadcrumb }) => {
   const effectiveUsername = username || getDecodedUsername() || "";
+  const [profileAvatar, setProfileAvatar] = useState(avatar || getCachedAvatar());
+
+  useEffect(() => {
+    if (avatar) {
+      setProfileAvatar(avatar);
+      return;
+    }
+    const cached = getCachedAvatar();
+    if (cached) {
+      setProfileAvatar(cached);
+    }
+    const token = localStorage.getItem("token");
+    if (token && typeof fetchCurrentUser === "function") {
+      fetchCurrentUser()
+        .then((data) => {
+          if (data?.avatar) {
+            setProfileAvatar(data.avatar);
+            try {
+              const prev = JSON.parse(localStorage.getItem("donix_user_profile") || "{}");
+              localStorage.setItem("donix_user_profile", JSON.stringify({ ...prev, ...data }));
+            } catch {
+              // Ignore local storage error
+            }
+          }
+        })
+        .catch(() => {
+          // Ignore background fetch error
+        });
+    }
+  }, [avatar]);
+
+  useEffect(() => {
+    const handleAvatarChange = (e) => {
+      if (e?.detail) {
+        setProfileAvatar(e.detail);
+      } else {
+        setProfileAvatar(getCachedAvatar());
+      }
+    };
+    window.addEventListener("donix_avatar_changed", handleAvatarChange);
+    return () => window.removeEventListener("donix_avatar_changed", handleAvatarChange);
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-[#0A0B12]/85 px-8 py-4 backdrop-blur-xl">
@@ -36,8 +91,8 @@ const DashboardNavbar = ({ username, avatar, breadcrumb }) => {
         <NotificationBell username={effectiveUsername} />
         <div className="flex items-center gap-2 rounded-full border border-border bg-white/5 px-3 py-1.5">
           <div className="w-7 h-7 grid place-items-center rounded-full bg-linear-to-br from-purple-500 to-purple-700 text-xs font-bold text-white overflow-hidden">
-            {avatar ? (
-              <img src={avatar} alt={effectiveUsername || "User"} className="h-full w-full object-cover" />
+            {profileAvatar ? (
+              <img src={profileAvatar} alt={effectiveUsername || "User"} className="h-full w-full object-cover" />
             ) : (
               effectiveUsername?.[0]?.toUpperCase() || "T"
             )}
