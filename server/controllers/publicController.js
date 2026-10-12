@@ -32,7 +32,10 @@ export const getPublicStreamer = async (req, res, next) => {
     }
 
     // ดึงการตั้งค่าวิดเจ็ตของสตรีมเมอร์ (โดยเฉพาะ Mission Donate)
-    const widget = await Widget.findOne({ userId: { $eq: user._id } });
+    const widget = await Widget.findOne(
+      { userId: { $eq: user._id } },
+      { mission: 1 }
+    );
 
     const publicData = {
       username: user.username,
@@ -156,8 +159,13 @@ export const getPublicOverlayConfig = async (req, res, next) => {
     const safeType = String(widgetType).trim().toLowerCase();
     const safeToken = String(token).trim();
 
+    const projection =
+      safeType === "alert" || safeType === "all"
+        ? {}
+        : { "alert.overlayImage": 0 };
+
     // 1. ค้นหา Widget จาก token ก่อน
-    let widget = await Widget.findOne({ token: { $eq: safeToken } });
+    let widget = await Widget.findOne({ token: { $eq: safeToken } }, projection);
     let streamer = null;
 
     if (widget) {
@@ -166,7 +174,7 @@ export const getPublicOverlayConfig = async (req, res, next) => {
       // หากไม่พบด้วย token ให้ลองค้นหาด้วย username ของสตรีมเมอร์เป็น fallback
       streamer = await User.findOne({ username: { $eq: safeToken } });
       if (streamer) {
-        widget = await Widget.findOne({ userId: { $eq: streamer._id } });
+        widget = await Widget.findOne({ userId: { $eq: streamer._id } }, projection);
         if (!widget) {
           widget = new Widget({ userId: streamer._id });
           await widget.save();
@@ -241,13 +249,23 @@ export const getPublicOverlayConfig = async (req, res, next) => {
       avatar: streamer.avatar || "",
     };
 
+    const alertData = widget.alert
+      ? typeof widget.alert.toObject === "function"
+        ? widget.alert.toObject()
+        : { ...widget.alert }
+      : null;
+
+    if (alertData && safeType !== "alert" && safeType !== "all") {
+      delete alertData.overlayImage;
+    }
+
     return res.status(200).json({
       message: "ดึงข้อมูลการแสดงผลวิดเจ็ตสำเร็จ",
       data: {
         type: safeType,
         token: widget.token,
         streamer: streamerData,
-        alert: widget.alert,
+        alert: alertData,
         goal: goalData,
         leaderboard: leaderboardData,
         mission: widget.mission,
