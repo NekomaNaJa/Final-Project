@@ -30,7 +30,9 @@ const OverlayLeaderboardPage = () => {
     }
   });
 
-  const [donors, setDonors] = useState(DEFAULT_SAMPLE_DONORS);
+  const [donors, setDonors] = useState(() =>
+    isDemoMode ? DEFAULT_SAMPLE_DONORS : []
+  );
   const [lastUpdatedDonor, setLastUpdatedDonor] = useState(null);
   const processedDonationIdsRef = useRef(new Set());
 
