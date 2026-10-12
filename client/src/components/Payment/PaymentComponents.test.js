@@ -2,7 +2,6 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import PaymentHeader from "./PaymentHeader";
 import PromptPayCard from "./PromptPayCard";
-import TrueMoneyCard from "./TrueMoneyCard";
 import BankCard from "./BankCard";
 import ComingSoonCard from "./ComingSoonCard";
 
@@ -59,44 +58,6 @@ describe("Payment Components", () => {
         enabled: false,
         type: "เบอร์โทรศัพท์",
         number: "0899999999",
-      });
-    });
-  });
-
-  describe("TrueMoneyCard", () => {
-    test("renders TrueMoneyCard and handles toggle switch and changing phone number", () => {
-      const handleSave = jest.fn();
-      const { container } = render(
-        <TrueMoneyCard
-          initialData={{ enabled: true, phone: "0812345678" }}
-          onSave={handleSave}
-        />
-      );
-
-      expect(screen.getByText("ทรูมันนี่")).toBeInTheDocument();
-      expect(screen.getByText("เปิดใช้งาน")).toBeInTheDocument();
-
-      // Toggle switch
-      const toggle = screen.getByRole("switch");
-      fireEvent.click(toggle);
-      expect(screen.getByText("ปิดใช้งาน")).toBeInTheDocument();
-      expect(handleSave).toHaveBeenCalledWith({
-        enabled: false,
-        phone: "0812345678",
-      });
-
-      // Expand card
-      const expandBtn = screen.getByText(/จัดการ/i);
-      fireEvent.click(expandBtn);
-
-      const phoneInput = screen.getByPlaceholderText("เช่น 0812345678");
-      fireEvent.change(phoneInput, { target: { value: "0888888888" } });
-
-      const submitBtn = container.querySelector('button[type="submit"]');
-      fireEvent.click(submitBtn);
-      expect(handleSave).toHaveBeenCalledWith({
-        enabled: false,
-        phone: "0888888888",
       });
     });
   });

@@ -28,7 +28,7 @@ const donationSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       required: true,
-      enum: ["promptpay", "bank", "truemoney"],
+      enum: ["promptpay", "bank"],
     },
     status: {
       type: String,

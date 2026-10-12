@@ -25,7 +25,6 @@ describe("PaymentPage Integration", () => {
       accountNumber: "1234567890",
       accountName: "นาย สมชาย",
     },
-    truemoney: { enabled: false, phone: "0899999999" },
   };
 
   beforeEach(() => {
@@ -82,7 +81,6 @@ describe("PaymentPage Integration", () => {
 
     await waitFor(() => {
       expect(screen.getByText("พร้อมเพย์")).toBeInTheDocument();
-      expect(screen.getByText("ทรูมันนี่")).toBeInTheDocument();
       expect(screen.getByText("ธนาคาร")).toBeInTheDocument();
     });
   });
@@ -163,48 +161,6 @@ describe("PaymentPage Integration", () => {
     });
   });
 
-  test("saves TrueMoney successfully and shows feedback toast", async () => {
-    localStorage.setItem("token", validToken);
-    api.fetchCurrentUser.mockResolvedValueOnce({
-      username: "streamer_omega",
-      payment: mockPaymentConfig,
-    });
-    api.updatePaymentSettings.mockResolvedValueOnce({
-      ...mockPaymentConfig,
-      truemoney: { enabled: true, phone: "0899999999" },
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/payment"]}>
-        <Routes>
-          <Route path="/payment" element={<PaymentPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("ทรูมันนี่")).toBeInTheDocument();
-    });
-
-    // Expand truemoney card
-    const expandButtons = screen.getAllByText(/จัดการ/i);
-    fireEvent.click(expandButtons[1]);
-
-    const saveButton = screen.getByRole("button", { name: "บันทึก" });
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
-      expect(api.updatePaymentSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          truemoney: expect.objectContaining({
-            phone: "0899999999",
-          }),
-        })
-      );
-      expect(screen.getByText("บันทึกข้อมูลทรูมันนี่สำเร็จ")).toBeInTheDocument();
-    });
-  });
-
   test("saves Bank successfully and shows feedback toast", async () => {
     localStorage.setItem("token", validToken);
     api.fetchCurrentUser.mockResolvedValueOnce({
@@ -230,7 +186,7 @@ describe("PaymentPage Integration", () => {
 
     // Expand bank card
     const expandButtons = screen.getAllByText(/จัดการ/i);
-    fireEvent.click(expandButtons[2]);
+    fireEvent.click(expandButtons[1]);
 
     const saveButton = screen.getByRole("button", { name: "บันทึก" });
     fireEvent.click(saveButton);

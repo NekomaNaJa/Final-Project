@@ -202,13 +202,12 @@ export const updatePayment = async (req, res, next) => {
       });
     }
 
-    const { promptpay, bank, truemoney } = req.body;
+    const { promptpay, bank } = req.body;
 
     if (!user.payment) {
       user.payment = {
         promptpay: { enabled: false, type: null, number: "" },
         bank: { enabled: false, bankName: null, accountNumber: "", accountName: "" },
-        truemoney: { enabled: false, phone: "" },
       };
     }
 
@@ -310,30 +309,6 @@ export const updatePayment = async (req, res, next) => {
           });
         }
         user.payment.bank.accountName = String(bank.accountName).trim();
-      }
-    }
-
-    // 3. Validate & update TrueMoney
-    if (truemoney !== undefined) {
-      if (typeof truemoney !== "object" || truemoney === null || Array.isArray(truemoney)) {
-        return res.status(400).json({
-          message: "ข้อมูลทรูมันนี่ไม่ถูกต้อง",
-          data: null,
-        });
-      }
-
-      if (truemoney.enabled !== undefined) {
-        user.payment.truemoney.enabled = Boolean(truemoney.enabled);
-      }
-
-      if (truemoney.phone !== undefined) {
-        if (typeof truemoney.phone !== "string") {
-          return res.status(400).json({
-            message: "เบอร์โทรศัพท์ทรูมันนี่ต้องเป็นข้อความ",
-            data: null,
-          });
-        }
-        user.payment.truemoney.phone = String(truemoney.phone).trim();
       }
     }
 

@@ -15,7 +15,6 @@ import { fetchDonationSlip } from "../../utils/api";
 const channelNames = {
   promptpay: "PromptPay (พร้อมเพย์)",
   bank: "โอนผ่านธนาคาร",
-  truemoney: "TrueMoney Wallet",
 };
 
 // Slip image cache to prevent redundant re-fetching
@@ -82,16 +81,6 @@ const SlipModal = ({
     const rawDonation = donation.raw || donation;
     if (rawDonation.slipImage) {
       setLoadedSlipImage(rawDonation.slipImage);
-      setLoadingSlip(false);
-      setSlipError(false);
-      return;
-    }
-
-    const method = String(
-      rawDonation.paymentMethod || rawDonation.channel || ""
-    ).toLowerCase();
-    if (method.includes("true")) {
-      setLoadedSlipImage(null);
       setLoadingSlip(false);
       setSlipError(false);
       return;
