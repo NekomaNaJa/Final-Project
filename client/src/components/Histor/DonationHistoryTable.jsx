@@ -2,7 +2,7 @@ import React from "react";
 import { ChevronLeft, ChevronRight, History } from "lucide-react";
 
 const columns = [
-  { key: "time", label: "เวลา" },
+  { key: "time", label: "วัน/เวลา" },
   { key: "name", label: "ชื่อ" },
   { key: "message", label: "ข้อความ" },
   { key: "amount", label: "จำนวนเงิน" },
@@ -43,11 +43,23 @@ const formatRow = (row) => {
   }
 
   let time = row.time;
-  if (!time && row.createdAt) {
+  let date = row.date || null;
+
+  if (row.createdAt) {
     const d = new Date(row.createdAt);
-    time = Number.isNaN(d.getTime())
-      ? "-"
-      : d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+    if (!Number.isNaN(d.getTime())) {
+      date = d.toLocaleDateString("th-TH", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      if (!time) {
+        time = d.toLocaleTimeString("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+    }
   }
 
   const transRef = row.transRef || row.ocrResult?.transRef || null;
@@ -64,6 +76,7 @@ const formatRow = (row) => {
     statusBadgeClass,
     transRef,
     ocrVerified,
+    date,
     time: time || "-",
   };
 };
@@ -107,7 +120,20 @@ const DonationHistoryTable = ({
             const row = formatRow(item);
             const content = (
               <>
-                <p className="text-gray-500">{row.time}</p>
+                <div className="flex flex-col min-w-0">
+                  {row.date ? (
+                    <>
+                      <span className="text-gray-300 font-medium whitespace-nowrap">
+                        {row.date}
+                      </span>
+                      <span className="text-[11px] text-gray-500 whitespace-nowrap">
+                        {row.time} น.
+                      </span>
+                    </>
+                  ) : (
+                    <p className="text-gray-500">{row.time}</p>
+                  )}
+                </div>
                 <p className="font-medium">{row.name}</p>
                 <p className="truncate text-gray-500">{row.message}</p>
                 <p className="font-semibold text-purple-400">{row.amount}</p>

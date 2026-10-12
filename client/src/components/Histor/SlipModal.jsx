@@ -63,15 +63,21 @@ const SlipModal = ({
   const status = raw.status;
   const isPending = status === "pending" || status === "รอดำเนินการ";
 
-  const dateStr = raw.createdAt
-    ? new Date(raw.createdAt).toLocaleString("th-TH", {
+  let dateStr = raw.time || "—";
+  if (raw.createdAt) {
+    const d = new Date(raw.createdAt);
+    if (!Number.isNaN(d.getTime())) {
+      dateStr = d.toLocaleString("th-TH", {
         year: "numeric",
         month: "short",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-      })
-    : raw.time || "—";
+      });
+    }
+  } else if (raw.date && raw.time) {
+    dateStr = `${raw.date} (${raw.time} น.)`;
+  }
 
   const transRef = raw.transRef || raw.ocrResult?.transRef;
   const ocrVerified = Boolean(raw.ocrResult?.verified || transRef);
