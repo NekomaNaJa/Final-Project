@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import NotificationBell from "./NotificationBell";
-import { fetchCurrentUser } from "../utils/api";
 
 const getDecodedUsername = () => {
   try {
@@ -35,29 +34,8 @@ const DashboardNavbar = ({ username, avatar, breadcrumb }) => {
   useEffect(() => {
     if (avatar) {
       setProfileAvatar(avatar);
-      return;
-    }
-    const cached = getCachedAvatar();
-    if (cached) {
-      setProfileAvatar(cached);
-    }
-    const token = localStorage.getItem("token");
-    if (token && typeof fetchCurrentUser === "function") {
-      fetchCurrentUser()
-        .then((data) => {
-          if (data?.avatar) {
-            setProfileAvatar(data.avatar);
-            try {
-              const prev = JSON.parse(localStorage.getItem("donix_user_profile") || "{}");
-              localStorage.setItem("donix_user_profile", JSON.stringify({ ...prev, ...data }));
-            } catch {
-              // Ignore local storage error
-            }
-          }
-        })
-        .catch(() => {
-          // Ignore background fetch error
-        });
+    } else {
+      setProfileAvatar(getCachedAvatar());
     }
   }, [avatar]);
 
