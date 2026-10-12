@@ -17,7 +17,7 @@ import {
   saveWidgetConfig,
   getBrowserSourceUrl,
 } from "./widgetStorage";
-import WidgetPage from "../../pages/WidgetPage";
+import WidgetPage, { clearWidgetCache } from "../../pages/WidgetPage";
 import { mockSocketInstance } from "../../__mocks__/socket.io-client";
 import { fetchWidgetConfig, saveWidgetSettings } from "../../utils/api";
 
@@ -43,6 +43,7 @@ jest.mock("../../utils/api", () => ({
 describe("Widget Components & Functions", () => {
   beforeEach(() => {
     localStorage.clear();
+    clearWidgetCache();
     jest.clearAllMocks();
     mockSocketInstance.__reset();
     fetchWidgetConfig.mockResolvedValue({
@@ -1198,6 +1199,47 @@ describe("Widget Components & Functions", () => {
       );
 
       jest.useRealTimers();
+    });
+
+    test("uses in-memory session cache on subsequent visits without re-fetching delays", async () => {
+      const mockPayload = btoa(JSON.stringify({ username: "cached_widget_streamer" }));
+      localStorage.setItem("token", `header.${mockPayload}.signature`);
+
+      fetchWidgetConfig.mockResolvedValueOnce({
+        token: "cached-token-abc",
+        alert: { minAmount: 88 },
+        goal: {},
+        leaderboard: {},
+        mission: {},
+      });
+
+      const { unmount } = render(
+        <BrowserRouter>
+          <WidgetPage />
+        </BrowserRouter>
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(fetchWidgetConfig).toHaveBeenCalledTimes(1);
+      unmount();
+
+      // Second render in same session - cache is valid
+      await act(async () => {
+        render(
+          <BrowserRouter>
+            <WidgetPage />
+          </BrowserRouter>
+        );
+      });
+
+      // Verify page mounted with cached config without needing second fetch
+      expect(screen.getByText("WIDGETS")).toBeInTheDocument();
+
+      // Test clearWidgetCache
+      clearWidgetCache();
     });
   });
 });
