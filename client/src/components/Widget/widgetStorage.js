@@ -165,24 +165,6 @@ export const DEFAULT_WIDGET_CONFIG = {
   },
 };
 
-const TOKEN_KEY = "donix_widget_token";
-
-export const getWidgetToken = () => {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  } catch {
-    return "";
-  }
-};
-
-export const saveWidgetToken = (token) => {
-  if (!token || typeof token !== "string") return;
-  const clean = token.trim();
-  try {
-    localStorage.setItem(TOKEN_KEY, clean);
-  } catch {}
-};
-
 export const getWidgetConfig = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
