@@ -14,6 +14,7 @@ export const API = {
   donations: `${API_URL}/donations`,
   donationsStats: `${API_URL}/donations/stats`,
   donationDetail: (id) => `${API_URL}/donations/${encodeURIComponent(id)}`,
+  donationSlip: (id) => `${API_URL}/donations/${encodeURIComponent(id)}/slip`,
   widgetsMe: `${API_URL}/widgets/me`,
   forgotPasswordSendOtp: `${API_URL}/auth/forgot-password/send-otp`,
   forgotPasswordVerifyOtp: `${API_URL}/auth/forgot-password/verify-otp`,
@@ -195,6 +196,22 @@ export const updateDonationStatus = async (id, status) => {
   const json = await res.json();
   if (!res.ok) {
     throw new Error(json.message || "ไม่สามารถเปลี่ยนสถานะรายการบริจาคได้");
+  }
+  return json.data;
+};
+
+/**
+ * ดึงรูปสลิปของรายการบริจาคตาม ID (GET /api/donations/:id/slip)
+ */
+export const fetchDonationSlip = async (id) => {
+  if (!id) return null;
+  const res = await fetch(API.donationSlip(id), {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถดึงรูปสลิปได้");
   }
   return json.data;
 };

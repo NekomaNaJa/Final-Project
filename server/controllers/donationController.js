@@ -461,6 +461,7 @@ export const getDonations = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const donations = await Donation.find(query)
+      .select("-slipImage")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -668,6 +669,7 @@ export const getDonationStats = async (req, res, next) => {
         streamerId: { $eq: streamerObjectId },
         status: { $eq: "approved" },
       })
+        .select("-slipImage")
         .sort({ createdAt: -1 })
         .limit(5),
     ]);
@@ -865,3 +867,58 @@ export const updateDonationStatus = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * ดึงรูปภาพสลิปสำหรับรายการบริจาคที่เลือก (GET /api/donations/:id/slip)
+ * ดึงเฉพาะเมื่อผู้ใช้ต้องการเปิดดูสลิปใน Modal เพื่อลดภาระ payload บนหน้าเว็บ
+ */
+export const getDonationSlip = async (req, res, next) => {
+  try {
+    const rawUserId = req.user?.userId;
+    if (!rawUserId || !mongoose.isValidObjectId(rawUserId)) {
+      return res.status(401).json({
+        message: "ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบ",
+        data: null,
+      });
+    }
+
+    const { id } = req.params;
+    if (!id || typeof id !== "string" || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "ID รายการบริจาคไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const donationObjectId = new mongoose.Types.ObjectId(String(id));
+    const streamerObjectId = new mongoose.Types.ObjectId(String(rawUserId));
+
+    const donation = await Donation.findOne({
+      _id: { $eq: donationObjectId },
+    }).select("slipImage streamerId");
+
+    if (!donation) {
+      return res.status(404).json({
+        message: "ไม่พบรายการบริจาค",
+        data: null,
+      });
+    }
+
+    if (donation.streamerId.toString() !== streamerObjectId.toString()) {
+      return res.status(403).json({
+        message: "ไม่มีสิทธิ์เข้าถึงรายการบริจาคนี้",
+        data: null,
+      });
+    }
+
+    return res.json({
+      message: "ดึงรูปสลิปสำเร็จ",
+      data: {
+        slipImage: donation.slipImage,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

@@ -10,6 +10,7 @@ jest.mock("../utils/api", () => {
   return {
     ...original,
     fetchDonationHistory: jest.fn(),
+    fetchDonationSlip: jest.fn(),
     updateDonationStatus: jest.fn(),
   };
 });
@@ -22,6 +23,7 @@ describe("HistoryPage", () => {
     localStorage.clear();
     jest.clearAllMocks();
     api.fetchDonationHistory.mockResolvedValue({ donations: [], pagination: { total: 0 } });
+    api.fetchDonationSlip.mockResolvedValue({ slipImage: null });
   });
 
   test("redirects to login when no token", () => {
@@ -529,7 +531,7 @@ describe("HistoryPage", () => {
       expect(screen.getByText("12:00 น.")).toBeInTheDocument();
     });
 
-    test("renders SlipModal with valid createdAt", () => {
+    test("renders SlipModal with valid createdAt", async () => {
       const testIso = "2026-10-12T10:30:00.000Z";
       const expectedFormatted = new Date(testIso).toLocaleString("th-TH", {
         year: "numeric",
@@ -539,73 +541,153 @@ describe("HistoryPage", () => {
         minute: "2-digit",
       });
 
-      render(
-        <SlipModal
-          isOpen={true}
-          donation={{
-            id: "slip-valid-date",
-            donorName: "Supporter A",
-            amount: 200,
-            createdAt: testIso,
-          }}
-          onClose={jest.fn()}
-        />
-      );
+      await act(async () => {
+        render(
+          <SlipModal
+            isOpen={true}
+            donation={{
+              id: "slip-valid-date",
+              donorName: "Supporter A",
+              amount: 200,
+              createdAt: testIso,
+            }}
+            onClose={jest.fn()}
+          />
+        );
+      });
 
       expect(screen.getByText(expectedFormatted)).toBeInTheDocument();
     });
 
-    test("renders SlipModal with invalid createdAt and fallback time", () => {
-      render(
-        <SlipModal
-          isOpen={true}
-          donation={{
-            id: "slip-invalid-date",
-            donorName: "Supporter B",
-            amount: 200,
-            createdAt: "invalid-date-string",
-            time: "17:45",
-          }}
-          onClose={jest.fn()}
-        />
-      );
+    test("renders SlipModal with invalid createdAt and fallback time", async () => {
+      await act(async () => {
+        render(
+          <SlipModal
+            isOpen={true}
+            donation={{
+              id: "slip-invalid-date",
+              donorName: "Supporter B",
+              amount: 200,
+              createdAt: "invalid-date-string",
+              time: "17:45",
+            }}
+            onClose={jest.fn()}
+          />
+        );
+      });
 
       expect(screen.getByText("17:45")).toBeInTheDocument();
     });
 
-    test("renders SlipModal with custom date and time without createdAt", () => {
-      render(
-        <SlipModal
-          isOpen={true}
-          donation={{
-            id: "slip-date-time",
-            donorName: "Supporter C",
-            amount: 200,
-            date: "12 ต.ค. 2026",
-            time: "18:00",
-          }}
-          onClose={jest.fn()}
-        />
-      );
+    test("renders SlipModal with custom date and time without createdAt", async () => {
+      await act(async () => {
+        render(
+          <SlipModal
+            isOpen={true}
+            donation={{
+              id: "slip-date-time",
+              donorName: "Supporter C",
+              amount: 200,
+              date: "12 ต.ค. 2026",
+              time: "18:00",
+            }}
+            onClose={jest.fn()}
+          />
+        );
+      });
 
       expect(screen.getByText("12 ต.ค. 2026 (18:00 น.)")).toBeInTheDocument();
     });
 
-    test("renders SlipModal without date, time or createdAt", () => {
+    test("renders SlipModal without date, time or createdAt", async () => {
+      await act(async () => {
+        render(
+          <SlipModal
+            isOpen={true}
+            donation={{
+              id: "slip-empty-date",
+              donorName: "Supporter D",
+              amount: 200,
+            }}
+            onClose={jest.fn()}
+          />
+        );
+      });
+
+      expect(screen.getByText("—")).toBeInTheDocument();
+    });
+
+    test("fetches slipImage on demand via fetchDonationSlip when slipImage is not in initial data", async () => {
+      api.fetchDonationSlip.mockResolvedValueOnce({
+        slipImage: "data:image/png;base64,lazyslip123",
+      });
+
       render(
         <SlipModal
           isOpen={true}
           donation={{
-            id: "slip-empty-date",
-            donorName: "Supporter D",
-            amount: 200,
+            id: "slip-lazy-1",
+            donorName: "Supporter E",
+            amount: 500,
+            paymentMethod: "promptpay",
           }}
           onClose={jest.fn()}
         />
       );
 
-      expect(screen.getByText("—")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledWith("slip-lazy-1");
+      });
+
+      await waitFor(() => {
+        const img = screen.getByAltText("สลิปหลักฐานการโอน");
+        expect(img).toHaveAttribute("src", "data:image/png;base64,lazyslip123");
+      });
+    });
+
+    test("handles fetchDonationSlip failure gracefully and displays empty slip notice", async () => {
+      api.fetchDonationSlip.mockRejectedValueOnce(new Error("Network error"));
+
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-lazy-fail",
+            donorName: "Supporter F",
+            amount: 300,
+            paymentMethod: "bank",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(api.fetchDonationSlip).toHaveBeenCalledWith("slip-lazy-fail");
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
+      });
+    });
+
+    test("does not fetch slipImage when payment method is truemoney", () => {
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-truemoney",
+            donorName: "Supporter G",
+            amount: 100,
+            paymentMethod: "truemoney",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(api.fetchDonationSlip).not.toHaveBeenCalled();
+      expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
     });
   });
 });
+
 
