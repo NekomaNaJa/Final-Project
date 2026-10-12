@@ -66,15 +66,15 @@ const SlipModal = ({
   let dateStr = raw.time || "—";
   if (raw.createdAt) {
     const d = new Date(raw.createdAt);
-    dateStr = Number.isNaN(d.getTime())
-      ? raw.time || "—"
-      : d.toLocaleString("th-TH", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+    if (!Number.isNaN(d.getTime())) {
+      dateStr = d.toLocaleString("th-TH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
   } else if (raw.date && raw.time) {
     dateStr = `${raw.date} (${raw.time} น.)`;
   }

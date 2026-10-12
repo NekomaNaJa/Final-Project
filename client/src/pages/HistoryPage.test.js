@@ -420,4 +420,192 @@ describe("HistoryPage", () => {
     expect(screen.getByText("อนุมัติแล้ว")).toBeInTheDocument();
     expect(screen.getByTitle(/PROMPT_REF_9999/)).toBeInTheDocument();
   });
+
+  describe("DonationHistoryTable & SlipModal date/time formatting", () => {
+    test("handles valid createdAt without time in DonationHistoryTable", async () => {
+      const { default: DonationHistoryTable } = await import(
+        "../components/Histor/DonationHistoryTable"
+      );
+      const testIso = "2026-10-12T10:30:00.000Z";
+      const expectedDate = new Date(testIso).toLocaleDateString("th-TH", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      const expectedTime = new Date(testIso).toLocaleTimeString("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      render(
+        <DonationHistoryTable
+          history={[
+            {
+              id: "item-created-at",
+              name: "User Date",
+              amount: 100,
+              createdAt: testIso,
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText(expectedDate)).toBeInTheDocument();
+      expect(screen.getByText(`${expectedTime} น.`)).toBeInTheDocument();
+    });
+
+    test("handles invalid createdAt in DonationHistoryTable", async () => {
+      const { default: DonationHistoryTable } = await import(
+        "../components/Histor/DonationHistoryTable"
+      );
+
+      render(
+        <DonationHistoryTable
+          history={[
+            {
+              id: "item-invalid-date",
+              name: "User Invalid",
+              message: "ข้อความทดสอบ",
+              amount: 100,
+              createdAt: "not-a-valid-date",
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText("-")).toBeInTheDocument();
+      expect(screen.getByText("User Invalid")).toBeInTheDocument();
+    });
+
+    test("handles custom date and time in DonationHistoryTable", async () => {
+      const { default: DonationHistoryTable } = await import(
+        "../components/Histor/DonationHistoryTable"
+      );
+
+      render(
+        <DonationHistoryTable
+          history={[
+            {
+              id: "item-custom-date",
+              name: "User Custom",
+              amount: 100,
+              date: "12 ต.ค. 2026",
+              time: "14:20",
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText("12 ต.ค. 2026")).toBeInTheDocument();
+      expect(screen.getByText("14:20 น.")).toBeInTheDocument();
+    });
+
+    test("handles valid createdAt with existing time in DonationHistoryTable", async () => {
+      const { default: DonationHistoryTable } = await import(
+        "../components/Histor/DonationHistoryTable"
+      );
+      const testIso = "2026-10-12T10:30:00.000Z";
+      const expectedDate = new Date(testIso).toLocaleDateString("th-TH", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+
+      render(
+        <DonationHistoryTable
+          history={[
+            {
+              id: "item-with-both",
+              name: "User Both",
+              amount: 100,
+              createdAt: testIso,
+              time: "12:00",
+            },
+          ]}
+        />
+      );
+
+      expect(screen.getByText(expectedDate)).toBeInTheDocument();
+      expect(screen.getByText("12:00 น.")).toBeInTheDocument();
+    });
+
+    test("renders SlipModal with valid createdAt", () => {
+      const testIso = "2026-10-12T10:30:00.000Z";
+      const expectedFormatted = new Date(testIso).toLocaleString("th-TH", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-valid-date",
+            donorName: "Supporter A",
+            amount: 200,
+            createdAt: testIso,
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText(expectedFormatted)).toBeInTheDocument();
+    });
+
+    test("renders SlipModal with invalid createdAt and fallback time", () => {
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-invalid-date",
+            donorName: "Supporter B",
+            amount: 200,
+            createdAt: "invalid-date-string",
+            time: "17:45",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("17:45")).toBeInTheDocument();
+    });
+
+    test("renders SlipModal with custom date and time without createdAt", () => {
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-date-time",
+            donorName: "Supporter C",
+            amount: 200,
+            date: "12 ต.ค. 2026",
+            time: "18:00",
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("12 ต.ค. 2026 (18:00 น.)")).toBeInTheDocument();
+    });
+
+    test("renders SlipModal without date, time or createdAt", () => {
+      render(
+        <SlipModal
+          isOpen={true}
+          donation={{
+            id: "slip-empty-date",
+            donorName: "Supporter D",
+            amount: 200,
+          }}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("—")).toBeInTheDocument();
+    });
+  });
 });
+
