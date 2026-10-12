@@ -40,7 +40,7 @@ describe("Account Components", () => {
     username: "TestStreamer",
     email: "test@example.com",
     joinedAt: "2026-01-01",
-    age: "25",
+    totalAmount: 1250,
     followers: 1200,
   };
 
@@ -50,7 +50,8 @@ describe("Account Components", () => {
       expect(screen.getByText("TestStreamer")).toBeInTheDocument();
       expect(screen.getByText("https://final-project-orpin-five.vercel.app/TestStreamer")).toBeInTheDocument();
       expect(screen.getByText("2026-01-01")).toBeInTheDocument();
-      expect(screen.getByText("25")).toBeInTheDocument();
+      expect(screen.getByText("ยอดโดเนทรวม")).toBeInTheDocument();
+      expect(screen.getByText("฿1,250.00")).toBeInTheDocument();
       expect(screen.getByText("1200")).toBeInTheDocument();
 
       const copyBtn = screen.getByTitle("คัดลอกลิงก์");
@@ -435,22 +436,87 @@ describe("Account Components", () => {
   });
 
   describe("SocialMediaTab", () => {
-    test("allows updating social link inputs and saving", () => {
-      render(<SocialMediaTab />);
+    test("allows connecting, changing account, and disconnecting social platforms via OAuth popup", () => {
+      const mockOnSave = jest.fn();
+      const windowOpenSpy = jest.spyOn(window, "open").mockImplementation(() => null);
+
+      render(<SocialMediaTab user={mockUser} onSave={mockOnSave} />);
       expect(screen.getByText("SOCIAL MEDIA")).toBeInTheDocument();
+      expect(screen.getAllByText("ยังไม่ได้เชื่อมต่อ").length).toBe(6);
 
-      const inputs = screen.getAllByPlaceholderText("ยังไม่ได้เชื่อมต่อ");
-      fireEvent.change(inputs[0], { target: { value: "https://facebook.com/streamer" } });
-      expect(inputs[0].value).toBe("https://facebook.com/streamer");
+      // Click Connect on FACEBOOK
+      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ FACEBOOK" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByText("เชื่อมต่อบัญชี Facebook")).toBeInTheDocument();
 
+      // Open external popup window from modal
+      fireEvent.click(screen.getByText("เปิดหน้าต่างยืนยันตัวตนของ Facebook"));
+      expect(windowOpenSpy).toHaveBeenCalled();
+
+      // Authorize & Connect
+      fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      // Verify connected handle & green Connected badge
+      expect(screen.getByTestId("social-handle-facebook")).toHaveTextContent("@TestStreamer");
+      expect(screen.getByTestId("social-status-facebook")).toHaveTextContent("เชื่อมต่อแล้ว");
+      expect(mockOnSave).toHaveBeenCalledWith({
+        social: expect.objectContaining({
+          facebook: "https://facebook.com/TestStreamer",
+        }),
+      });
+
+      // Click Change Account on FACEBOOK
+      fireEvent.click(screen.getByRole("button", { name: "เปลี่ยนบัญชี FACEBOOK" }));
+      expect(screen.getByText("เปลี่ยนบัญชี Facebook")).toBeInTheDocument();
+
+      // Select alternate account and authorize
+      fireEvent.click(screen.getByText("@TestStreamer_live"));
+      fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      expect(screen.getByTestId("social-handle-facebook")).toHaveTextContent("@TestStreamer_live");
+
+      // Click Disconnect on FACEBOOK
+      fireEvent.click(screen.getByRole("button", { name: "ยกเลิกการเชื่อมต่อ FACEBOOK" }));
+      expect(screen.queryByTestId("social-handle-facebook")).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenLastCalledWith({
+        social: expect.objectContaining({
+          facebook: "",
+        }),
+      });
+
+      // Click Save button on card
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
       fireEvent.click(saveBtn);
+
+      windowOpenSpy.mockRestore();
+    });
+
+    test("renders pre-existing connected accounts and allows closing modal", () => {
+      const userWithSocial = {
+        ...mockUser,
+        social: {
+          youtube: "https://youtube.com/@AlphaChannel",
+          twitch: "alpha_twitch",
+        },
+      };
+      render(<SocialMediaTab user={userWithSocial} />);
+
+      expect(screen.getByTestId("social-handle-youtube")).toHaveTextContent("@AlphaChannel");
+      expect(screen.getByTestId("social-status-youtube")).toHaveTextContent("เชื่อมต่อแล้ว");
+      expect(screen.getByTestId("social-handle-twitch")).toHaveTextContent("@alpha_twitch");
+
+      // Open modal and close via cancel button
+      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ INSTAGRAM" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
 
   describe("UserInfoTab", () => {
-    test("renders form with user fields and allows input changes", () => {
-      render(<UserInfoTab user={mockUser} />);
+    test("renders form with user fields, native date picker, and allows input changes", () => {
+      const mockOnSave = jest.fn();
+      render(<UserInfoTab user={{ ...mockUser, birthDate: "2000-05-15" }} onSave={mockOnSave} />);
       expect(screen.getByText("USER INFORMATION")).toBeInTheDocument();
 
       const nicknameInput = screen.getByPlaceholderText("Test");
@@ -460,12 +526,25 @@ describe("Account Components", () => {
       fireEvent.change(fullNameInput, { target: { name: "fullName", value: "สมชาย ทดสอบ" } });
       expect(fullNameInput.value).toBe("สมชาย ทดสอบ");
 
+      const birthDateInput = screen.getByLabelText("วันเกิด");
+      expect(birthDateInput).toHaveAttribute("type", "date");
+      expect(birthDateInput.value).toBe("2000-05-15");
+      fireEvent.change(birthDateInput, { target: { name: "birthDate", value: "2001-10-20" } });
+      expect(birthDateInput.value).toBe("2001-10-20");
+
       const genderSelect = screen.getByRole("combobox");
       fireEvent.change(genderSelect, { target: { name: "gender", value: "male" } });
       expect(genderSelect.value).toBe("male");
 
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
       fireEvent.click(saveBtn);
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fullName: "สมชาย ทดสอบ",
+          birthDate: "2001-10-20",
+          gender: "male",
+        })
+      );
     });
   });
 });

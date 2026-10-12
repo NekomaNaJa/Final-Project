@@ -11,6 +11,7 @@ jest.mock("../utils/api", () => {
     fetchCurrentUser: jest.fn(),
     updateCurrentUser: jest.fn(),
     changePassword: jest.fn(),
+    fetchDonationStats: jest.fn(),
     sendForgotPasswordOtp: jest.fn(),
     verifyForgotPasswordOtp: jest.fn(),
     sendLinkOtp: jest.fn(),
@@ -25,6 +26,7 @@ describe("Account Page Integration", () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
+    api.fetchDonationStats.mockResolvedValue({ totalAmount: 2500 });
   });
 
   test("redirects to /login when no token exists", async () => {
@@ -59,7 +61,7 @@ describe("Account Page Integration", () => {
     });
   });
 
-  test("renders Account page and populates profile from fetchCurrentUser", async () => {
+  test("renders Account page and populates profile and total donations from APIs", async () => {
     localStorage.setItem("token", validToken);
     api.fetchCurrentUser.mockResolvedValueOnce({
       username: "streamer_alpha",
@@ -80,6 +82,8 @@ describe("Account Page Integration", () => {
 
     await waitFor(() => {
       expect(api.fetchCurrentUser).toHaveBeenCalled();
+      expect(api.fetchDonationStats).toHaveBeenCalled();
+      expect(screen.getByText("฿2,500.00")).toBeInTheDocument();
     });
   });
 
