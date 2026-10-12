@@ -14,6 +14,8 @@ import {
   DEFAULT_WIDGET_CONFIG,
   getWidgetConfig,
   saveWidgetConfig,
+  getWidgetToken,
+  saveWidgetToken,
 } from "../components/Widget/widgetStorage";
 import { fetchWidgetConfig, saveWidgetSettings } from "../utils/api";
 import { playAlertSound, speakAlertText } from "../utils/alertAudio";
@@ -38,7 +40,7 @@ const WidgetPage = () => {
   const [activeTab, setActiveTab] = useState("alert");
   const [config, setConfig] = useState(getWidgetConfig);
   const [savedConfig, setSavedConfig] = useState(getWidgetConfig);
-  const [widgetToken, setWidgetToken] = useState("");
+  const [widgetToken, setWidgetToken] = useState(getWidgetToken);
   const [playing, setPlaying] = useState(false);
 
   // ดึงการตั้งค่าวิดเจ็ตจาก DB ผ่าน API เมื่อโหลดหน้าเว็บ
@@ -50,6 +52,7 @@ const WidgetPage = () => {
         if (isMounted && data) {
           if (data.token) {
             setWidgetToken(data.token);
+            saveWidgetToken(data.token);
           }
           const merged = {
             alert: { ...DEFAULT_WIDGET_CONFIG.alert, ...data.alert },
@@ -110,6 +113,7 @@ const WidgetPage = () => {
       const activeToken = result?.token || widgetToken;
       if (result?.token) {
         setWidgetToken(result.token);
+        saveWidgetToken(result.token);
       }
       if (activeToken) {
         emitWidgetConfigUpdate({
@@ -267,7 +271,7 @@ const WidgetPage = () => {
               />
               <BrowserSourceCard
                 type={activeTab}
-                username={user?.username}
+                username=""
                 token={widgetToken}
                 isLive={isLive}
                 onTest={activeTab === "alert" ? handleTest : null}

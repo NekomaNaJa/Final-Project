@@ -18,6 +18,13 @@ const channelNames = {
   truemoney: "TrueMoney Wallet",
 };
 
+// Slip image cache to prevent redundant re-fetching
+const slipCache = new Map();
+
+export const clearSlipCache = () => {
+  slipCache.clear();
+};
+
 const SlipModal = ({
   donation,
   isOpen,
@@ -29,15 +36,46 @@ const SlipModal = ({
   const [isZoomed, setIsZoomed] = useState(false);
   const [loadedSlipImage, setLoadedSlipImage] = useState(null);
   const [loadingSlip, setLoadingSlip] = useState(false);
+  const [slipError, setSlipError] = useState(false);
 
   useEffect(() => {
     setIsZoomed(false);
   }, [donation, isOpen]);
 
+  const loadSlip = (targetId) => {
+    if (!targetId) return;
+
+    if (slipCache.has(targetId)) {
+      setLoadedSlipImage(slipCache.get(targetId));
+      setLoadingSlip(false);
+      setSlipError(false);
+      return;
+    }
+
+    setLoadingSlip(true);
+    setSlipError(false);
+
+    Promise.resolve(fetchDonationSlip(targetId))
+      .then((data) => {
+        const img = data?.slipImage || null;
+        slipCache.set(targetId, img);
+        setLoadedSlipImage(img);
+        setSlipError(false);
+      })
+      .catch(() => {
+        setLoadedSlipImage(null);
+        setSlipError(true);
+      })
+      .finally(() => {
+        setLoadingSlip(false);
+      });
+  };
+
   useEffect(() => {
     if (!isOpen || !donation) {
       setLoadedSlipImage(null);
       setLoadingSlip(false);
+      setSlipError(false);
       return;
     }
 
@@ -45,6 +83,7 @@ const SlipModal = ({
     if (rawDonation.slipImage) {
       setLoadedSlipImage(rawDonation.slipImage);
       setLoadingSlip(false);
+      setSlipError(false);
       return;
     }
 
@@ -54,28 +93,43 @@ const SlipModal = ({
     if (method.includes("true")) {
       setLoadedSlipImage(null);
       setLoadingSlip(false);
+      setSlipError(false);
       return;
     }
 
-    const donationId = rawDonation._id || rawDonation.id;
+    const donationId =
+      rawDonation._id || rawDonation.id || donation._id || donation.id;
     if (!donationId) {
       setLoadedSlipImage(null);
       setLoadingSlip(false);
+      setSlipError(false);
+      return;
+    }
+
+    if (slipCache.has(donationId)) {
+      setLoadedSlipImage(slipCache.get(donationId));
+      setLoadingSlip(false);
+      setSlipError(false);
       return;
     }
 
     let isMounted = true;
     setLoadingSlip(true);
+    setSlipError(false);
 
     Promise.resolve(fetchDonationSlip(donationId))
       .then((data) => {
         if (isMounted) {
-          setLoadedSlipImage(data?.slipImage || null);
+          const img = data?.slipImage || null;
+          slipCache.set(donationId, img);
+          setLoadedSlipImage(img);
+          setSlipError(false);
         }
       })
       .catch(() => {
         if (isMounted) {
           setLoadedSlipImage(null);
+          setSlipError(true);
         }
       })
       .finally(() => {
@@ -213,6 +267,20 @@ const SlipModal = ({
               <div className="flex flex-col items-center justify-center w-full py-8 rounded-xl border border-dashed border-white/15 bg-white/5 text-gray-400">
                 <AlertCircle size={28} className="mb-2 text-gray-500" />
                 <p className="text-xs">ไม่มีรูปสลิปแนบมากับรายการนี้</p>
+                {slipError && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rawDonation = donation.raw || donation;
+                      const targetId =
+                        rawDonation._id || rawDonation.id || donation._id || donation.id;
+                      loadSlip(targetId);
+                    }}
+                    className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-xs text-purple-300 border border-purple-500/30 transition-colors cursor-pointer"
+                  >
+                    <span>ลองโหลดรูปสลิปอีกครั้ง</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
