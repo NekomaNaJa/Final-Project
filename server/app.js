@@ -37,6 +37,14 @@ app.use((req, _, next) => {
   next();
 });
 
+// Health check endpoints for monitoring & fast keepalive ping (0 DB load)
+app.get("/health", (_, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+app.get("/api/health", (_, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // General rate limiter for /api routes
 app.use("/api", apiLimiter);
 

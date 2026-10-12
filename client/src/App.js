@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainPage from "./pages/MainPage";
 import Login from "./pages/Login";
@@ -17,8 +18,13 @@ import Widget from "./pages/WidgetPage";
 import OverlayAlertPage from "./pages/OverlayAlertPage";
 import OverlayGoalPage from "./pages/OverlayGoalPage";
 import OverlayLeaderboardPage from "./pages/OverlayLeaderboardPage";
+import { pingServerWarmup } from "./utils/api";
 
 const App = () => {
+  useEffect(() => {
+    pingServerWarmup();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
