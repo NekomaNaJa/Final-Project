@@ -5,7 +5,6 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaymentHeader from "../components/Payment/PaymentHeader";
 import PromptPayCard from "../components/Payment/PromptPayCard";
-import TrueMoneyCard from "../components/Payment/TrueMoneyCard";
 import BankCard from "../components/Payment/BankCard";
 import ComingSoonCard from "../components/Payment/ComingSoonCard";
 import { fetchCurrentUser, updatePaymentSettings } from "../utils/api";
@@ -102,40 +101,6 @@ const PaymentPage = () => {
       setFeedback({
         type: "error",
         message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลพร้อมเพย์",
-      });
-    }
-  };
-
-  const handleSaveTrueMoney = async (data) => {
-    try {
-      setFeedback(null);
-      const cleanTrueMoney = {
-        enabled: Boolean(data?.enabled),
-        phone:
-          typeof data?.phone === "string"
-            ? data.phone.replace(/[^0-9]/g, "").trim()
-            : "",
-      };
-
-      const resData = await updatePaymentSettings({ truemoney: cleanTrueMoney });
-      const current = safeGetItem("donix_payment_config", paymentConfig);
-      const updated = {
-        ...current,
-        ...(resData || {}),
-        truemoney: cleanTrueMoney,
-      };
-
-      setPaymentConfig(updated);
-      safeSetItem("donix_payment_config", updated);
-      if (user?.username) {
-        safeSetItem(`donix_payment_config_${user.username}`, updated);
-      }
-      setFeedback({ type: "success", message: "บันทึกข้อมูลทรูมันนี่สำเร็จ" });
-      setTimeout(() => setFeedback(null), 4000);
-    } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูลทรูมันนี่",
       });
     }
   };
@@ -237,15 +202,11 @@ const PaymentPage = () => {
             </div>
           )}
 
-          {/* 2x2 Grid of Payment Channels */}
+          {/* Grid of Payment Channels */}
           <div className="grid gap-6 lg:gap-8 md:grid-cols-2">
             <PromptPayCard
               initialData={paymentConfig?.promptpay}
               onSave={handleSavePromptPay}
-            />
-            <TrueMoneyCard
-              initialData={paymentConfig?.truemoney}
-              onSave={handleSaveTrueMoney}
             />
             <BankCard
               initialData={paymentConfig?.bank}

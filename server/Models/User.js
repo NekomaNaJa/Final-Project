@@ -83,10 +83,6 @@ const userSchema = new mongoose.Schema(
         accountNumber: { type: String, default: "" },
         accountName: { type: String, default: "" },
       },
-      truemoney: {
-        enabled: { type: Boolean, default: false },
-        phone: { type: String, default: "" },
-      },
     },
 
     // การตั้งค่าหน้ารับเงิน (ตรงกับหน้า DonatePage & DonorPage)

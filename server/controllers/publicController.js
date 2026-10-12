@@ -97,12 +97,6 @@ export const getPublicStreamer = async (req, res, next) => {
             ? user.payment?.bank?.accountName || ""
             : "",
         },
-        truemoney: {
-          enabled: Boolean(user.payment?.truemoney?.enabled),
-          phone: user.payment?.truemoney?.enabled
-            ? user.payment?.truemoney?.phone || ""
-            : "",
-        },
       },
     };
 

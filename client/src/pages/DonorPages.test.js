@@ -16,7 +16,6 @@ jest.mock("../utils/api", () => {
       payment: {
         promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "" },
         bank: { enabled: true, bankName: "ธนาคารไทยพาณิชย์ (SCB)", accountNumber: "", accountName: "" },
-        truemoney: { enabled: true, phone: "" },
       },
     }),
     fetchPublicStreamer: jest.fn().mockRejectedValue(new Error("API offline")),
@@ -24,7 +23,6 @@ jest.mock("../utils/api", () => {
     updatePaymentSettings: jest.fn((payload) =>
       Promise.resolve({
         promptpay: { enabled: true, type: "เบอร์โทรศัพท์", number: "" },
-        truemoney: { enabled: true, phone: "" },
         bank: { enabled: true, bankName: "ธนาคารไทยพาณิชย์ (SCB)", accountNumber: "", accountName: "" },
         ...payload,
       })
@@ -51,8 +49,7 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
         "donix_payment_config",
         JSON.stringify({
           promptpay: { enabled: true, number: "0812345678" },
-          bank: { enabled: true, bankName: "SCB", accountNumber: "123", accountName: "Owner" },
-          truemoney: { enabled: false, phone: "" },
+          bank: { enabled: false, bankName: "SCB", accountNumber: "123", accountName: "Owner" },
         })
       );
 
@@ -67,8 +64,8 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       expect(screen.getByText("JohnDoe")).toBeInTheDocument();
       expect(screen.getByText("donix.app/JohnDoe")).toBeInTheDocument();
 
-      // Switch to truemoney tab (which is disabled)
-      fireEvent.click(screen.getByText("ทรูมันนี่"));
+      // Switch to bank tab (which is disabled)
+      fireEvent.click(screen.getByText("ธนาคาร"));
       expect(screen.getByText("ไม่พร้อมให้บริการ")).toBeInTheDocument();
       expect(
         screen.getByText(
@@ -99,7 +96,6 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
         JSON.stringify({
           promptpay: { enabled: true, number: "0812345678" },
           bank: { enabled: true, bankName: "SCB", accountNumber: "123", accountName: "Owner" },
-          truemoney: { enabled: true, phone: "0812345678" },
         })
       );
 
@@ -537,7 +533,6 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
         payment: {
           promptpay: { enabled: true, number: "0999999999" },
           bank: { enabled: true, bankName: "ธนาคารไทยพาณิชย์ (SCB)", accountNumber: "999", accountName: "Owner" },
-          truemoney: { enabled: false },
         },
       });
 
@@ -600,10 +595,9 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
 
       expect(screen.getAllByText("บัญชีรับเงิน")[0]).toBeInTheDocument();
       expect(screen.getByText("พร้อมเพย์")).toBeInTheDocument();
-      expect(screen.getByText("ทรูมันนี่")).toBeInTheDocument();
       expect(screen.getByText("ธนาคาร")).toBeInTheDocument();
 
-      // Expand all 3 cards by clicking their manage buttons
+      // Expand both cards by clicking their manage buttons
       const manageButtons = screen.getAllByText(/จัดการ/i);
       manageButtons.forEach((btn) => fireEvent.click(btn));
 
@@ -616,7 +610,6 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
         const saved = JSON.parse(localStorage.getItem("donix_payment_config"));
         expect(saved).toBeDefined();
         expect(saved.promptpay).toBeDefined();
-        expect(saved.truemoney).toBeDefined();
         expect(saved.bank).toBeDefined();
       });
 

@@ -143,18 +143,16 @@ describe('Dashboard Components', () => {
       render(<PaymentChannels />);
       expect(screen.getByText('ช่องทางรับเงิน')).toBeInTheDocument();
       expect(screen.getByText('PromptPay')).toBeInTheDocument();
-      expect(screen.getByText('TrueMoney Wallet')).toBeInTheDocument();
       expect(screen.getByText('Bank')).toBeInTheDocument();
     });
 
     it('renders active status based on user payment config', () => {
       const mockPayment = {
         promptpay: { enabled: true, number: '0812345678' },
-        bank: { enabled: true, bankName: 'ธนาคารไทยพาณิชย์ (SCB)' },
-        truemoney: { enabled: false },
+        bank: { enabled: false, bankName: 'ธนาคารไทยพาณิชย์ (SCB)' },
       };
       render(<PaymentChannels payment={mockPayment} />);
-      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBe(2);
+      expect(screen.getByText('เปิดใช้งานแล้ว')).toBeInTheDocument();
       expect(screen.getByText('ยังไม่เชื่อมต่อ')).toBeInTheDocument();
     });
 
@@ -163,12 +161,11 @@ describe('Dashboard Components', () => {
         'donix_payment_config',
         JSON.stringify({
           promptpay: { enabled: true },
-          truemoney: { enabled: true },
           bank: { enabled: true },
         })
       );
       render(<PaymentChannels />);
-      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBe(3);
+      expect(screen.getAllByText('เปิดใช้งานแล้ว').length).toBe(2);
     });
   });
 

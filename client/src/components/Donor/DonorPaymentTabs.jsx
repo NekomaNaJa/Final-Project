@@ -34,21 +34,6 @@ const tabs = [
     guide:
       "โอนเงินเข้าบัญชีธนาคารตามช่องทางที่คุณสะดวก จากนั้นแนบรูปภาพสลิปเพื่อให้ระบบตรวจสอบสลิปอัตโนมัติ",
   },
-  {
-    id: "truemoney",
-    label: "ทรูมันนี่",
-    icon: (
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#FF6A00] p-0.5 shadow-sm">
-        <svg viewBox="0 0 48 48" className="h-full w-full" fill="none">
-          <path d="M8 8h32v32H8z" fill="#FF6A00" rx="4" />
-          <path d="M14 18h20v5H26v11h-4V23h-8v-5z" fill="#fff" />
-          <path d="M30 26h4v8h-4z" fill="#FFCC00" />
-        </svg>
-      </div>
-    ),
-    guide:
-      "โอนเงินโดยการส่งซองของขวัญใน ทรูมันนี่วอลเปา และคัดลอกลิงก์มาวางไว้ใน DONIX",
-  },
 ];
 
 const DonorPaymentTabs = ({ activeTab, onTabChange, disabled = false }) => {
@@ -56,8 +41,8 @@ const DonorPaymentTabs = ({ activeTab, onTabChange, disabled = false }) => {
 
   return (
     <div className="w-full space-y-3.5">
-      {/* 3 Tabs */}
-      <div className="grid grid-cols-3 gap-2.5 rounded-2xl border border-[#2b2542] bg-[#141026]/90 p-2 backdrop-blur-md shadow-lg">
+      {/* 2 Tabs */}
+      <div className="grid grid-cols-2 gap-2.5 rounded-2xl border border-[#2b2542] bg-[#141026]/90 p-2 backdrop-blur-md shadow-lg">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (

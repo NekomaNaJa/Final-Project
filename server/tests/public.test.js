@@ -67,10 +67,6 @@ describe("Public Route (GET /api/public/:username)", () => {
           accountNumber: "1234567890",
           accountName: "นาย สมชาย",
         },
-        truemoney: {
-          enabled: false,
-          phone: "0899999999",
-        },
       },
     };
 
@@ -111,8 +107,6 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data.payment.promptpay.number).toBe("0812345678");
     expect(res.body.data.payment.bank.enabled).toBe(true);
     expect(res.body.data.payment.bank.accountNumber).toBe("1234567890");
-    expect(res.body.data.payment.truemoney.enabled).toBe(false);
-    expect(res.body.data.payment.truemoney.phone).toBe("");
   });
 
   it("should handle default/empty optional fields gracefully", async () => {
@@ -135,7 +129,6 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data.mission.missions).toEqual([]);
     expect(res.body.data.payment.promptpay.enabled).toBe(false);
     expect(res.body.data.payment.bank.enabled).toBe(false);
-    expect(res.body.data.payment.truemoney.enabled).toBe(false);
   });
 
   it("should handle server error", async () => {
