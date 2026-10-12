@@ -123,7 +123,7 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
       key: "email",
       label: "อีเมล",
       icon: <Mail size={14} className="text-purple-400" />,
-      value: user?.email || "user@example.com",
+      value: user?.email || (user?.username ? "กำลังโหลด..." : "user@example.com"),
       connected: user?.isEmailVerified !== undefined ? Boolean(user.isEmailVerified) : true,
       canManage: true,
     },
