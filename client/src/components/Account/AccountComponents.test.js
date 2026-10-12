@@ -1,20 +1,41 @@
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"),
+  useNavigate: () => mockNavigate,
+}));
+jest.mock("react-router", () => ({
+  ...jest.requireActual("react-router"),
+  useNavigate: () => mockNavigate,
+}));
+
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import AccountProfileCard from "./AccountProfileCard";
 import AccountTabs from "./AccountTabs";
 import ManageAccountCard from "./ManageAccountCard";
 import SecurityTab from "./SecurityTab";
 import SocialMediaTab from "./SocialMediaTab";
 import UserInfoTab from "./UserInfoTab";
-import { sendLinkOtp, verifyLinkOtp } from "../../utils/api";
+import { sendLinkOtp, verifyLinkOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp } from "../../utils/api";
 
 jest.mock("../../utils/api", () => ({
   ...jest.requireActual("../../utils/api"),
   sendLinkOtp: jest.fn().mockResolvedValue({ target: "user@test.com", type: "email" }),
   verifyLinkOtp: jest.fn().mockResolvedValue({ email: "user@test.com", isEmailVerified: true }),
+  sendForgotPasswordOtp: jest.fn().mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" }),
+  verifyForgotPasswordOtp: jest.fn().mockResolvedValue({ resetToken: "mock-reset-token-123" }),
 }));
 
 describe("Account Components", () => {
+  beforeEach(() => {
+    sendLinkOtp.mockResolvedValue({ target: "user@test.com", type: "email" });
+    verifyLinkOtp.mockResolvedValue({ email: "user@test.com", isEmailVerified: true });
+    sendForgotPasswordOtp.mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" });
+    verifyForgotPasswordOtp.mockResolvedValue({ resetToken: "mock-reset-token-123" });
+    mockNavigate.mockClear();
+  });
+
   const mockUser = {
     username: "TestStreamer",
     email: "test@example.com",
@@ -307,20 +328,88 @@ describe("Account Components", () => {
   });
 
   describe("SecurityTab", () => {
-    test("allows typing passwords and toggling password visibility", () => {
-      render(<SecurityTab />);
+    test("allows entering email, sending OTP, verifying OTP, and redirecting to /forgot-password", async () => {
+      render(
+        <MemoryRouter>
+          <SecurityTab user={mockUser} navigate={mockNavigate} />
+        </MemoryRouter>
+      );
       expect(screen.getByText("SECURITY")).toBeInTheDocument();
 
-      const currentPassInput = screen.getAllByPlaceholderText("••••••••••••")[0];
-      fireEvent.change(currentPassInput, { target: { name: "currentPassword", value: "Secret123" } });
-      expect(currentPassInput.value).toBe("Secret123");
+      const emailInput = screen.getByLabelText("อีเมลสำหรับรับรหัส OTP");
+      expect(emailInput.value).toBe("test@example.com");
 
-      const toggleButtons = screen.getAllByRole("button", { name: "แสดงรหัสผ่าน" });
-      fireEvent.click(toggleButtons[0]);
-      expect(currentPassInput.getAttribute("type")).toBe("text");
+      const sendOtpBtn = screen.getByText("ส่งรหัส OTP");
+      fireEvent.click(sendOtpBtn);
 
-      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
-      fireEvent.click(saveBtn);
+      await waitFor(() => {
+        expect(sendForgotPasswordOtp).toHaveBeenCalledWith({
+          identifier: "test@example.com",
+          channel: "email",
+        });
+        expect(screen.getByText(/ส่งรหัส OTP ไปยัง/)).toBeInTheDocument();
+      });
+
+      const otpInput = screen.getByLabelText("รหัส OTP (6 หลัก)");
+      fireEvent.change(otpInput, { target: { value: "123456" } });
+      expect(otpInput.value).toBe("123456");
+
+      const submitBtn = screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน");
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(verifyForgotPasswordOtp).toHaveBeenCalledWith({
+          target: "test@example.com",
+          otp: "123456",
+        });
+        expect(mockNavigate).toHaveBeenCalledWith("/forgot-password", {
+          state: {
+            step: 3,
+            resetToken: "mock-reset-token-123",
+            target: "test@example.com",
+            identifier: "test@example.com",
+          },
+        });
+      });
+    });
+
+    test("shows validation errors for empty email or missing OTP", () => {
+      render(
+        <MemoryRouter>
+          <SecurityTab user={{ email: "" }} />
+        </MemoryRouter>
+      );
+
+      const submitBtn = screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน");
+      fireEvent.click(submitBtn);
+      expect(screen.getByText("กรุณากรอกอีเมลสำหรับรับรหัส OTP")).toBeInTheDocument();
+
+      const sendOtpBtn = screen.getByText("ส่งรหัส OTP");
+      fireEvent.click(sendOtpBtn);
+      expect(screen.getByText("กรุณากรอกอีเมลสำหรับรับรหัส OTP")).toBeInTheDocument();
+    });
+
+    test("shows error when verifyForgotPasswordOtp fails", async () => {
+      verifyForgotPasswordOtp.mockRejectedValueOnce(new Error("รหัส OTP ไม่ถูกต้องหรือหมดอายุ"));
+      render(
+        <MemoryRouter>
+          <SecurityTab user={mockUser} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ส่งรหัส OTP"));
+      await waitFor(() => {
+        expect(screen.getByText(/ส่งรหัส OTP ไปยัง/)).toBeInTheDocument();
+      });
+
+      const otpInput = screen.getByLabelText("รหัส OTP (6 หลัก)");
+      fireEvent.change(otpInput, { target: { value: "654321" } });
+
+      fireEvent.click(screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน"));
+
+      await waitFor(() => {
+        expect(screen.getByText("รหัส OTP ไม่ถูกต้องหรือหมดอายุ")).toBeInTheDocument();
+      });
     });
   });
 

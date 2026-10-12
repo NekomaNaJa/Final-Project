@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import AuthLayout from "../components/Auth/AuthLayout";
 import InputField from "../components/Auth/InputField";
 import PasswordChecklist from "../components/Auth/PasswordChecklist";
@@ -13,15 +13,16 @@ import { Mail, Phone, CheckCircle2, ArrowLeft, RefreshCw } from "lucide-react";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // steps: 1 = Request OTP, 2 = Verify OTP, 3 = New Password, 4 = Success
-  const [step, setStep] = useState(1);
-  const [channel, setChannel] = useState("email"); // "email" | "sms"
-  const [identifier, setIdentifier] = useState("");
-  const [target, setTarget] = useState("");
-  const [maskedTarget, setMaskedTarget] = useState("");
+  const [step, setStep] = useState(location.state?.step || 1);
+  const [channel, setChannel] = useState(location.state?.channel || "email");
+  const [identifier, setIdentifier] = useState(location.state?.identifier || "");
+  const [target, setTarget] = useState(location.state?.target || location.state?.identifier || "");
+  const [maskedTarget, setMaskedTarget] = useState(location.state?.maskedTarget || location.state?.target || location.state?.identifier || "");
   const [otp, setOtp] = useState("");
-  const [resetToken, setResetToken] = useState("");
+  const [resetToken, setResetToken] = useState(location.state?.resetToken || "");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 

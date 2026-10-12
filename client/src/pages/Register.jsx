@@ -50,6 +50,9 @@ const Register = () => {
       if (!res.ok) throw new Error(data.message);
 
       localStorage.setItem("token", data.token);
+      if (data.user) {
+        localStorage.setItem("donix_user_profile", JSON.stringify(data.user));
+      }
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);

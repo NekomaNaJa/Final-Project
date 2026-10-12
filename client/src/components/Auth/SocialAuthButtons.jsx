@@ -40,6 +40,9 @@ const SocialAuthButtons = ({ onSuccess, onError, onBeforeAuth }) => {
 
   const handleAuthSuccess = (data) => {
     localStorage.setItem("token", data.token);
+    if (data.user) {
+      localStorage.setItem("donix_user_profile", JSON.stringify(data.user));
+    }
     if (onSuccess) {
       onSuccess(data);
     } else {
