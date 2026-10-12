@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import { fetchDonationSlip } from "../../utils/api";
 
 const channelNames = {
   promptpay: "PromptPay (พร้อมเพย์)",
@@ -26,9 +27,66 @@ const SlipModal = ({
   actionLoading = false,
 }) => {
   const [isZoomed, setIsZoomed] = useState(false);
+  const [loadedSlipImage, setLoadedSlipImage] = useState(null);
+  const [loadingSlip, setLoadingSlip] = useState(false);
 
   useEffect(() => {
     setIsZoomed(false);
+  }, [donation, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !donation) {
+      setLoadedSlipImage(null);
+      setLoadingSlip(false);
+      return;
+    }
+
+    const rawDonation = donation.raw || donation;
+    if (rawDonation.slipImage) {
+      setLoadedSlipImage(rawDonation.slipImage);
+      setLoadingSlip(false);
+      return;
+    }
+
+    const method = String(
+      rawDonation.paymentMethod || rawDonation.channel || ""
+    ).toLowerCase();
+    if (method.includes("true")) {
+      setLoadedSlipImage(null);
+      setLoadingSlip(false);
+      return;
+    }
+
+    const donationId = rawDonation._id || rawDonation.id;
+    if (!donationId) {
+      setLoadedSlipImage(null);
+      setLoadingSlip(false);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingSlip(true);
+
+    Promise.resolve(fetchDonationSlip(donationId))
+      .then((data) => {
+        if (isMounted) {
+          setLoadedSlipImage(data?.slipImage || null);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setLoadedSlipImage(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingSlip(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [donation, isOpen]);
 
   useEffect(() => {
@@ -83,6 +141,7 @@ const SlipModal = ({
   const ocrVerified = Boolean(raw.ocrResult?.verified || transRef);
   const bankName = raw.ocrResult?.bankName || raw.ocrResult?.bank;
   const ocrMessage = raw.ocrResult?.message;
+  const effectiveSlipImage = raw.slipImage || loadedSlipImage;
 
   return (
     <>
@@ -112,7 +171,15 @@ const SlipModal = ({
 
           {/* Slip Image / Content */}
           <div className="my-5 flex flex-col items-center">
-            {raw.slipImage ? (
+            {loadingSlip ? (
+              <div
+                data-testid="slip-loading-indicator"
+                className="flex flex-col items-center justify-center w-full py-12 rounded-xl border border-white/10 bg-black/30 text-gray-400"
+              >
+                <div className="h-7 w-7 animate-spin rounded-full border-2 border-purple-500 border-t-transparent mb-3" />
+                <p className="text-xs text-purple-300 font-medium">กำลังโหลดรูปภาพสลิป...</p>
+              </div>
+            ) : effectiveSlipImage ? (
               <div className="relative group max-h-72 w-full overflow-hidden rounded-xl border border-white/10 bg-black/40 flex items-center justify-center">
                 <button
                   type="button"
@@ -122,7 +189,7 @@ const SlipModal = ({
                   aria-label="คลิกเพื่อขยายดูรูปสลิปขนาดใหญ่"
                 >
                   <img
-                    src={raw.slipImage}
+                    src={effectiveSlipImage}
                     alt="สลิปหลักฐานการโอน"
                     className="max-h-72 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
                   />
@@ -151,7 +218,7 @@ const SlipModal = ({
           </div>
 
           {/* OCR Verification Banner */}
-          {raw.slipImage && (
+          {(effectiveSlipImage || ocrVerified) && (
             <div
               className={`mb-4 flex items-center justify-between p-3 rounded-xl border text-xs ${
                 ocrVerified
@@ -259,7 +326,7 @@ const SlipModal = ({
       </div>
 
       {/* Lightbox / Enlarged Slip Modal */}
-      {isZoomed && raw.slipImage && (
+      {isZoomed && effectiveSlipImage && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
           {/* Backdrop button for closing on click */}
           <button
@@ -280,9 +347,9 @@ const SlipModal = ({
                 <span className="text-purple-400 font-bold">{amount}</span>
               </div>
               <div className="flex items-center gap-2">
-                {(raw.slipImage.startsWith("data:") || raw.slipImage.startsWith("http")) && (
+                {(effectiveSlipImage.startsWith("data:") || effectiveSlipImage.startsWith("http")) && (
                   <a
-                    href={raw.slipImage}
+                    href={effectiveSlipImage}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-300 bg-white/10 hover:bg-white/20 hover:text-white transition-colors"
@@ -307,7 +374,7 @@ const SlipModal = ({
             {/* Enlarged Image Container */}
             <div className="relative max-h-[82vh] max-w-[90vw] overflow-auto rounded-2xl border border-white/15 bg-black/60 shadow-2xl p-1 flex items-center justify-center">
               <img
-                src={raw.slipImage}
+                src={effectiveSlipImage}
                 alt="สลิปหลักฐานการโอนขนาดเต็ม"
                 className="max-h-[80vh] w-auto max-w-full object-contain rounded-xl select-none"
               />

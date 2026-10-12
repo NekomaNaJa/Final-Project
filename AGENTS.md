@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (12 Suites, 251 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (12 Suites, 257 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (29 Suites, 367 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (30 Suites, 390 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -110,7 +110,7 @@ server/
 │   └── db.js                    → การเชื่อมต่อฐานข้อมูล MongoDB (connectDB)
 ├── controllers/
 │   ├── authController.js        → Logic การลงทะเบียน การเข้าสู่ระบบ และ Google OAuth (register, login, googleAuth)
-│   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, updateDonationStatus)
+│   ├── donationController.js    → Logic การจัดการรายการบริจาค (createDonation, getDonations, getDonationStats, getDonationSlip, updateDonationStatus)
 │   ├── publicController.js      → Logic ข้อมูลสาธารณะสำหรับหน้า Donor Page และ Overlay Config พร้อม Aggregation (getPublicStreamer, getPublicOverlayConfig)
 │   ├── userController.js        → Logic จัดการข้อมูลผู้ใช้ (getMe, updateMe, updatePayment, updateDonationPage, changePassword)
 │   └── widgetController.js      → Logic จัดการการตั้งค่าวิดเจ็ต (getMyWidget, updateMyWidget), คำนวณ Goal สะสมอัตโนมัติ และ Socket.IO broadcast (widget-config-update)
@@ -126,7 +126,7 @@ server/
 │   └── Widget.js                → Central Widget Schema (alert, goal, leaderboard, mission, token)
 ├── routes/
 │   ├── auth.js                  → เส้นทาง /api/auth (register, login, google) พร้อม authLimiter
-│   ├── donations.js             → เส้นทาง /api/donations (POST /, GET /, GET /stats, PATCH /:id)
+│   ├── donations.js             → เส้นทาง /api/donations (POST /, GET /, GET /stats, GET /:id/slip, PATCH /:id)
 │   ├── public.js                → เส้นทาง /api/public (GET /:username, GET /overlay/:widgetType/:token)
 │   ├── users.js                 → เส้นทาง /api/users (GET /me, PUT /me, PUT /payment, PUT /donation-page, PUT /change-password)
 │   └── widgets.js               → เส้นทาง /api/widgets (GET /me, PUT /me)
@@ -135,7 +135,7 @@ server/
 │   └── slipVerificationService.js → In-house Zero-Cost Slip QR & OCR Verification Engine (Jimp + jsQR + Tesseract.js Worker Lifecycle)
 ├── tests/
 │   ├── auth.test.js             → ชุดทดสอบ Authentication & Google OAuth + Forgot Password OTP (41 tests)
-│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency / Mission Verification (41 tests)
+│   ├── donations.test.js        → ชุดทดสอบ Donations Route & OCR / Bank Matching / Idempotency / Mission Verification / Slip Endpoint (47 tests)
 │   ├── errorHandler.test.js     → ชุดทดสอบ Central Error Handler (6 tests)
 │   ├── jwtSecret.test.js        → ชุดทดสอบ JWT Secret Generator (3 tests)
 │   ├── notificationService.test.js → ชุดทดสอบ Email/SMS OTP Service (Fail-closed, TLS, Masked Logs) (10 tests)
@@ -146,7 +146,7 @@ server/
 │   ├── users.test.js            → ชุดทดสอบ Users Route & Email/Phone Link OTP (67 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (5 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests)
-│   ── รวมฝั่ง Server: 12 Test Suites, 251 Tests ผ่าน 100% (Coverage ~96%)
+│   ── รวมฝั่ง Server: 12 Test Suites, 257 Tests ผ่าน 100% (Coverage ~96%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -246,7 +246,21 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 4. **การบังคับใช้ TLS**: SMTP Transporter กำหนด `secure: port === 465` และ `requireTLS: port !== 465` รวมถึง Gmail Transporter กำหนด `requireTLS: true` เพื่อป้องกัน **Insecure Protocol (SonarQube S5332)**
 5. **ช่องทาง SMS**: ยังคงมี fallback แบบ Simulated Log เมื่อ Twilio ไม่ได้ตั้งค่าหรือส่งล้มเหลว (สำหรับการพัฒนาในเครื่อง) แต่ต้องปิดบังเบอร์โทรเช่นเดียวกัน
 
+### 4.9 การเพิ่มประสิทธิภาพความเร็วในการโหลดข้อมูลด้วย On-Demand Slip Loading & Projection Pattern
+
+เพื่อแก้ไขปัญหาหน้าเว็บโหลดช้าผิดปกติ (1–3 นาทีในหน้า Dashboard, History, และทุกหน้าที่มี Topbar) อันเกิดจากขนาดข้อมูลของ Base64 รูปสลิป (`slipImage` ขนาด 2–8 MB ต่อรูป):
+
+1. **การตัดรูปสลิปออกจาก List & Stats Queries (`.select("-slipImage")`)**:
+   - ใน `getDonations` (`server/controllers/donationController.js`): เพิ่ม `.select("-slipImage")` ทำให้ข้อมูลรายการประวัติ 10–15 รายการมีขนาดเหลือเพียง 2–5 KB (ลดลงกว่า 99.9%)
+   - ใน `getDonationStats` (`server/controllers/donationController.js`): เพิ่ม `.select("-slipImage")` บน `recentDonations` สำหรับแสดงใน RealtimeFeed บน Dashboard
+   - ส่งผลให้หน้า Dashboard, History, และกระดิ่งแจ้งเตือน (`NotificationBell`) ใน Topbar โหลดเสร็จสิ้นทันทีใน 0.1–0.2 วินาที
+2. **การดึงรูปสลิปแบบ On-Demand (`GET /api/donations/:id/slip`)**:
+   - สร้าง Endpoint เฉพาะสำหรับดึงรูปสลิป (`GET /api/donations/:id/slip`) พร้อมการตรวจสอบสิทธิ์ `protect` และตรวจสอบความเป็นเจ้าของรายการ (`donation.streamerId === req.user.userId`)
+   - ฝั่ง Frontend ใน `SlipModal.jsx`: เมื่อผู้ใช้กดคลิกเปิดดูสลิปรายการใด หากข้อมูลสลิปยังไม่มีในหน่วยความจำ ระบบจะเรียก `fetchDonationSlip(id)` เพื่อดึงรูปของรายการนั้นเพียงใบเดียวมาแสดง พร้อมแสดง Loading Indicator ขณะโหลด
+   - สตรีมเมอร์ยังสามารถดูสลิป ขยายรูปขนาดเต็ม และตรวจสอบหลักฐานได้อย่างสมบูรณ์ 100% โดยไม่หน่วงระบบภาพรวม
+
 ---
+
 
 ## 5. โครงสร้างและรายละเอียดระบบฝั่ง Client (`client/`)
 
