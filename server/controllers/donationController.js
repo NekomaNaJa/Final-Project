@@ -36,7 +36,7 @@ const validateDonationInput = (body) => {
     return "ข้อมูลไม่ถูกต้อง";
   }
 
-  if (!["promptpay", "bank", "truemoney"].includes(paymentMethod)) {
+  if (!["promptpay", "bank"].includes(paymentMethod)) {
     return "ช่องทางการชำระเงินไม่ถูกต้อง";
   }
 

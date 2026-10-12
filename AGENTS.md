@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (12 Suites, 257 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (12 Suites, 255 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (30 Suites, 390 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (30 Suites, 388 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -146,7 +146,7 @@ server/
 │   ├── users.test.js            → ชุดทดสอบ Users Route & Email/Phone Link OTP (67 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (5 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests)
-│   ── รวมฝั่ง Server: 12 Test Suites, 257 Tests ผ่าน 100% (Coverage ~96%)
+│   ── รวมฝั่ง Server: 12 Test Suites, 255 Tests ผ่าน 100% (Coverage ~96%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -165,7 +165,6 @@ server/
 - **ช่องทางรับเงิน (`payment`)**:
   - `promptpay`: `enabled`, `type` (7 ประเภท: เบอร์โทรศัพท์, เลขบัตรประจำตัวประชาชน, e-Wallet ID, K-Shop, SCB แม่มณี, BBL Merchant Pro, ร้านค้าถุงเงิน), `number`
   - `bank`: `enabled`, `bankName` (7 ธนาคาร), `accountNumber`, `accountName`
-  - `truemoney`: `enabled`, `phone`
 - **การตั้งค่าหน้ารับเงิน (`donationPage`)**:
   - `welcomeMessage`, `thankYouMessage`, `minAmount`, `charLimit`, `disableFilter`, `filteredWords`, `coverImage`, `backgroundImage`
 
@@ -286,7 +285,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 | `/login`                             | `Login`        | สาธารณะ            | หน้าเข้าสู่ระบบ (Email/Password, Google Auth) รองรับ JWT Token              |
 | `/register`                          | `Register`     | สาธารณะ            | หน้าสมัครสมาชิก พร้อม Password Checklist ตรวจสอบเงื่อนไข 5 ข้อ              |
 | `/dashboard`                         | `Dashboard`    | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟสถิติ, กิจกรรมล่าสุด)    |
-| `/payment`                           | `PaymentPage`  | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, TrueMoney, Bank, Coming Soon)         |
+| `/payment`                           | `PaymentPage`  | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, Bank, Coming Soon)                    |
 | `/donate-page`                       | `DonatePage`   | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ (ชื่อและข้อความ), รูปภาพหน้าปกและพื้นหลัง |
 | `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
 | `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ                    |
@@ -323,9 +322,8 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 #### 4) หน้าบัญชีรับเงิน (PaymentPage) — `/payment`
 
-- แผงการ์ด 4 ช่องทางการเงิน (2x2 Grid):
+- แผงการ์ดช่องทางการเงิน:
   - **PromptPayCard**: เปิด/ปิดการรับเงิน (บันทึกอัตโนมัติทันทีเมื่อสลับสวิตช์), เมนูจัดการ, สลับเบอร์โทรศัพท์/บัตร ปชช., บันทึกข้อมูล
-  - **TrueMoneyCard**: เปิด/ปิดการรับเงิน (บันทึกอัตโนมัติทันทีเมื่อสลับสวิตช์), ฟอร์มเบอร์โทรศัพท์ TrueMoney Wallet
   - **BankCard**: เปิด/ปิดการรับเงิน (บันทึกอัตโนมัติทันทีเมื่อสลับสวิตช์), เลือกธนาคาร (SCB, KBank, BBL, KTB ฯลฯ), เลขบัญชี, ชื่อบัญชี
   - **ComingSoonCard**: ช่องทางใหม่ในอนาคต (เช่น บัตรเครดิต/เดบิต, Crypto)
 
@@ -340,16 +338,15 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 
 - **เปิดให้บริการตลอดเวลา (Always Online)**: ผู้สนับสนุนเข้าถึงหน้าโดเนทได้ตลอด 24 ชม. ไม่ต้องรอสลับสถานะออฟไลน์/ออนไลน์
 - **การแสดงผลรูปภาพหน้าปกและพื้นหลัง**: แสดงรูปภาพหน้าปก (`coverImage`) และรูปภาพพื้นหลัง (`backgroundImage`) ที่สตรีมเมอร์ตั้งค่าไว้ พร้อม Dark Overlay เพื่อให้อ่านข้อความและข้อมูลได้ชัดเจน
-- **ภารกิจโดเนท (Mission Donate Integration & Locked Tag/Amount)**: แสดงรายการภารกิจที่สตรีมเมอร์ตั้งค่าไว้ในหน้า Widget (`/widget`) เป็นการ์ดภารกิจแบบอินเทอร์แอคทีฟ (DonorMissionList) เมื่อผู้สนับสนุนคลิกเลือกภารกิจ ระบบจะตั้งค่ายอดเงินตามราคาภารกิจ (`mission.price`) พร้อมล็อคแท็กภารกิจ (`[ 🔒 ภารกิจ: {name} ]`) ไว้ในกล่องข้อความไม่ให้ผู้บริจาคลบออกได้ และล็อคช่องกรอกจำนวนเงินทันที (Locked Amount Input: `readOnly`, `cursor-not-allowed`, ป้าย `[ 🔒 ล็อคตามภารกิจ ]`, บล็อคการพิมพ์และปุ่มลูกศร) ป้องกันผู้บริจาคแก้ไขยอดเงินให้ผิดไปจากราคาภารกิจ และการันตีแนบ `[ภารกิจ: {name}]` ส่งไปยัง Alert ใน OBS Studio เสมอเมื่อชำระเงิน พร้อมแสดงป้ายกำกับภารกิจครบทั้ง 3 ช่องทาง (PromptPay, ธนาคาร, TrueMoney) รวมถึงปุ่มยกเลิกการเลือกภารกิจ
+- **ภารกิจโดเนท (Mission Donate Integration & Locked Tag/Amount)**: แสดงรายการภารกิจที่สตรีมเมอร์ตั้งค่าไว้ในหน้า Widget (`/widget`) เป็นการ์ดภารกิจแบบอินเทอร์แอคทีฟ (DonorMissionList) เมื่อผู้สนับสนุนคลิกเลือกภารกิจ ระบบจะตั้งค่ายอดเงินตามราคาภารกิจ (`mission.price`) พร้อมล็อคแท็กภารกิจ (`[ 🔒 ภารกิจ: {name} ]`) ไว้ในกล่องข้อความไม่ให้ผู้บริจาคลบออกได้ และล็อคช่องกรอกจำนวนเงินทันที (Locked Amount Input: `readOnly`, `cursor-not-allowed`, ป้าย `[ 🔒 ล็อคตามภารกิจ ]`, บล็อคการพิมพ์และปุ่มลูกศร) ป้องกันผู้บริจาคแก้ไขยอดเงินให้ผิดไปจากราคาภารกิจ และการันตีแนบ `[ภารกิจ: {name}]` ส่งไปยัง Alert ใน OBS Studio เสมอเมื่อชำระเงิน พร้อมแสดงป้ายกำกับภารกิจครบทั้ง 2 ช่องทาง (PromptPay, ธนาคาร) รวมถึงปุ่มยกเลิกการเลือกภารกิจ
 - **การป้องกันการกดซ้ำซ้อน (Multi-layer Submission Guard & Double-click Lock)**:
-  - ติดตั้ง `useRef` Submission Lock (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อยทุกช่องทาง (`DonorPromptPayForm`, `DonorBankForm`, `DonorTrueMoneyForm`) ป้องกันการกดเบิ้ลหรือยิงคำขอซ้ำในระดับ JavaScript Memory ทันที
+  - ติดตั้ง `useRef` Submission Lock (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อยทุกช่องทาง (`DonorPromptPayForm`, `DonorBankForm`) ป้องกันการกดเบิ้ลหรือยิงคำขอซ้ำในระดับ JavaScript Memory ทันที
   - เพิ่ม CSS `pointer-events-none` และสถานะ `disabled` บนปุ่มยืนยันการชำระเงินทันทีที่เริ่มประมวลผลคำขอแรก ป้องกันไม่ให้เบราว์เซอร์รับ Event การคลิกซ้ำได้
   - แสดง Processing Modal แจ้งสถานะระบบกำลังตรวจสอบและสแกนสลิป ป้องกันผู้ใช้งานปิดหรือเปลี่ยนหน้าต่างระหว่างประมวลผล
 - สถานะการเปิด/ปิดช่องทางรับเงินขึ้นอยู่กับการตั้งค่าสวิตช์ในหน้า **Payment (`/payment`)** โดยตรง:
   1. **PromptPay**: แสดง PromptPay QR Code อัตโนมัติตามยอดเงิน, ลากวางอัปโหลดสลิป, ปุ่มยืนยัน
   2. **Bank**: แสดงข้อมูลบัญชีธนาคารพร้อมปุ่มคัดลอกเลขบัญชี แสดงยอดโดเนทขั้นต่ำชัดเจนทั้งภายในการ์ดและป้ายเตือน ไม่ต้องกรอกจำนวนเงินเอง ระบบจะอ่านยอดเงินและตรวจสอบชื่อผู้รับเงินจากสลิปผ่าน OCR/Mini QR อัตโนมัติ
-  3. **TrueMoney**: แสดงช่องทางทรูมันนี่สำหรับโอนเงิน/อั่งเปา
-  4. **Channel Disabled**: แสดงการ์ด "ไม่พร้อมให้บริการ" เมื่อสตรีมเมอร์ปิดสวิตช์ช่องทางนั้นๆ ในหน้า Payment
+  3. **Channel Disabled**: แสดงการ์ด "ไม่พร้อมให้บริการ" เมื่อสตรีมเมอร์ปิดสวิตช์ช่องทางนั้นๆ ในหน้า Payment
 
 #### 7) หน้าตั้งค่าวิดเจ็ต OBS (WidgetPage) — `/widget`
 
@@ -411,11 +408,11 @@ client/src/
 │   ├── Dashboard/             → CardWrapper, DonationChart, PaymentChannels, ProtectedRoute, RealtimeFeed, StatsCard, TopDonors
 │   ├── Discover/              → CategorySection, StreamerCard
 │   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection, DonatePageComponents.test.js
-│   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorTrueMoneyForm, DonorComponents.test.js
+│   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorComponents.test.js
 │   ├── Histor/                → DonationHistoryTable, SlipModal (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
 │   ├── HowToUse/              → BenefitsSection, StepsSection
 │   ├── MainPage/              → CTASection, Features, Footer, Hero, Navbar, StreamerList
-│   ├── Payment/               → BankCard, ComingSoonCard, PaymentHeader, PromptPayCard, TrueMoneyCard
+│   ├── Payment/               → BankCard, ComingSoonCard, PaymentHeader, PromptPayCard
 │   ├── Widget/                → AccordionSection, AudioUploadField, BrowserSourceCard, DonateAlertPanel, DonateGoalPanel, LeaderboardPanel, MissionDonatePanel, WidgetHeader, WidgetPreview, WidgetTypeTabs, widgetStorage.js, WidgetComponents.test.js
 │   ├── Navigation.test.js     → การทดสอบ Sidebar และ Topbar ร่วมกัน
 │   ├── Sidebar.jsx            → เมนูหลักด้านซ้ายแบบ Sticky
@@ -622,10 +619,10 @@ client/src/
   - **Locked Mission Tag & Amount Guard**:
     - ล็อคแท็กภารกิจเป็นป้ายกำกับถาวร `[ 🔒 ภารกิจ: {name} ]` เหนือกล่องข้อความ โดยผู้สนับสนุนไม่สามารถแก้ไขหรือลบออกได้
     - ล็อคช่องกรอกจำนวนเงินใน PromptPay ทันที (Locked Amount Input: `readOnly`, `cursor-not-allowed`, ป้าย `[ 🔒 ล็อคตามภารกิจ ]`, ไอคอนแม่กุญแจ) บล็อคการพิมพ์และการกดปุ่มลูกศร ป้องกันการแก้ไขยอดเงินผิดไปจากราคาภารกิจ
-    - แสดงป้ายกำกับภารกิจครบทั้ง 3 ช่องทาง (PromptPay, ธนาคาร, TrueMoney) พร้อมปุ่มยกเลิกการเลือกภารกิจ
+    - แสดงป้ายกำกับภารกิจครบทั้ง 2 ช่องทาง (PromptPay, ธนาคาร) พร้อมปุ่มยกเลิกการเลือกภารกิจ
     - การันตีแนบ `[ภารกิจ: {name}]` ส่งต่อไปยัง OBS Alert เมื่อชำระเงิน
   - **Multi-layer Submission Guard & Double-click Lock**:
-    - ติดตั้ง `useRef` Submission Lock (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อยทุกช่องทาง (`DonorPromptPayForm`, `DonorBankForm`, `DonorTrueMoneyForm`) ป้องกันการกดเบิ้ลในระดับ Memory ทันที
+    - ติดตั้ง `useRef` Submission Lock (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อยทุกช่องทาง (`DonorPromptPayForm`, `DonorBankForm`) ป้องกันการกดเบิ้ลในระดับ Memory ทันที
     - เพิ่ม CSS `pointer-events-none` และสถานะ `disabled` บนปุ่มยืนยันการชำระเงินทันทีที่เริ่มประมวลผล
   - **15-Second Backend Idempotency Window**:
     - ใน `donationController.js` เพิ่มการตรวจสอบหากพบ `transRef` ซ้ำที่สร้างขึ้นภายใน 15 วินาทีสำหรับสตรีมเมอร์คนเดิม จะตอบกลับด้วยสถานะ 200 OK พร้อมข้อมูลเดิมทันที โดยไม่บันทึกซ้ำและไม่ยิง Socket.IO Alert ซ้ำ
@@ -674,10 +671,10 @@ client/src/
   1. **ข้อจำกัดด้านช่องทางการเงินในไทย**: แพลตฟอร์มต่างประเทศมักรองรับเฉพาะบัตรเครดิตหรือ PayPal ซึ่งมีค่าธรรมเนียมสูง (3% - 10%) และไม่สอดคล้องกับพฤติกรรมคนไทยที่นิยมใช้ Mobile Banking และ PromptPay
   2. **ปัญหาการฉ้อโกงและสลิปซ้ำ (Slip Fraud)**: การให้ผู้ชมแนบสลิปโอนเงินมักพบปัญหานำสลิปเก่ามาใช้ซ้ำ (Reuse Slip) หรือแก้ไขรูปภาพสลิป ซึ่งสตรีมเมอร์กำลังถ่ายทอดสดอยู่ไม่สามารถสลับหน้าจอไปตรวจยอดเงินในแอปธนาคารได้ทันท่วงที
   3. **การขาดความยืดหยุ่นในการปรับแต่งวิดเจ็ต (Overlay Widget)**: ขาดระบบการตั้งค่าเสียงสังเคราะห์ (TTS), กรองคำหยาบเฉพาะกลุ่ม, หรือการตั้งเป้าหมาย (Goal) ที่คำนวณยอดเงินจริงอัตโนมัติ ทำให้จอแสดงผลในโปรแกรมถ่ายทอดสด (OBS Studio) ขาดความน่าเชื่อถือ
-- **แนวคิดการแก้ปัญหา (DONIX Platform)**: พัฒนาระบบเว็บแอปพลิเคชันรับบริจาคที่รวมศูนย์การทำงาน รองรับช่องทางชำระเงินไทย (PromptPay QR, Bank Transfer, TrueMoney), บูรณาการเครื่องมือตรวจสอบสลิปอัตโนมัติภายในระบบ (Zero-Cost In-House QR & OCR Verification Engine) ป้องกันสลิปซ้ำ 100%, แสดงผลวิดเจ็ตแจ้งเตือนแบบเรียลไทม์ (Real-time Overlays) ผ่าน OBS Browser Source ด้วย WebSocket, และมีแดชบอร์ดสรุปสถิติหลังบ้านที่ปลอดภัย
+- **แนวคิดการแก้ปัญหา (DONIX Platform)**: พัฒนาระบบเว็บแอปพลิเคชันรับบริจาคที่รวมศูนย์การทำงาน รองรับช่องทางชำระเงินไทย (PromptPay QR, Bank Transfer), บูรณาการเครื่องมือตรวจสอบสลิปอัตโนมัติภายในระบบ (Zero-Cost In-House QR & OCR Verification Engine) ป้องกันสลิปซ้ำ 100%, แสดงผลวิดเจ็ตแจ้งเตือนแบบเรียลไทม์ (Real-time Overlays) ผ่าน OBS Browser Source ด้วย WebSocket, และมีแดชบอร์ดสรุปสถิติหลังบ้านที่ปลอดภัย
 
 #### 2) วัตถุประสงค์ของโครงงาน (Project Objectives)
-1. เพื่อพัฒนาระบบรับบริจาคผ่านเว็บแอปพลิเคชันสำหรับสตรีมเมอร์ที่รองรับช่องทางชำระเงินในประเทศไทย ได้แก่ PromptPay QR Code, บัญชีธนาคาร (Bank Transfer) และ TrueMoney Wallet
+1. เพื่อพัฒนาระบบรับบริจาคผ่านเว็บแอปพลิเคชันสำหรับสตรีมเมอร์ที่รองรับช่องทางชำระเงินในประเทศไทย ได้แก่ PromptPay QR Code และ บัญชีธนาคาร (Bank Transfer)
 2. เพื่อพัฒนาระบบตรวจสอบสลิปการโอนเงินอัตโนมัติภายในระบบ (In-House Engine) ด้วยเทคโนโลยี QR Parser และ OCR เพื่อลดภาระการตรวจสอบของสตรีมเมอร์และป้องกันการใช้สลิปซ้ำโดยไม่มีค่าใช้จ่าย API รายครั้ง
 3. เพื่อพัฒนาระบบวิดเจ็ต (Real-time Widgets) สำหรับแสดงผลการบริจาคแบบเรียลไทม์ผ่าน Browser Source บนโปรแกรม OBS Studio และซอฟต์แวร์สตรีมมิ่ง
 4. เพื่อเพิ่มปฏิสัมพันธ์แบบโต้ตอบระหว่างสตรีมเมอร์และผู้บริจาคผ่านฟังก์ชัน Mission Donate, Donate Goal (คำนวณยอดสะสมจริงอัตโนมัติ), และ Leaderboard
@@ -689,7 +686,7 @@ client/src/
 ##### 3.1 ขอบเขตด้านผู้ใช้งาน (User Roles)
 1. **สตรีมเมอร์ (Streamer)**:
    - สมัครสมาชิกและเข้าสู่ระบบด้วย Email/Password หรือ Google OAuth 2.0 (Google Identity Services: GIS)
-   - จัดการข้อมูลโปรไฟล์ บัญชีผู้ใช้ และตั้งค่าช่องทางรับเงิน (PromptPay, Bank, TrueMoney)
+   - จัดการข้อมูลโปรไฟล์ บัญชีผู้ใช้ และตั้งค่าช่องทางรับเงิน (PromptPay, Bank)
    - ตกแต่งหน้ารับเงินส่วนบุคคล (`window.location.origin/{username}`), ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, และลิงก์โซเชียลมีเดีย
    - ปรับแต่งและคัดลอก URL วิดเจ็ต (Donate Alert, Donate Goal, Leaderboard, Mission Donate) ไปใช้งานบน OBS Browser Source พร้อมระบบ Live Config Sync
    - ดูรายงานและกราฟสถิติยอดบริจาคในหน้า Dashboard
@@ -698,7 +695,7 @@ client/src/
    - เข้าถึงหน้ารับเงินของสตรีมเมอร์ได้ตลอดเวลาโดยไม่ต้องสมัครสมาชิก
    - กรอกชื่อผู้สนับสนุน, จำนวนเงิน, และข้อความส่งถึงสตรีมเมอร์
    - เลือกทำภารกิจโดเนท (Mission Donate) โดยใช้ราคาภารกิจที่กำหนด
-   - ชำระเงินผ่าน PromptPay QR Code (คำนวณยอดเงินไดนามิก), โอนผ่านเลขบัญชีธนาคาร (Zero-Touch), หรือ TrueMoney Wallet
+   - ชำระเงินผ่าน PromptPay QR Code (คำนวณยอดเงินไดนามิก) หรือ โอนผ่านเลขบัญชีธนาคาร (Zero-Touch)
    - แนบสลิปโอนเงินเข้าสู่ระบบเพื่อทำการตรวจสอบความถูกต้องอัตโนมัติ
 3. **ผู้ดูแลระบบ (Administrator)**:
    - ดูแลความปลอดภัยของระบบ API ด้วย JWT Session และ Rate Limiting
@@ -713,7 +710,6 @@ client/src/
 2. **ระบบรับเงินและการชำระเงิน (Donation & Thai Payment Gateway)**:
    - ระบบคำนวณและสร้าง PromptPay QR Code ตามมาตรฐาน EMVCo อัตโนมัติตามยอดเงิน
    - ระบบรับเงินผ่านบัญชีธนาคารแบบ Clean UX แสดงเลขบัญชีและยอดขั้นต่ำชัดเจน
-   - รองรับ TrueMoney Wallet (Gift Link / ซองของขวัญ)
    - รองรับการตั้งค่ายอดบริจาคขั้นต่ำ (`minAmount`) และการจำกัดความยาวข้อความ
 3. **ระบบตรวจสอบสลิปภายในระบบอัตโนมัติ (Zero-Cost QR & OCR Slip Engine)**:
    - สแกนและถอดรหัส PromptPay QR Code และ Bank Mini QR (ITMX) เพื่อดึงรหัสอ้างอิงธุรกรรม (`transRef`) และจำนวนเงิน (`amount`)
@@ -748,7 +744,7 @@ client/src/
 
 | รายการฟังก์ชัน / งาน | ขอบเขตของผู้พัฒนา (66160259 - มนต์ธร) | สถานะในโครงงานเดี่ยว | หมายเหตุ / ขอบเขตเดิมที่ไม่นำมารวม |
 | :--- | :---: | :---: | :--- |
-| **ระบบรับบริจาคและการเงินไทย** | ✅ อยู่ในขอบเขต (100%) | พัฒนาสมบูรณ์ | PromptPay Dynamic QR, Bank Transfer, TrueMoney |
+| **ระบบรับบริจาคและการเงินไทย** | ✅ อยู่ในขอบเขต (100%) | พัฒนาสมบูรณ์ | PromptPay Dynamic QR, Bank Transfer |
 | **ระบบตรวจสอบสลิป Zero-Cost (QR + OCR)** | ✅ อยู่ในขอบเขต (100%) | พัฒนาสมบูรณ์ | jsQR + Jimp + Tesseract.js, Name/Account Match, Duplicate Guard |
 | **ระบบ OBS Overlays & WebSocket** | ✅ อยู่ในขอบเขต (100%) | พัฒนาสมบูรณ์ | Alert (TTS/Synth), Goal (Auto Sum), Leaderboard, Live Sync |
 | **ระบบ Dashboard & History Backoffice** | ✅ อยู่ในขอบเขต (100%) | พัฒนาสมบูรณ์ | Recharts, Aggregation Stats, Slip Modal Manual Approval |
@@ -808,7 +804,7 @@ client/src/
 
 #### 7) ประโยชน์ที่คาดว่าจะได้รับ (Expected Benefits)
 1. **ประโยชน์ต่อผู้ใช้งานและสตรีมเมอร์**:
-   - ได้ระบบรับบริจาคที่ตอบโจทย์พฤติกรรมการใช้งานในประเทศไทยอย่างแท้จริง ผ่าน PromptPay QR Code, บัญชีธนาคาร และ TrueMoney
+   - ได้ระบบรับบริจาคที่ตอบโจทย์พฤติกรรมการใช้งานในประเทศไทยอย่างแท้จริง ผ่าน PromptPay QR Code และ บัญชีธนาคาร
    - ป้องกันการฉ้อโกงและลดภาระการตรวจสอบสลิปด้วยตนเองได้ 100% ด้วยระบบ In-House Slip QR & OCR Verification Engine
    - เพิ่มความน่าสนใจในการถ่ายทอดสดด้วยระบบวิดเจ็ตโต้ตอบแบบทันที (Real-time Overlays) บน OBS Studio ที่คำนวณสถิติสะสมได้แม่นยำ
 2. **ประโยชน์ต่อผู้พัฒนา (Student Competency)**:
@@ -879,7 +875,7 @@ client/src/
 ##### ความต้องการเชิงหน้าที่ (Functional Requirements: FR)
 - **FR-01 (Authentication)**: ผู้ใช้สามารถลงทะเบียน, เข้าสู่ระบบด้วย Email/Password พร้อมตรวจสอบความปลอดภัยรหัสผ่าน 5 ข้อ หรือเข้าสู่ระบบด้วย Google Account
 - **FR-02 (Profile Management)**: สตรีมเมอร์สามารถจัดการข้อมูลส่วนตัว, รูปภาพโปรไฟล์ (Avatar), ข้อมูลติดต่อ และเชื่อมต่อโซเชียลมีเดีย 6 แพลตฟอร์ม
-- **FR-03 (Payment Setup)**: สตรีมเมอร์สามารถเปิด/ปิด และตั้งค่าช่องทางรับเงิน 3 รูปแบบ (PromptPay 7 ประเภท, บัญชีธนาคาร 7 แห่ง, TrueMoney)
+- **FR-03 (Payment Setup)**: สตรีมเมอร์สามารถเปิด/ปิด และตั้งค่าช่องทางรับเงิน 2 รูปแบบ (PromptPay 7 ประเภท, บัญชีธนาคาร 7 แห่ง)
 - **FR-04 (Donation Page Decoration)**: สตรีมเมอร์สามารถตกแต่งหน้าโดเนท, กำหนดยอดบริจาคขั้นต่ำ, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, รูปภาพหน้าปก และรูปภาพพื้นหลัง
 - **FR-05 (Public Donor Page)**: ผู้สนับสนุนสามารถเข้าหน้ารับเงินของสตรีมเมอร์ (`/:username`) ได้ตลอด 24 ชั่วโมง โดยไม่ต้องรอสตรีมเมอร์เปิดไลฟ์
 - **FR-06 (Zero-Touch Bank Transfer & Slip Upload)**: ผู้สนับสนุนสามารถโอนเงินและแนบสลิป โดยระบบจะอ่านยอดเงินและตรวจสอบชื่อผู้รับเงินอัตโนมัติ
@@ -955,7 +951,7 @@ flowchart TD
 
 ```mermaid
 stateDiagram-v2
-    [*] --> FormSubmitted: ผู้สนับสนุนส่งข้อมูลโดเนท (PromptPay / Bank / TrueMoney)
+    [*] --> FormSubmitted: ผู้สนับสนุนส่งข้อมูลโดเนท (PromptPay / Bank)
     
     state FormSubmitted {
         [*] --> InputValidation
@@ -1019,7 +1015,6 @@ stateDiagram-v2
 | `isLive` | Boolean | - | สถานะของสตรีมเมอร์ (Default: true) |
 | `payment.promptpay` | Object | - | `{ enabled: Boolean, type: String (7 รูปแบบ), number: String }` |
 | `payment.bank` | Object | - | `{ enabled: Boolean, bankName: String (7 ธนาคาร), accountNumber: String, accountName: String }` |
-| `payment.truemoney`| Object | - | `{ enabled: Boolean, phone: String }` |
 | `donationPage` | Object | - | `{ minAmount: Number, autoApproveSlip: Boolean, welcomeMessage: String, thankYouMessage: String, filteredWords: Array, coverImage: String, backgroundImage: String }` |
 
 ##### 2. Donation Schema (`server/Models/Donation.js`)
@@ -1029,7 +1024,7 @@ stateDiagram-v2
 | `donorName` | String | - | ชื่อผู้สนับสนุน (Default: 'Anonymous', ผ่านตัวกรองคำหยาบ) |
 | `amount` | Number | Required | จำนวนเงินบริจาค (บาท) |
 | `message` | String | - | ข้อความถึงสตรีมเมอร์ (รวมแท็ก `[ภารกิจ: {name}]` และผ่านตัวกรองคำหยาบ) |
-| `paymentMethod`| String | Enum: `promptpay`, `bank`, `truemoney` | ช่องทางที่ใช้ในการชำระเงิน |
+| `paymentMethod`| String | Enum: `promptpay`, `bank` | ช่องทางที่ใช้ในการชำระเงิน |
 | `status` | String | Enum: `pending`, `approved`, `rejected` | สถานะของรายการบริจาค |
 | `slipImage` | String | - | รูปภาพสลิปการโอนเงิน (Base64 data URI) |
 | `transRef` | String | **Sparse Unique Index** | รหัสอ้างอิงธุรกรรมจากสลิป (ป้องกันการใช้สลิปซ้ำ) |
@@ -1054,7 +1049,7 @@ stateDiagram-v2
 | `/api/auth/login` | POST | สาธารณะ | เข้าสู่ระบบและส่งกลับ JWT Token และข้อมูลโปรไฟล์ |
 | `/api/auth/google` | POST | สาธารณะ | เข้าสู่ระบบ/ลงทะเบียนอัตโนมัติด้วย Google OAuth (GIS) |
 | `/api/users/me` | GET / PUT | Bearer JWT | ดึงและอัปเดตข้อมูลส่วนตัว / Nickname / รูปภาพ Avatar |
-| `/api/users/payment` | PUT | Bearer JWT | บันทึกการตั้งค่าช่องทางรับเงิน (PromptPay, Bank, TrueMoney) |
+| `/api/users/payment` | PUT | Bearer JWT | บันทึกการตั้งค่าช่องทางรับเงิน (PromptPay, Bank) |
 | `/api/users/donation-page` | PUT | Bearer JWT | บันทึกการตั้งค่าหน้าโดเนท (ยอดขั้นต่ำ, Auto-Approve OCR, ข้อความ, หน้าปก, พื้นหลัง) |
 | `/api/donations` | POST | สาธารณะ | ส่งรายการบริจาค พร้อมถอดรหัสสลิป ตรวจสอบยอด/ชื่อ และ 15s Idempotency ป้องกันส่งซ้ำ |
 | `/api/donations` | GET | Bearer JWT | ดึงประวัติรายการบริจาค พร้อมแบ่งหน้าและตัวกรองสถานะ |
@@ -1085,7 +1080,7 @@ stateDiagram-v2
 
 #### 2) การพัฒนากลไกป้องกัน Race Condition และคำขอซ้ำซ้อน (Multi-layer Submission Guard & Idempotency Engine)
 1. **Client-Side Concurrency Lock**:
-   - ติดตั้ง `useRef` submission locks (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อย (`DonorPromptPayForm`, `DonorBankForm`, `DonorTrueMoneyForm`) เพื่อล็อคการส่งคำขอทันทีในระดับ Memory Execution ก่อนที่ React State จะ Re-render
+   - ติดตั้ง `useRef` submission locks (`isSubmittingRef`) ทั้งในระดับหน้า `DonorPage` และฟอร์มย่อย (`DonorPromptPayForm`, `DonorBankForm`) เพื่อล็อคการส่งคำขอทันทีในระดับ Memory Execution ก่อนที่ React State จะ Re-render
    - เพิ่ม CSS `pointer-events-none` และสถานะ `disabled` บนปุ่มยืนยันการชำระเงินทันทีที่เริ่มประมวลผลคำขอแรก ป้องกันไม่ให้เบราว์เซอร์รับ Event การคลิกซ้ำได้
 2. **Backend 15-Second Idempotency Window**:
    - ใน `server/controllers/donationController.js` เพิ่มกลไกตรวจสอบหากพบรหัสอ้างอิง `transRef` ซ้ำในฐานข้อมูล ระบบจะตรวจสอบว่ารายการนั้นเป็นของสตรีมเมอร์คนเดียวกันและถูกสร้างขึ้นภายใน 15 วินาทีหรือไม่
@@ -1100,7 +1095,7 @@ stateDiagram-v2
    - การันตีแนบ `[ภารกิจ: {name}]` เข้ากับข้อความบริจาคเสมอ เพื่อให้ Alert บน OBS Studio แสดงชื่อภารกิจอย่างแม่นยำ พร้อมปุ่มยกเลิกการเลือกภารกิจ
 3. **Locked Amount Input Guard**:
    - เมื่อเลือกภารกิจ ช่องกรอกจำนวนเงินใน PromptPay จะถูกล็อคทันที (`readOnly`, `cursor-not-allowed`, ป้าย `[ 🔒 ล็อคตามภารกิจ ]`, ไอคอนแม่กุญแจ) บล็อคการพิมพ์และการกดปุ่มลูกศร ป้องกันผู้บริจาคแก้ไขยอดเงินผิดไปจากราคาภารกิจ
-   - แสดงป้ายกำกับภารกิจครบทั้ง 3 ช่องทาง (PromptPay, ธนาคาร, TrueMoney) เพื่อความชัดเจน
+   - แสดงป้ายกำกับภารกิจครบทั้ง 2 ช่องทาง (PromptPay, ธนาคาร) เพื่อความชัดเจน
 4. **Bank Mission Price Verification & Auto-strip Tag**:
    - สำหรับช่องทางโอนผ่านธนาคาร (Bank) ระบบจะอ่านยอดเงินจริงจากสลิป หากพบว่าผู้สนับสนุนเลือกภารกิจ แต่ยอดเงินในสลิปน้อยกว่าราคาภารกิจ (แต่ยังคง ≥ ยอดขั้นต่ำที่กำหนด) ระบบจะตัดแท็กภารกิจออกจากข้อความบน Alert, TTS, และประวัติการรับเงินโดยอัตโนมัติ เพื่อป้องกันการอ้างภารกิจด้วยยอดเงินที่ไม่ครบ
 
@@ -1109,9 +1104,9 @@ stateDiagram-v2
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **12 Suites** | **251 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **Client (Frontend React SPA)** | **29 Suites** | **367 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **41 Suites** | **618 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **12 Suites** | **255 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Client (Frontend React SPA)** | **30 Suites** | **388 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **42 Suites** | **643 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |

@@ -100,7 +100,7 @@ describe("HistoryPage", () => {
         name: "Carol",
         message: "wow",
         amount: "฿200",
-        channel: "TrueMoney",
+        channel: "PromptPay",
         status: "ล้มเหลว",
       },
     ];
@@ -111,7 +111,7 @@ describe("HistoryPage", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("สู้ๆ")).toBeInTheDocument();
     expect(screen.getByText("฿100")).toBeInTheDocument();
-    expect(screen.getByText("PromptPay")).toBeInTheDocument();
+    expect(screen.getAllByText("PromptPay")).toHaveLength(2);
     expect(screen.getByText("สำเร็จ")).toBeInTheDocument();
 
     expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe("HistoryPage", () => {
         donorName: "Supporter Three",
         amount: 150,
         message: "Hey",
-        paymentMethod: "truemoney",
+        paymentMethod: "bank",
         status: "pending",
       },
     ];
@@ -774,24 +774,6 @@ describe("HistoryPage", () => {
             donorName: "No ID Supporter",
             amount: 100,
             paymentMethod: "bank",
-          }}
-          onClose={jest.fn()}
-        />
-      );
-
-      expect(api.fetchDonationSlip).not.toHaveBeenCalled();
-      expect(screen.getByText("ไม่มีรูปสลิปแนบมากับรายการนี้")).toBeInTheDocument();
-    });
-
-    test("does not fetch slipImage when payment method is truemoney", () => {
-      render(
-        <SlipModal
-          isOpen={true}
-          donation={{
-            id: "slip-truemoney",
-            donorName: "Supporter G",
-            amount: 100,
-            paymentMethod: "truemoney",
           }}
           onClose={jest.fn()}
         />

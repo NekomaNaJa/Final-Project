@@ -465,32 +465,6 @@ describe("Users Route", () => {
       expect(res.body.message).toBe("ชื่อบัญชีธนาคารต้องเป็นข้อความ");
     });
 
-    it("should return 400 when truemoney is not an object", async () => {
-      const token = jwt.sign({ userId: "mockId123" }, secret);
-      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
-
-      const res = await request(app)
-        .put("/api/users/payment")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ truemoney: "invalid" });
-
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("ข้อมูลทรูมันนี่ไม่ถูกต้อง");
-    });
-
-    it("should return 400 when truemoney.phone is not a string", async () => {
-      const token = jwt.sign({ userId: "mockId123" }, secret);
-      jest.spyOn(User, "findById").mockResolvedValueOnce({ _id: "mockId123" });
-
-      const res = await request(app)
-        .put("/api/users/payment")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ truemoney: { phone: 12345 } });
-
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("เบอร์โทรศัพท์ทรูมันนี่ต้องเป็นข้อความ");
-    });
-
     it("should update payment channels successfully and preserve unset channels", async () => {
       const token = jwt.sign({ userId: "mockId123" }, secret);
       const mockDoc = {
@@ -498,7 +472,6 @@ describe("Users Route", () => {
         payment: {
           promptpay: { enabled: false, type: "เบอร์โทรศัพท์", number: "0811111111" },
           bank: { enabled: false, bankName: null, accountNumber: "", accountName: "" },
-          truemoney: { enabled: false, phone: "" },
         },
         save: jest.fn().mockResolvedValue(true),
       };
@@ -516,7 +489,6 @@ describe("Users Route", () => {
             accountNumber: "123-4-56789-0",
             accountName: "นาย สมชาย สายบุญ",
           },
-          truemoney: { enabled: true, phone: "0898765432" },
         });
 
       expect(res.status).toBe(200);
@@ -524,7 +496,6 @@ describe("Users Route", () => {
       expect(res.body.data.promptpay.enabled).toBe(true);
       expect(res.body.data.promptpay.type).toBe("e-Wallet ID");
       expect(res.body.data.bank.bankName).toBe("ธนาคารไทยพาณิชย์ (SCB)");
-      expect(res.body.data.truemoney.phone).toBe("0898765432");
       expect(mockDoc.save).toHaveBeenCalled();
     });
 
