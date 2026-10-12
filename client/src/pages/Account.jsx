@@ -97,7 +97,10 @@ const Account = () => {
   const handleSaveProfile = async (payload) => {
     try {
       setFeedback(null);
-      if (payload.currentPassword && payload.newPassword) {
+      if (payload?.resetToken) {
+        return { success: true };
+      }
+      if ((payload.currentPassword || payload.otp || payload.otpCode) && payload.newPassword) {
         await changePassword(payload);
         setFeedback({ type: "success", message: "เปลี่ยนรหัสผ่านสำเร็จ" });
         setTimeout(() => setFeedback(null), 4000);
@@ -202,7 +205,14 @@ const Account = () => {
               <AccountProfileCard user={user} onSave={handleSaveProfile} />
               <ManageAccountCard
                 user={user}
-                onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+                onUpdateUser={(updated) => {
+                  setUser((prev) => {
+                    const merged = { ...prev, ...updated };
+                    inMemoryUserProfile = merged;
+                    inMemoryUserUsername = merged.username;
+                    return merged;
+                  });
+                }}
               />
             </div>
 

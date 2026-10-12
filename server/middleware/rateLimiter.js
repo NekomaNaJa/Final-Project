@@ -25,3 +25,17 @@ export const apiLimiter = rateLimit({
   },
   skip: () => process.env.NODE_ENV === "test",
 });
+
+// Rate limiter สำหรับการขอรหัส OTP ป้องกันการสแปม (สูงสุด 1 ครั้งต่อ 1 นาที)
+export const otpLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 นาที
+  max: 1, // จำกัด 1 ครั้งต่อนาที
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "คุณขอรหัส OTP บ่อยเกินไป กรุณารอ 1 นาทีก่อนทำรายการใหม่อีกครั้ง",
+    data: null,
+  },
+  skip: () => process.env.NODE_ENV === "test",
+});
+

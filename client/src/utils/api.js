@@ -16,6 +16,8 @@ export const API = {
   donationDetail: (id) => `${API_URL}/donations/${encodeURIComponent(id)}`,
   donationSlip: (id) => `${API_URL}/donations/${encodeURIComponent(id)}/slip`,
   widgetsMe: `${API_URL}/widgets/me`,
+  requestOtp: `${API_URL}/auth/request-otp`,
+  verifyOtp: `${API_URL}/auth/verify-otp`,
   forgotPasswordSendOtp: `${API_URL}/auth/forgot-password/send-otp`,
   forgotPasswordVerifyOtp: `${API_URL}/auth/forgot-password/verify-otp`,
   forgotPasswordReset: `${API_URL}/auth/forgot-password/reset`,
@@ -376,4 +378,37 @@ export const verifyLinkOtp = async (payload) => {
   }
   return json.data;
 };
+
+/**
+ * ขอรหัส OTP ทางอีเมล (POST /api/auth/request-otp)
+ */
+export const requestEmailOtp = async (payload) => {
+  const res = await fetch(API.requestOtp, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถส่งรหัส OTP ได้");
+  }
+  return json.data;
+};
+
+/**
+ * ยืนยันรหัส OTP ทางอีเมล (POST /api/auth/verify-otp)
+ */
+export const verifyEmailOtp = async (payload) => {
+  const res = await fetch(API.verifyOtp, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ยืนยันรหัส OTP ไม่สำเร็จ");
+  }
+  return json.data;
+};
+
 

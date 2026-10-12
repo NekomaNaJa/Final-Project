@@ -60,7 +60,12 @@ const ForgotPassword = () => {
       setMaskedTarget(data.maskedTarget || data.target || identifier.trim());
       setStep(2);
       setCountdown(60);
-      setSuccessMsg(`ส่งรหัส OTP ไปยัง ${data.maskedTarget || "อุปกรณ์ของคุณ"} แล้ว`);
+      if (data?.demoOtp) {
+        setOtp(String(data.demoOtp));
+        setSuccessMsg(`ส่งรหัส OTP ไปยัง ${data.maskedTarget || "อุปกรณ์ของคุณ"} แล้ว (รหัส OTP: ${data.demoOtp})`);
+      } else {
+        setSuccessMsg(`ส่งรหัส OTP ไปยัง ${data.maskedTarget || "อุปกรณ์ของคุณ"} แล้ว`);
+      }
     } catch (err) {
       setError(err.message || "เกิดข้อผิดพลาดในการส่งรหัส OTP");
     } finally {

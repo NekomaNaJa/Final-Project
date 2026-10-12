@@ -22,6 +22,8 @@ import {
   resetForgotPassword,
   sendLinkOtp,
   verifyLinkOtp,
+  requestEmailOtp,
+  verifyEmailOtp,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -825,5 +827,67 @@ describe("API utility functions", () => {
     await expect(
       verifyLinkOtp({ target: "test@example.com", type: "email", otp: "000000" })
     ).rejects.toThrow("ยืนยันรหัส OTP ไม่สำเร็จ");
+  });
+
+  test("requestEmailOtp sends POST to auth/request-otp and returns data", async () => {
+    const mockData = { email: "test@example.com", maskedEmail: "te***st@example.com" };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "ส่งสำเร็จ", data: mockData }),
+    });
+
+    const result = await requestEmailOtp({ email: "test@example.com" });
+    expect(result).toEqual(mockData);
+    expect(global.fetch).toHaveBeenCalledWith(
+      API.requestOtp,
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  test("requestEmailOtp throws error on failure and fallback error when message is missing", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "รูปแบบอีเมลไม่ถูกต้อง" }),
+    });
+    await expect(requestEmailOtp({ email: "bad" })).rejects.toThrow("รูปแบบอีเมลไม่ถูกต้อง");
+
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+    await expect(requestEmailOtp({ email: "bad" })).rejects.toThrow("ไม่สามารถส่งรหัส OTP ได้");
+  });
+
+  test("verifyEmailOtp sends POST to auth/verify-otp and returns data", async () => {
+    const mockData = { email: "test@example.com", isEmailVerified: true };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "ยืนยันสำเร็จ", data: mockData }),
+    });
+
+    const result = await verifyEmailOtp({ email: "test@example.com", otpCode: "123456" });
+    expect(result).toEqual(mockData);
+    expect(global.fetch).toHaveBeenCalledWith(
+      API.verifyOtp,
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  test("verifyEmailOtp throws error on failure and fallback error when message is missing", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "รหัส OTP ไม่ถูกต้อง" }),
+    });
+    await expect(verifyEmailOtp({ email: "test@example.com", otpCode: "000000" })).rejects.toThrow(
+      "รหัส OTP ไม่ถูกต้อง"
+    );
+
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+    await expect(verifyEmailOtp({ email: "test@example.com", otpCode: "000000" })).rejects.toThrow(
+      "ยืนยันรหัส OTP ไม่สำเร็จ"
+    );
   });
 });

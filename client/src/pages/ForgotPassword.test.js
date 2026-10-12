@@ -409,4 +409,27 @@ describe("ForgotPassword Page", () => {
     fireEvent.click(screen.getByText("ไปที่หน้าเข้าสู่ระบบ"));
     expect(screen.getByText("รีเซ็ตรหัสผ่านสำเร็จ")).toBeInTheDocument();
   });
+
+  test("prefills OTP when sendForgotPasswordOtp returns demoOtp", async () => {
+    api.sendForgotPasswordOtp.mockResolvedValueOnce({
+      target: "test@example.com",
+      maskedTarget: "t***@example.com",
+      demoOtp: "888999",
+    });
+
+    render(
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>
+    );
+
+    const emailInput = screen.getByPlaceholderText("your-email@example.com");
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "ส่งรหัส OTP" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/888999/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("123456").value).toBe("888999");
+    });
+  });
 });

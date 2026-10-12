@@ -51,7 +51,12 @@ const SecurityTab = ({ user, onSave, navigate: navigateProp }) => {
       setTarget(data?.target || email.trim());
       setOtpSent(true);
       setCountdown(60);
-      setSuccessMsg(`ส่งรหัส OTP ไปยัง ${data?.maskedTarget || email.trim()} เรียบร้อยแล้ว`);
+      if (data?.demoOtp) {
+        setOtp(String(data.demoOtp));
+        setSuccessMsg(`ส่งรหัส OTP ไปยัง ${data?.maskedTarget || email.trim()} เรียบร้อยแล้ว (รหัส OTP: ${data.demoOtp})`);
+      } else {
+        setSuccessMsg(`ส่งรหัส OTP ไปยัง ${data?.maskedTarget || email.trim()} เรียบร้อยแล้ว`);
+      }
     } catch (err) {
       setError(err.message || "เกิดข้อผิดพลาดในการส่งรหัส OTP");
     } finally {
