@@ -28,11 +28,7 @@ export const API = {
  * เพื่อปลุก Render Web Service ให้พร้อมใช้งานทันทีโดยไม่หน่วง UI
  */
 export const pingServerWarmup = () => {
-  try {
-    void fetch(API.health, { method: "GET" }).catch(() => {});
-  } catch {
-    // Ignored
-  }
+  void fetch(API.health, { method: "GET" }).catch(() => {});
 };
 
 /**
