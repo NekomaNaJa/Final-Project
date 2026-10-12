@@ -8,6 +8,14 @@ import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
 import { fetchCurrentUser, updateCurrentUser, changePassword } from "../utils/api";
 
+let inMemoryUserProfile = null;
+let inMemoryUserUsername = null;
+
+export const clearUserCache = () => {
+  inMemoryUserProfile = null;
+  inMemoryUserUsername = null;
+};
+
 const getUserFromToken = () => {
   const token = localStorage.getItem("token");
   if (!token) return null;
@@ -27,7 +35,12 @@ const getInitialUser = () => {
   } catch {
     // Ignored
   }
-  return getUserFromToken();
+  const tokenUser = getUserFromToken();
+  if (!tokenUser) return null;
+  if (inMemoryUserProfile && inMemoryUserUsername === tokenUser.username) {
+    return inMemoryUserProfile;
+  }
+  return tokenUser;
 };
 
 const Account = () => {
@@ -36,6 +49,7 @@ const Account = () => {
   const [feedback, setFeedback] = useState(null);
 
   const handleLogout = () => {
+    clearUserCache();
     try {
       localStorage.removeItem("token");
       localStorage.removeItem("donix_user_profile");
@@ -55,10 +69,16 @@ const Account = () => {
     try {
       const data = await fetchCurrentUser();
       if (data) {
-        setUser((prev) => ({ ...prev, ...data }));
+        setUser((prev) => {
+          const merged = { ...prev, ...data };
+          inMemoryUserProfile = merged;
+          inMemoryUserUsername = merged.username;
+          return merged;
+        });
       }
     } catch (err) {
       if (err.message?.includes("ไม่ได้รับอนุญาต") || err.message?.includes("หมดอายุ")) {
+        clearUserCache();
         try {
           localStorage.removeItem("token");
           localStorage.removeItem("donix_user_profile");
@@ -85,7 +105,12 @@ const Account = () => {
       }
 
       const updated = await updateCurrentUser(payload);
-      setUser((prev) => ({ ...prev, ...updated }));
+      setUser((prev) => {
+        const merged = { ...prev, ...updated };
+        inMemoryUserProfile = merged;
+        inMemoryUserUsername = merged.username;
+        return merged;
+      });
       setFeedback({ type: "success", message: "บันทึกข้อมูลเรียบร้อยแล้ว" });
       setTimeout(() => setFeedback(null), 4000);
       return { success: true };
