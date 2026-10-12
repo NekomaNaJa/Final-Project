@@ -4,8 +4,9 @@ import SettingsCard from "../DonatePage/SettingsCard";
 import { Mail, KeyRound, ShieldCheck, CheckCircle2, RefreshCw, Loader2 } from "lucide-react";
 import { sendForgotPasswordOtp, verifyForgotPasswordOtp } from "../../utils/api";
 
-const SecurityTab = ({ user, onSave }) => {
-  const navigate = useNavigate();
+const SecurityTab = ({ user, onSave, navigate: navigateProp }) => {
+  const routerNavigate = useNavigate();
+  const navigate = navigateProp || routerNavigate;
   const [email, setEmail] = useState(user?.email || "");
   const [otp, setOtp] = useState("");
   const [target, setTarget] = useState("");
@@ -89,7 +90,6 @@ const SecurityTab = ({ user, onSave }) => {
         onSave({ email: email.trim(), resetToken: data.resetToken });
       }
 
-      // เปลี่ยน direction ไปที่หน้าลืมรหัสผ่าน พร้อมส่ง resetToken เพื่อให้แก้ไขรหัสผ่านได้
       navigate("/forgot-password", {
         state: {
           step: 3,
@@ -110,7 +110,7 @@ const SecurityTab = ({ user, onSave }) => {
       title="ความปลอดภัย"
       subtitle="SECURITY"
       onSave={handleVerifyOtp}
-      saveText="ยืนยันและเปลี่ยนรหัสผ่าน"
+      saveText={verifying ? "กำลังตรวจสอบ..." : "ยืนยันและเปลี่ยนรหัสผ่าน"}
     >
       {error && (
         <div role="alert" className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">

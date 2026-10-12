@@ -1,3 +1,13 @@
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"),
+  useNavigate: () => mockNavigate,
+}));
+jest.mock("react-router", () => ({
+  ...jest.requireActual("react-router"),
+  useNavigate: () => mockNavigate,
+}));
+
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -9,12 +19,6 @@ import SocialMediaTab from "./SocialMediaTab";
 import UserInfoTab from "./UserInfoTab";
 import { sendLinkOtp, verifyLinkOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp } from "../../utils/api";
 
-const mockNavigate = jest.fn();
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockNavigate,
-}));
-
 jest.mock("../../utils/api", () => ({
   ...jest.requireActual("../../utils/api"),
   sendLinkOtp: jest.fn().mockResolvedValue({ target: "user@test.com", type: "email" }),
@@ -24,6 +28,14 @@ jest.mock("../../utils/api", () => ({
 }));
 
 describe("Account Components", () => {
+  beforeEach(() => {
+    sendLinkOtp.mockResolvedValue({ target: "user@test.com", type: "email" });
+    verifyLinkOtp.mockResolvedValue({ email: "user@test.com", isEmailVerified: true });
+    sendForgotPasswordOtp.mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" });
+    verifyForgotPasswordOtp.mockResolvedValue({ resetToken: "mock-reset-token-123" });
+    mockNavigate.mockClear();
+  });
+
   const mockUser = {
     username: "TestStreamer",
     email: "test@example.com",
@@ -319,7 +331,7 @@ describe("Account Components", () => {
     test("allows entering email, sending OTP, verifying OTP, and redirecting to /forgot-password", async () => {
       render(
         <MemoryRouter>
-          <SecurityTab user={mockUser} />
+          <SecurityTab user={mockUser} navigate={mockNavigate} />
         </MemoryRouter>
       );
       expect(screen.getByText("SECURITY")).toBeInTheDocument();
