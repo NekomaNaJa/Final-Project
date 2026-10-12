@@ -11,7 +11,7 @@ jest.unstable_mockModule("nodemailer", () => ({
   },
 }));
 
-const { sendEmailOtp, sendSmsOtp } = await import(
+const { sendEmailOtp, sendSmsOtp, maskAddress, stripNewlines } = await import(
   "../services/notificationService.js"
 );
 
@@ -40,6 +40,17 @@ describe("Notification Service", () => {
     consoleErrorSpy.mockRestore();
     process.env = { ...ORIGINAL_ENV };
     delete global.fetch;
+  });
+
+  describe("maskAddress & stripNewlines", () => {
+    it("masks email and phone addresses and strips newlines", () => {
+      expect(maskAddress("")).toBe("");
+      expect(maskAddress("ab")).toBe("****");
+      expect(maskAddress("a@b.com")).toBe("a***@b.com");
+      expect(maskAddress("user@")).toBe("****");
+      expect(maskAddress("testuser@gmail.com")).toBe("te***er@gmail.com");
+      expect(stripNewlines("line1\r\nline2\nline3")).toBe("line1 line2 line3");
+    });
   });
 
   describe("sendEmailOtp", () => {
@@ -138,6 +149,108 @@ describe("Notification Service", () => {
           from: "bot@gmail.com",
         })
       );
+    });
+
+    it("sends via GOOGLE_SCRIPT_URL over HTTPS when configured", async () => {
+      withEnv({
+        GOOGLE_SCRIPT_URL: "https://script.google.com/macros/s/test/exec",
+      });
+      global.fetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+      const result = await sendEmailOtp("test@example.com", "123456", "verify_email");
+
+      expect(result).toEqual({ success: true, simulated: false });
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://script.google.com/macros/s/test/exec",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    it("sends via BREVO_API_KEY over HTTPS when configured", async () => {
+      withEnv({
+        BREVO_API_KEY: "xkeysib-test",
+        SMTP_FROM: "DONIX <bot@donix.app>",
+      });
+      global.fetch.mockResolvedValueOnce({ ok: true, status: 201 });
+
+      const result = await sendEmailOtp("test@example.com", "654321", "change_password");
+
+      expect(result).toEqual({ success: true, simulated: false });
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://api.brevo.com/v3/smtp/email",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    it("sends via RESEND_API_KEY over HTTPS when configured", async () => {
+      withEnv({
+        RESEND_API_KEY: "re_test_123",
+      });
+      global.fetch.mockResolvedValueOnce({ ok: true, status: 200 });
+
+      const result = await sendEmailOtp("test@example.com", "112233", "verify_email");
+
+      expect(result).toEqual({ success: true, simulated: false });
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://api.resend.com/emails",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    it("rejects in strict/test mode when HTTPS provider returns non-OK or SMTP rejects recipient", async () => {
+      withEnv({
+        GOOGLE_SCRIPT_URL: "https://script.google.com/macros/s/test/exec",
+      });
+      global.fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+      await expect(sendEmailOtp("test@example.com", "123456", "verify_email"))
+        .rejects.toThrow("EMAIL_DELIVERY_FAILED");
+
+      withEnv({
+        BREVO_API_KEY: "xkeysib-test",
+      });
+      global.fetch.mockResolvedValueOnce({ ok: false, status: 400 });
+      await expect(sendEmailOtp("test@example.com", "123456", "verify_email"))
+        .rejects.toThrow("EMAIL_DELIVERY_FAILED");
+
+      withEnv({
+        RESEND_API_KEY: "re_test_123",
+      });
+      global.fetch.mockResolvedValueOnce({ ok: false, status: 403 });
+      await expect(sendEmailOtp("test@example.com", "123456", "verify_email"))
+        .rejects.toThrow("EMAIL_DELIVERY_FAILED");
+
+      withEnv({
+        GMAIL_USER: "bot@gmail.com",
+        GMAIL_PASS: "pass",
+      });
+      mockSendMail.mockResolvedValueOnce({ rejected: ["test@example.com"] });
+      await expect(sendEmailOtp("test@example.com", "123456", "verify_email"))
+        .rejects.toThrow("EMAIL_DELIVERY_FAILED");
+    });
+
+    it("falls back to simulated mode in development when SMTP is unconfigured or fails", async () => {
+      withEnv({
+        NODE_ENV: "development",
+      });
+      delete process.env.SMTP_HOST;
+      delete process.env.GMAIL_USER;
+
+      const unconfiguredRes = await sendEmailOtp("test@example.com", "123456", "verify_email");
+      expect(unconfiguredRes).toEqual({ success: true, simulated: true });
+
+      withEnv({
+        NODE_ENV: "development",
+        GMAIL_USER: "bot@gmail.com",
+        GMAIL_PASS: "pass",
+      });
+      mockSendMail.mockRejectedValueOnce(new Error("ETIMEDOUT"));
+
+      const timeoutRes = await sendEmailOtp("test@example.com", "123456", "verify_email");
+      expect(timeoutRes).toEqual({
+        success: true,
+        simulated: true,
+        error: "ETIMEDOUT",
+      });
     });
   });
 

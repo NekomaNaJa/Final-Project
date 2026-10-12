@@ -411,6 +411,27 @@ describe("Account Components", () => {
         expect(screen.getByText("รหัส OTP ไม่ถูกต้องหรือหมดอายุ")).toBeInTheDocument();
       });
     });
+
+    test("prefills OTP when sendForgotPasswordOtp returns demoOtp", async () => {
+      sendForgotPasswordOtp.mockResolvedValueOnce({
+        target: "test@example.com",
+        maskedTarget: "t***@example.com",
+        demoOtp: "789012",
+      });
+
+      render(
+        <MemoryRouter>
+          <SecurityTab user={mockUser} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ส่งรหัส OTP"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/789012/)).toBeInTheDocument();
+        expect(screen.getByLabelText("รหัส OTP (6 หลัก)").value).toBe("789012");
+      });
+    });
   });
 
   describe("SocialMediaTab", () => {

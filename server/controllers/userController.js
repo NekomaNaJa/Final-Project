@@ -513,6 +513,43 @@ const verifyOtpMatch = async (plainOtp, otpRecord) => {
   return stored === plainOtp;
 };
 
+const verifyOtpForPasswordChange = async (user, rawOtp) => {
+  if (typeof rawOtp !== "string" || !/^\d{6}$/.test(rawOtp.trim())) {
+    return "รหัส OTP ไม่ถูกต้อง";
+  }
+  const safeOtp = String(rawOtp).trim();
+  const safeEmail = String(user.email || "").trim().toLowerCase();
+  const otpRecord = await Otp.findOne({
+    $or: [
+      { email: { $eq: safeEmail } },
+      { target: { $eq: safeEmail } },
+    ],
+  });
+
+  if (!otpRecord || (otpRecord.expiresAt && otpRecord.expiresAt < new Date())) {
+    return "รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ กรุณาขอรหัสใหม่";
+  }
+
+  const isOtpValid = await verifyOtpMatch(safeOtp, otpRecord);
+  if (!isOtpValid) {
+    return "รหัส OTP ไม่ถูกต้อง";
+  }
+
+  await Otp.deleteOne({ _id: otpRecord._id });
+  return null;
+};
+
+const verifyCurrentPasswordForChange = async (user, currentPassword) => {
+  if (typeof currentPassword !== "string") {
+    return "ข้อมูลรหัสผ่านไม่ถูกต้อง";
+  }
+  if (!user.password) {
+    return null;
+  }
+  const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+  return isMatch ? null : "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+};
+
 export const changePassword = async (req, res, next) => {
   try {
     const safeUserId = String(req.user?.userId || "");
@@ -535,58 +572,16 @@ export const changePassword = async (req, res, next) => {
       });
     }
 
-    if (rawOtp !== undefined) {
-      if (typeof rawOtp !== "string" || !/^\d{6}$/.test(rawOtp.trim())) {
-        return res.status(400).json({
-          message: "รหัส OTP ไม่ถูกต้อง",
-          data: null,
-        });
-      }
-      const safeOtp = String(rawOtp).trim();
-      const safeEmail = String(user.email || "").trim().toLowerCase();
-      const otpRecord = await Otp.findOne({
-        $or: [
-          { email: { $eq: safeEmail } },
-          { target: { $eq: safeEmail } },
-        ],
+    const authError =
+      rawOtp !== undefined
+        ? await verifyOtpForPasswordChange(user, rawOtp)
+        : await verifyCurrentPasswordForChange(user, currentPassword);
+
+    if (authError) {
+      return res.status(400).json({
+        message: authError,
+        data: null,
       });
-
-      if (!otpRecord || (otpRecord.expiresAt && otpRecord.expiresAt < new Date())) {
-        return res.status(400).json({
-          message: "รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ กรุณาขอรหัสใหม่",
-          data: null,
-        });
-      }
-
-      const isOtpValid = await verifyOtpMatch(safeOtp, otpRecord);
-      if (!isOtpValid) {
-        return res.status(400).json({
-          message: "รหัส OTP ไม่ถูกต้อง",
-          data: null,
-        });
-      }
-
-      await Otp.deleteOne({ _id: otpRecord._id });
-    } else {
-      if (typeof currentPassword !== "string") {
-        return res.status(400).json({
-          message: "ข้อมูลรหัสผ่านไม่ถูกต้อง",
-          data: null,
-        });
-      }
-
-      if (user.password) {
-        const isMatch = await bcrypt.compare(
-          String(currentPassword),
-          user.password
-        );
-        if (!isMatch) {
-          return res.status(400).json({
-            message: "รหัสผ่านปัจจุบันไม่ถูกต้อง",
-            data: null,
-          });
-        }
-      }
     }
 
     const safeNewPassword = String(newPassword);
@@ -698,9 +693,10 @@ export const sendLinkOtp = async (req, res, next) => {
       expiresAt,
     });
 
+    let deliveryResult;
     if (safeType === "email") {
       try {
-        await sendEmailOtp(safeTarget, otpCode, purpose);
+        deliveryResult = await sendEmailOtp(safeTarget, otpCode, purpose);
       } catch (deliveryError) {
         await Otp.deleteMany({ target: { $eq: safeTarget }, purpose: { $eq: purpose } });
         const notConfigured = deliveryError.message === "EMAIL_NOT_CONFIGURED";
@@ -712,15 +708,22 @@ export const sendLinkOtp = async (req, res, next) => {
         });
       }
     } else {
-      await sendSmsOtp(safeTarget, otpCode, purpose);
+      deliveryResult = await sendSmsOtp(safeTarget, otpCode, purpose);
+    }
+
+    const responseData = {
+      target: safeTarget,
+      type: safeType,
+    };
+    const isDummyEmail = /@(test|example)\.(com|org|net)$/i.test(safeTarget);
+    if ((deliveryResult?.simulated || isDummyEmail) && process.env.NODE_ENV !== "test") {
+      responseData.simulated = Boolean(deliveryResult?.simulated);
+      responseData.demoOtp = otpCode;
     }
 
     res.json({
       message: `ส่งรหัส OTP ไปยัง ${safeTarget} เรียบร้อยแล้ว`,
-      data: {
-        target: safeTarget,
-        type: safeType,
-      },
+      data: responseData,
     });
   } catch (err) {
     next(err);

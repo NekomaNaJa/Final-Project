@@ -722,6 +722,7 @@ describe("Auth Controller & Routes", () => {
       });
 
       it("should return 503 and delete orphaned OTP when SMTP is not configured (Fail-closed)", async () => {
+        delete process.env.GOOGLE_SCRIPT_URL;
         jest.spyOn(User, "findOne").mockResolvedValueOnce({
           _id: "u123",
           email: "user@example.com",
@@ -743,6 +744,60 @@ describe("Auth Controller & Routes", () => {
           })
         );
         expect(deleteSpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("should return 200 and masked email when OTP email delivery succeeds", async () => {
+        process.env.GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/test/exec";
+        const origFetch = global.fetch;
+        global.fetch = jest.fn().mockResolvedValueOnce({ ok: true, status: 200 });
+
+        try {
+          jest.spyOn(User, "findOne").mockResolvedValueOnce({
+            _id: "u123",
+            email: "user@example.com",
+          });
+          jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+          jest.spyOn(Otp, "create").mockResolvedValueOnce({});
+
+          const res = await request(app)
+            .post("/api/auth/request-otp")
+            .send({ email: "user@example.com" });
+
+          expect(res.status).toBe(200);
+          expect(res.body.message).toContain("ส่งรหัส OTP ไปยัง");
+          expect(res.body.data).toEqual({
+            email: "user@example.com",
+            maskedEmail: "u***r@example.com",
+          });
+        } finally {
+          delete process.env.GOOGLE_SCRIPT_URL;
+          global.fetch = origFetch;
+        }
+      });
+
+      it("should return 503 when OTP email delivery fails", async () => {
+        process.env.GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/test/exec";
+        const origFetch = global.fetch;
+        global.fetch = jest.fn().mockResolvedValueOnce({ ok: false, status: 500 });
+
+        try {
+          jest.spyOn(User, "findOne").mockResolvedValueOnce({
+            _id: "u123",
+            email: "user@example.com",
+          });
+          jest.spyOn(Otp, "deleteMany").mockResolvedValue({});
+          jest.spyOn(Otp, "create").mockResolvedValueOnce({});
+
+          const res = await request(app)
+            .post("/api/auth/request-otp")
+            .send({ email: "user@example.com" });
+
+          expect(res.status).toBe(503);
+          expect(res.body.message).toContain("ไม่สามารถส่งอีเมล OTP ได้");
+        } finally {
+          delete process.env.GOOGLE_SCRIPT_URL;
+          global.fetch = origFetch;
+        }
       });
     });
 

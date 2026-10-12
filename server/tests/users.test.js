@@ -942,6 +942,39 @@ describe("Users Route", () => {
       expect(res.status).toBe(400);
       expect(res.body.message).toBe("รหัส OTP ไม่ถูกต้อง");
     });
+
+    it("should return 400 when OTP format provided to change-password is not 6 digits", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({
+        _id: "mockId123",
+        email: "user@example.com",
+      });
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ otpCode: "12ab", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("รหัส OTP ไม่ถูกต้อง");
+    });
+
+    it("should return 400 when OTP record for change-password is missing or expired", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({
+        _id: "mockId123",
+        email: "user@example.com",
+      });
+      jest.spyOn(Otp, "findOne").mockResolvedValueOnce(null);
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ otpCode: "123456", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ");
+    });
   });
 
   describe("Link OTP Flow (Email & Phone Linking)", () => {

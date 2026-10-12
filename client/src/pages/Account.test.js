@@ -13,6 +13,8 @@ jest.mock("../utils/api", () => {
     changePassword: jest.fn(),
     sendForgotPasswordOtp: jest.fn(),
     verifyForgotPasswordOtp: jest.fn(),
+    sendLinkOtp: jest.fn(),
+    verifyLinkOtp: jest.fn(),
   };
 });
 
@@ -246,6 +248,52 @@ describe("Account Page Integration", () => {
       expect(api.verifyForgotPasswordOtp).toHaveBeenCalledWith({
         target: "alpha@example.com",
         otp: "123456",
+      });
+    });
+  });
+
+  test("updates user profile state when ManageAccountCard verifies email OTP", async () => {
+    localStorage.setItem("token", validToken);
+    api.fetchCurrentUser.mockResolvedValueOnce({
+      username: "streamer_alpha",
+      email: "alpha@example.com",
+      isEmailVerified: false,
+    });
+    api.sendLinkOtp.mockResolvedValueOnce({
+      target: "alpha@example.com",
+      type: "email",
+      demoOtp: "654321",
+    });
+    api.verifyLinkOtp.mockResolvedValueOnce({
+      username: "streamer_alpha",
+      email: "alpha@example.com",
+      isEmailVerified: true,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <Account />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("คลิกเพื่อเชื่อมต่อ").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getAllByText("คลิกเพื่อเชื่อมต่อ")[0]);
+    fireEvent.click(screen.getByText("ส่งรหัส OTP"));
+
+    await waitFor(() => {
+      expect(screen.getByText("ยืนยันและเชื่อมต่อ")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("ยืนยันและเชื่อมต่อ"));
+
+    await waitFor(() => {
+      expect(api.verifyLinkOtp).toHaveBeenCalledWith({
+        target: "alpha@example.com",
+        type: "email",
+        otp: "654321",
       });
     });
   });

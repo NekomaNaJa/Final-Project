@@ -61,14 +61,19 @@ const ManageAccountCard = ({ user, onUpdateUser }) => {
     setSuccess("");
 
     try {
-      await sendLinkOtp({
+      const result = await sendLinkOtp({
         target: inputValue.trim(),
         type: modalType,
       });
 
       setStep(2);
       setCountdown(60);
-      setSuccess(`ส่งรหัส OTP ไปยัง ${inputValue.trim()} แล้ว`);
+      if (result?.demoOtp) {
+        setOtpValue(String(result.demoOtp));
+        setSuccess(`ส่งรหัส OTP ไปยัง ${inputValue.trim()} แล้ว (รหัส OTP: ${result.demoOtp})`);
+      } else {
+        setSuccess(`ส่งรหัส OTP ไปยัง ${inputValue.trim()} แล้ว`);
+      }
     } catch (err) {
       setError(err.message || "เกิดข้อผิดพลาดในการส่งรหัส OTP");
     } finally {

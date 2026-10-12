@@ -379,8 +379,9 @@ export const requestOtp = async (req, res, next) => {
       expiresAt,
     });
 
+    let deliveryResult;
     try {
-      await sendEmailOtp(safeEmail, otpCode, "verify_email");
+      deliveryResult = await sendEmailOtp(safeEmail, otpCode, "verify_email");
     } catch (deliveryError) {
       await Otp.deleteMany({ email: { $eq: safeEmail } });
       return res.status(503).json({
@@ -393,13 +394,19 @@ export const requestOtp = async (req, res, next) => {
     }
 
     const masked = maskTarget(safeEmail, "email");
+    const responseData = {
+      email: safeEmail,
+      maskedEmail: masked,
+    };
+    const isDummyEmail = /@(test|example)\.(com|org|net)$/i.test(safeEmail);
+    if ((deliveryResult?.simulated || isDummyEmail) && process.env.NODE_ENV !== "test") {
+      responseData.simulated = Boolean(deliveryResult?.simulated);
+      responseData.demoOtp = otpCode;
+    }
 
     return res.status(200).json({
       message: `ส่งรหัส OTP ไปยัง ${masked} เรียบร้อยแล้ว`,
-      data: {
-        email: safeEmail,
-        maskedEmail: masked,
-      },
+      data: responseData,
     });
   } catch (err) {
     next(err);
@@ -507,13 +514,16 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
     }
 
     const cleanPhone = safeIdentifier.replace(/\D/g, "");
+    const orConditions = [
+      { email: { $eq: safeIdentifier.toLowerCase() } },
+      { username: { $eq: safeIdentifier } },
+    ];
+    if (cleanPhone.length >= 9) {
+      orConditions.push({ phone: { $eq: cleanPhone } });
+    }
 
     const user = await User.findOne({
-      $or: [
-        { email: { $eq: safeIdentifier.toLowerCase() } },
-        { phone: { $eq: cleanPhone } },
-        { username: { $eq: safeIdentifier } },
-      ],
+      $or: orConditions,
     });
 
     if (!user) {
@@ -561,9 +571,10 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
       expiresAt,
     });
 
+    let deliveryResult;
     if (safeChannel === "email") {
       try {
-        await sendEmailOtp(target, otpCode, "forgot_password");
+        deliveryResult = await sendEmailOtp(target, otpCode, "forgot_password");
       } catch (deliveryError) {
         await Otp.deleteMany({ target: { $eq: target }, purpose: { $eq: "forgot_password" } });
         return res.status(503).json({
@@ -574,18 +585,24 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
         });
       }
     } else {
-      await sendSmsOtp(target, otpCode, "forgot_password");
+      deliveryResult = await sendSmsOtp(target, otpCode, "forgot_password");
     }
 
     const masked = maskTarget(target, safeChannel === "email" ? "email" : "phone");
+    const responseData = {
+      channel: safeChannel,
+      maskedTarget: masked,
+      target,
+    };
+    const isDummyEmail = /@(test|example)\.(com|org|net)$/i.test(target);
+    if ((deliveryResult?.simulated || isDummyEmail) && process.env.NODE_ENV !== "test") {
+      responseData.simulated = Boolean(deliveryResult?.simulated);
+      responseData.demoOtp = otpCode;
+    }
 
     res.json({
       message: `ส่งรหัส OTP ไปยัง ${masked} เรียบร้อยแล้ว`,
-      data: {
-        channel: safeChannel,
-        maskedTarget: masked,
-        target,
-      },
+      data: responseData,
     });
   } catch (err) {
     next(err);
