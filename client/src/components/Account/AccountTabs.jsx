@@ -35,7 +35,7 @@ const AccountTabs = ({ user, onSave }) => {
       {/* Tab Content */}
       {activeTab === "social" && <SocialMediaTab user={user} onSave={onSave} />}
       {activeTab === "info" && <UserInfoTab user={user} onSave={onSave} />}
-      {activeTab === "security" && <SecurityTab onSave={onSave} />}
+      {activeTab === "security" && <SecurityTab user={user} onSave={onSave} />}
     </div>
   );
 };

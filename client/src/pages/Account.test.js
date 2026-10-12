@@ -11,6 +11,8 @@ jest.mock("../utils/api", () => {
     fetchCurrentUser: jest.fn(),
     updateCurrentUser: jest.fn(),
     changePassword: jest.fn(),
+    sendForgotPasswordOtp: jest.fn(),
+    verifyForgotPasswordOtp: jest.fn(),
   };
 });
 
@@ -193,12 +195,20 @@ describe("Account Page Integration", () => {
     });
   });
 
-  test("changes password successfully from SecurityTab", async () => {
+  test("requests OTP and verifies in SecurityTab to redirect to /forgot-password", async () => {
     localStorage.setItem("token", validToken);
     api.fetchCurrentUser.mockResolvedValueOnce({
       username: "streamer_alpha",
+      email: "alpha@example.com",
     });
-    api.changePassword.mockResolvedValueOnce(null);
+    api.sendForgotPasswordOtp.mockResolvedValueOnce({
+      target: "alpha@example.com",
+      maskedTarget: "a***@example.com",
+    });
+    api.verifyForgotPasswordOtp.mockResolvedValueOnce({
+      resetToken: "valid-reset-token-999",
+      target: "alpha@example.com",
+    });
 
     render(
       <MemoryRouter initialEntries={["/account"]}>
@@ -212,23 +222,31 @@ describe("Account Page Integration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "ความปลอดภัย" }));
 
-    const currentPassInput = screen.getByLabelText("รหัสผ่านปัจจุบัน");
-    const newPassInput = screen.getByLabelText("รหัสผ่านใหม่");
-    const confirmPassInput = screen.getByLabelText("ยืนยันรหัสผ่าน");
+    const emailInput = screen.getByLabelText("อีเมลสำหรับรับรหัส OTP");
+    expect(emailInput.value).toBe("alpha@example.com");
 
-    fireEvent.change(currentPassInput, { target: { value: "OldPassword1!" } });
-    fireEvent.change(newPassInput, { target: { value: "NewPassword1!" } });
-    fireEvent.change(confirmPassInput, { target: { value: "NewPassword1!" } });
-
-    const saveBtns = screen.getAllByRole("button", { name: /บันทึก/i });
-    fireEvent.click(saveBtns[0]);
+    const sendOtpBtn = screen.getByText("ส่งรหัส OTP");
+    fireEvent.click(sendOtpBtn);
 
     await waitFor(() => {
-      expect(api.changePassword).toHaveBeenCalledWith({
-        currentPassword: "OldPassword1!",
-        newPassword: "NewPassword1!",
+      expect(api.sendForgotPasswordOtp).toHaveBeenCalledWith({
+        identifier: "alpha@example.com",
+        channel: "email",
       });
-      expect(screen.getByText("เปลี่ยนรหัสผ่านสำเร็จ")).toBeInTheDocument();
+      expect(screen.getByText(/ส่งรหัส OTP ไปยัง/)).toBeInTheDocument();
+    });
+
+    const otpInput = screen.getByLabelText("รหัส OTP (6 หลัก)");
+    fireEvent.change(otpInput, { target: { value: "123456" } });
+
+    const submitBtn = screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน");
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(api.verifyForgotPasswordOtp).toHaveBeenCalledWith({
+        target: "alpha@example.com",
+        otp: "123456",
+      });
     });
   });
 });

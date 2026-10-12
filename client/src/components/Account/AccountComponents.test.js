@@ -1,20 +1,41 @@
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"),
+  useNavigate: () => mockNavigate,
+}));
+jest.mock("react-router", () => ({
+  ...jest.requireActual("react-router"),
+  useNavigate: () => mockNavigate,
+}));
+
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import AccountProfileCard from "./AccountProfileCard";
 import AccountTabs from "./AccountTabs";
 import ManageAccountCard from "./ManageAccountCard";
 import SecurityTab from "./SecurityTab";
 import SocialMediaTab from "./SocialMediaTab";
 import UserInfoTab from "./UserInfoTab";
-import { sendLinkOtp, verifyLinkOtp } from "../../utils/api";
+import { sendLinkOtp, verifyLinkOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp } from "../../utils/api";
 
 jest.mock("../../utils/api", () => ({
   ...jest.requireActual("../../utils/api"),
   sendLinkOtp: jest.fn().mockResolvedValue({ target: "user@test.com", type: "email" }),
   verifyLinkOtp: jest.fn().mockResolvedValue({ email: "user@test.com", isEmailVerified: true }),
+  sendForgotPasswordOtp: jest.fn().mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" }),
+  verifyForgotPasswordOtp: jest.fn().mockResolvedValue({ resetToken: "mock-reset-token-123" }),
 }));
 
 describe("Account Components", () => {
+  beforeEach(() => {
+    sendLinkOtp.mockResolvedValue({ target: "user@test.com", type: "email" });
+    verifyLinkOtp.mockResolvedValue({ email: "user@test.com", isEmailVerified: true });
+    sendForgotPasswordOtp.mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" });
+    verifyForgotPasswordOtp.mockResolvedValue({ resetToken: "mock-reset-token-123" });
+    mockNavigate.mockClear();
+  });
+
   const mockUser = {
     username: "TestStreamer",
     email: "test@example.com",
@@ -41,6 +62,89 @@ describe("Account Components", () => {
       render(<AccountProfileCard user={null} />);
       expect(screen.getByText("Test")).toBeInTheDocument();
       expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    });
+
+    test("triggers file input click when pencil button or avatar is clicked", () => {
+      render(<AccountProfileCard user={mockUser} />);
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const clickSpy = jest.spyOn(fileInput, "click");
+
+      const pencilBtn = screen.getByLabelText("เปลี่ยนรูปโปรไฟล์");
+      fireEvent.click(pencilBtn);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+
+      const avatarBtn = screen.getByLabelText("คลิกเพื่อเปลี่ยนรูปโปรไฟล์");
+      fireEvent.click(avatarBtn);
+      expect(clickSpy).toHaveBeenCalledTimes(2);
+
+      fireEvent.keyDown(avatarBtn, { key: "Enter" });
+      expect(clickSpy).toHaveBeenCalledTimes(3);
+    });
+
+    test("successfully uploads and saves avatar when valid image file is selected", async () => {
+      const mockOnSave = jest.fn().mockResolvedValue({ success: true });
+      render(<AccountProfileCard user={mockUser} onSave={mockOnSave} />);
+
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const file = new File(["dummy content"], "avatar.png", { type: "image/png" });
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith({
+          avatar: "data:image/png;base64,mock-slip-base64",
+        });
+      });
+    });
+
+    test("shows error when selected file type is not supported", () => {
+      const mockOnSave = jest.fn();
+      render(<AccountProfileCard user={mockUser} onSave={mockOnSave} />);
+
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const file = new File(["dummy text"], "document.pdf", { type: "application/pdf" });
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "รองรับเฉพาะไฟล์รูปภาพประเภท JPG, PNG, GIF หรือ WEBP"
+      );
+      expect(mockOnSave).not.toHaveBeenCalled();
+    });
+
+    test("shows error when selected image exceeds size limit of 3MB", () => {
+      const mockOnSave = jest.fn();
+      render(<AccountProfileCard user={mockUser} onSave={mockOnSave} />);
+
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const bigFile = new File(["a".repeat(100)], "large.png", {
+        type: "image/png",
+      });
+      Object.defineProperty(bigFile, "size", { value: 4 * 1024 * 1024 });
+
+      fireEvent.change(fileInput, { target: { files: [bigFile] } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "ขนาดไฟล์รูปภาพต้องไม่เกิน 3 MB เพื่อการแสดงผลที่รวดเร็ว"
+      );
+      expect(mockOnSave).not.toHaveBeenCalled();
+    });
+
+    test("allows removing avatar when user already has an avatar", async () => {
+      const mockOnSave = jest.fn().mockResolvedValue({ success: true });
+      const userWithAvatar = {
+        ...mockUser,
+        avatar: "https://example.com/avatar.jpg",
+      };
+
+      render(<AccountProfileCard user={userWithAvatar} onSave={mockOnSave} />);
+
+      const deleteBtn = screen.getByLabelText("ลบรูปโปรไฟล์");
+      fireEvent.click(deleteBtn);
+
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith({ avatar: "" });
+      });
     });
   });
 
@@ -224,20 +328,88 @@ describe("Account Components", () => {
   });
 
   describe("SecurityTab", () => {
-    test("allows typing passwords and toggling password visibility", () => {
-      render(<SecurityTab />);
+    test("allows entering email, sending OTP, verifying OTP, and redirecting to /forgot-password", async () => {
+      render(
+        <MemoryRouter>
+          <SecurityTab user={mockUser} navigate={mockNavigate} />
+        </MemoryRouter>
+      );
       expect(screen.getByText("SECURITY")).toBeInTheDocument();
 
-      const currentPassInput = screen.getAllByPlaceholderText("••••••••••••")[0];
-      fireEvent.change(currentPassInput, { target: { name: "currentPassword", value: "Secret123" } });
-      expect(currentPassInput.value).toBe("Secret123");
+      const emailInput = screen.getByLabelText("อีเมลสำหรับรับรหัส OTP");
+      expect(emailInput.value).toBe("test@example.com");
 
-      const toggleButtons = screen.getAllByRole("button", { name: "แสดงรหัสผ่าน" });
-      fireEvent.click(toggleButtons[0]);
-      expect(currentPassInput.getAttribute("type")).toBe("text");
+      const sendOtpBtn = screen.getByText("ส่งรหัส OTP");
+      fireEvent.click(sendOtpBtn);
 
-      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
-      fireEvent.click(saveBtn);
+      await waitFor(() => {
+        expect(sendForgotPasswordOtp).toHaveBeenCalledWith({
+          identifier: "test@example.com",
+          channel: "email",
+        });
+        expect(screen.getByText(/ส่งรหัส OTP ไปยัง/)).toBeInTheDocument();
+      });
+
+      const otpInput = screen.getByLabelText("รหัส OTP (6 หลัก)");
+      fireEvent.change(otpInput, { target: { value: "123456" } });
+      expect(otpInput.value).toBe("123456");
+
+      const submitBtn = screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน");
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(verifyForgotPasswordOtp).toHaveBeenCalledWith({
+          target: "test@example.com",
+          otp: "123456",
+        });
+        expect(mockNavigate).toHaveBeenCalledWith("/forgot-password", {
+          state: {
+            step: 3,
+            resetToken: "mock-reset-token-123",
+            target: "test@example.com",
+            identifier: "test@example.com",
+          },
+        });
+      });
+    });
+
+    test("shows validation errors for empty email or missing OTP", () => {
+      render(
+        <MemoryRouter>
+          <SecurityTab user={{ email: "" }} />
+        </MemoryRouter>
+      );
+
+      const submitBtn = screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน");
+      fireEvent.click(submitBtn);
+      expect(screen.getByText("กรุณากรอกอีเมลสำหรับรับรหัส OTP")).toBeInTheDocument();
+
+      const sendOtpBtn = screen.getByText("ส่งรหัส OTP");
+      fireEvent.click(sendOtpBtn);
+      expect(screen.getByText("กรุณากรอกอีเมลสำหรับรับรหัส OTP")).toBeInTheDocument();
+    });
+
+    test("shows error when verifyForgotPasswordOtp fails", async () => {
+      verifyForgotPasswordOtp.mockRejectedValueOnce(new Error("รหัส OTP ไม่ถูกต้องหรือหมดอายุ"));
+      render(
+        <MemoryRouter>
+          <SecurityTab user={mockUser} />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText("ส่งรหัส OTP"));
+      await waitFor(() => {
+        expect(screen.getByText(/ส่งรหัส OTP ไปยัง/)).toBeInTheDocument();
+      });
+
+      const otpInput = screen.getByLabelText("รหัส OTP (6 หลัก)");
+      fireEvent.change(otpInput, { target: { value: "654321" } });
+
+      fireEvent.click(screen.getByText("ยืนยันและเปลี่ยนรหัสผ่าน"));
+
+      await waitFor(() => {
+        expect(screen.getByText("รหัส OTP ไม่ถูกต้องหรือหมดอายุ")).toBeInTheDocument();
+      });
     });
   });
 
