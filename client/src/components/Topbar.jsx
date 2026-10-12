@@ -15,7 +15,7 @@ const getDecodedUsername = () => {
   }
 };
 
-const DashboardNavbar = ({ username, breadcrumb }) => {
+const DashboardNavbar = ({ username, avatar, breadcrumb }) => {
   const effectiveUsername = username || getDecodedUsername() || "";
 
   return (
@@ -35,8 +35,12 @@ const DashboardNavbar = ({ username, breadcrumb }) => {
       <div className="flex items-center gap-3">
         <NotificationBell username={effectiveUsername} />
         <div className="flex items-center gap-2 rounded-full border border-border bg-white/5 px-3 py-1.5">
-          <div className="w-7 h-7 grid place-items-center rounded-full bg-linear-to-br from-purple-500 to-purple-700 text-xs font-bold text-white">
-            {effectiveUsername?.[0]?.toUpperCase() || "T"}
+          <div className="w-7 h-7 grid place-items-center rounded-full bg-linear-to-br from-purple-500 to-purple-700 text-xs font-bold text-white overflow-hidden">
+            {avatar ? (
+              <img src={avatar} alt={effectiveUsername || "User"} className="h-full w-full object-cover" />
+            ) : (
+              effectiveUsername?.[0]?.toUpperCase() || "T"
+            )}
           </div>
           <span className="text-sm font-medium text-white">
             {effectiveUsername || "Test"}

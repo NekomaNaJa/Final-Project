@@ -158,7 +158,7 @@ const Account = () => {
       <div className="relative z-10 flex-1 min-w-0 flex flex-col justify-between">
         <div>
           {/* Topbar with breadcrumb */}
-          <Topbar username={user?.username} breadcrumb="บัญชีผู้ใช้" />
+          <Topbar username={user?.username} avatar={user?.avatar} breadcrumb="บัญชีผู้ใช้" />
 
           <main className="mx-auto w-full max-w-[1120px] px-5 py-8 lg:px-8 space-y-6">
             {/* Header */}

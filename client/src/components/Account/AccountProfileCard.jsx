@@ -1,8 +1,12 @@
-import React, { useState } from "react";
-import { Pencil, Copy, Check } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Pencil, Copy, Check, Camera, Trash2, Loader2 } from "lucide-react";
 
 const AccountProfileCard = ({ user, onSave }) => {
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState(null);
+  const fileInputRef = useRef(null);
+
   const username = user?.username || "Test";
   const donixUrl = `https://final-project-orpin-five.vercel.app/${username}`;
   const isLive = Boolean(user?.isLive);
@@ -23,6 +27,85 @@ const AccountProfileCard = ({ user, onSave }) => {
     onSave?.({ isLive: !isLive });
   };
 
+  const handleAvatarFile = (file) => {
+    if (!file) return;
+
+    if (!file.type.match(/^image\/(jpeg|png|gif|webp)$/i)) {
+      setAvatarError("รองรับเฉพาะไฟล์รูปภาพประเภท JPG, PNG, GIF หรือ WEBP");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setAvatarError("ขนาดไฟล์รูปภาพต้องไม่เกิน 3 MB เพื่อการแสดงผลที่รวดเร็ว");
+      return;
+    }
+
+    setAvatarError(null);
+    setIsUploading(true);
+
+    if (typeof FileReader !== "undefined") {
+      const reader = new FileReader();
+      let handled = false;
+
+      const onDone = async () => {
+        if (handled) return;
+        handled = true;
+        try {
+          const resultUrl = reader.result;
+          if (resultUrl) {
+            await onSave?.({ avatar: resultUrl });
+          }
+        } catch (err) {
+          setAvatarError(err.message || "เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์");
+        } finally {
+          setIsUploading(false);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }
+      };
+
+      reader.onload = onDone;
+      reader.onloadend = onDone;
+      reader.onerror = () => {
+        setAvatarError("ไม่สามารถอ่านไฟล์รูปภาพได้");
+        setIsUploading(false);
+      };
+
+      try {
+        reader.readAsDataURL(file);
+        return;
+      } catch {
+        // Fallback
+      }
+    }
+
+    setIsUploading(false);
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleAvatarFile(file);
+    }
+  };
+
+  const handleRemoveAvatar = async (e) => {
+    e.stopPropagation();
+    try {
+      setIsUploading(true);
+      setAvatarError(null);
+      await onSave?.({ avatar: "" });
+    } catch (err) {
+      setAvatarError(err.message || "เกิดข้อผิดพลาดในการลบรูปโปรไฟล์");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const formattedJoinedDate =
     user?.joinedAt ||
     (user?.createdAt
@@ -35,9 +118,32 @@ const AccountProfileCard = ({ user, onSave }) => {
 
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex flex-col items-center text-center">
-      {/* Avatar */}
-      <div className="relative">
-        <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white">
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        onChange={handleFileInputChange}
+        className="hidden"
+        aria-label="อัปโหลดรูปโปรไฟล์"
+      />
+
+      {/* Avatar Container */}
+      <div className="relative group">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => !isUploading && fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && !isUploading) {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+          aria-label="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+          className="relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-[#16122a] transition-all"
+        >
           {user?.avatar ? (
             <img
               src={user.avatar}
@@ -47,15 +153,54 @@ const AccountProfileCard = ({ user, onSave }) => {
           ) : (
             username?.[0]?.toUpperCase() || "T"
           )}
+
+          {/* Hover Overlay */}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[10px] text-white font-medium">
+            <Camera size={18} />
+            <span>เปลี่ยนรูป</span>
+          </div>
+
+          {/* Loading Spinner */}
+          {isUploading && (
+            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
+              <Loader2 size={24} className="text-purple-400 animate-spin" />
+            </div>
+          )}
         </div>
+
+        {/* Change Avatar Button */}
         <button
           type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
           title="เปลี่ยนรูปโปรไฟล์"
-          className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-[#2e2648] bg-[#221a3e] text-gray-300 hover:bg-purple-600 hover:text-white transition-colors"
+          aria-label="เปลี่ยนรูปโปรไฟล์"
+          className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-[#2e2648] bg-[#221a3e] text-gray-300 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
         >
           <Pencil size={13} />
         </button>
+
+        {/* Delete Avatar Button (Only when avatar exists) */}
+        {user?.avatar && (
+          <button
+            type="button"
+            onClick={handleRemoveAvatar}
+            disabled={isUploading}
+            title="ลบรูปโปรไฟล์"
+            aria-label="ลบรูปโปรไฟล์"
+            className="absolute -top-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-red-500/40 bg-[#22142a] text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
+
+      {/* Error Message */}
+      {avatarError && (
+        <p role="alert" className="mt-2 text-xs text-red-400">
+          {avatarError}
+        </p>
+      )}
 
       {/* Name */}
       <h2 className="mt-4 text-xl font-bold text-white">{username}</h2>

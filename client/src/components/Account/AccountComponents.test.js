@@ -42,6 +42,89 @@ describe("Account Components", () => {
       expect(screen.getByText("Test")).toBeInTheDocument();
       expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     });
+
+    test("triggers file input click when pencil button or avatar is clicked", () => {
+      render(<AccountProfileCard user={mockUser} />);
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const clickSpy = jest.spyOn(fileInput, "click");
+
+      const pencilBtn = screen.getByLabelText("เปลี่ยนรูปโปรไฟล์");
+      fireEvent.click(pencilBtn);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+
+      const avatarBtn = screen.getByLabelText("คลิกเพื่อเปลี่ยนรูปโปรไฟล์");
+      fireEvent.click(avatarBtn);
+      expect(clickSpy).toHaveBeenCalledTimes(2);
+
+      fireEvent.keyDown(avatarBtn, { key: "Enter" });
+      expect(clickSpy).toHaveBeenCalledTimes(3);
+    });
+
+    test("successfully uploads and saves avatar when valid image file is selected", async () => {
+      const mockOnSave = jest.fn().mockResolvedValue({ success: true });
+      render(<AccountProfileCard user={mockUser} onSave={mockOnSave} />);
+
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const file = new File(["dummy content"], "avatar.png", { type: "image/png" });
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith({
+          avatar: "data:image/png;base64,mock-slip-base64",
+        });
+      });
+    });
+
+    test("shows error when selected file type is not supported", () => {
+      const mockOnSave = jest.fn();
+      render(<AccountProfileCard user={mockUser} onSave={mockOnSave} />);
+
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const file = new File(["dummy text"], "document.pdf", { type: "application/pdf" });
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "รองรับเฉพาะไฟล์รูปภาพประเภท JPG, PNG, GIF หรือ WEBP"
+      );
+      expect(mockOnSave).not.toHaveBeenCalled();
+    });
+
+    test("shows error when selected image exceeds size limit of 3MB", () => {
+      const mockOnSave = jest.fn();
+      render(<AccountProfileCard user={mockUser} onSave={mockOnSave} />);
+
+      const fileInput = screen.getByLabelText("อัปโหลดรูปโปรไฟล์");
+      const bigFile = new File(["a".repeat(100)], "large.png", {
+        type: "image/png",
+      });
+      Object.defineProperty(bigFile, "size", { value: 4 * 1024 * 1024 });
+
+      fireEvent.change(fileInput, { target: { files: [bigFile] } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "ขนาดไฟล์รูปภาพต้องไม่เกิน 3 MB เพื่อการแสดงผลที่รวดเร็ว"
+      );
+      expect(mockOnSave).not.toHaveBeenCalled();
+    });
+
+    test("allows removing avatar when user already has an avatar", async () => {
+      const mockOnSave = jest.fn().mockResolvedValue({ success: true });
+      const userWithAvatar = {
+        ...mockUser,
+        avatar: "https://example.com/avatar.jpg",
+      };
+
+      render(<AccountProfileCard user={userWithAvatar} onSave={mockOnSave} />);
+
+      const deleteBtn = screen.getByLabelText("ลบรูปโปรไฟล์");
+      fireEvent.click(deleteBtn);
+
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith({ avatar: "" });
+      });
+    });
   });
 
   describe("AccountTabs", () => {

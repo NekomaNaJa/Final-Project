@@ -71,4 +71,16 @@ describe('Topbar Component', () => {
     expect(screen.getByText('วิดเจ็ตรับเงิน')).toBeInTheDocument();
     expect(screen.getByText('nekoma')).toBeInTheDocument();
   });
+
+  it('renders custom avatar image when provided', () => {
+    render(
+      <MemoryRouter>
+        <Topbar username="nekoma" avatar="https://example.com/avatar.jpg" />
+      </MemoryRouter>
+    );
+
+    const avatarImg = screen.getByAltText('nekoma');
+    expect(avatarImg).toBeInTheDocument();
+    expect(avatarImg).toHaveAttribute('src', 'https://example.com/avatar.jpg');
+  });
 });
