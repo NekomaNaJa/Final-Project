@@ -1,6 +1,289 @@
 import React, { useState, useEffect } from "react";
+import {
+  CheckCircle2,
+  Link2,
+  RefreshCw,
+  Unlink,
+  ExternalLink,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import SettingsCard from "../DonatePage/SettingsCard";
 import { socialPlatforms } from "../../constants/socialPlatforms";
+
+const OAUTH_PROVIDER_META = {
+  facebook: {
+    providerName: "Facebook",
+    authDomain: "facebook.com/dialog/oauth",
+    oauthUrl: "https://www.facebook.com/login.php",
+    baseUrl: "https://facebook.com/",
+  },
+  instagram: {
+    providerName: "Instagram",
+    authDomain: "api.instagram.com/oauth/authorize",
+    oauthUrl: "https://www.instagram.com/accounts/login/",
+    baseUrl: "https://instagram.com/",
+  },
+  youtube: {
+    providerName: "Google / YouTube",
+    authDomain: "accounts.google.com/o/oauth2/v2/auth",
+    oauthUrl: "https://accounts.google.com/signin",
+    baseUrl: "https://youtube.com/@",
+  },
+  tiktok: {
+    providerName: "TikTok",
+    authDomain: "open.tiktokapis.com/v2/auth/authorize",
+    oauthUrl: "https://www.tiktok.com/login",
+    baseUrl: "https://tiktok.com/@",
+  },
+  twitch: {
+    providerName: "Twitch",
+    authDomain: "id.twitch.tv/oauth2/authorize",
+    oauthUrl: "https://id.twitch.tv/oauth2/authorize",
+    baseUrl: "https://twitch.tv/",
+  },
+  x: {
+    providerName: "X (Twitter)",
+    authDomain: "twitter.com/i/oauth2/authorize",
+    oauthUrl: "https://x.com/i/flow/login",
+    baseUrl: "https://x.com/",
+  },
+};
+
+export const extractSocialHandle = (rawValue) => {
+  if (typeof rawValue !== "string") return "";
+  const trimmed = rawValue.trim();
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    try {
+      const parsed = new URL(trimmed);
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      const handleSegment = segments[segments.length - 1] || parsed.hostname;
+      return handleSegment.startsWith("@") ? handleSegment : `@${handleSegment}`;
+    } catch {
+      // Fallback below
+    }
+  }
+
+  return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+};
+
+const getBaseHandle = (user) => {
+  const raw = user?.username || user?.nickname || "streamer";
+  const cleaned = String(raw).trim().replace(/\s+/g, "_").replace(/^@+/, "");
+  return cleaned || "streamer";
+};
+
+const buildOAuthAccounts = (baseHandle, email) => [
+  {
+    handle: `@${baseHandle}`,
+    tag: `บัญชีหลัก • ${email || `${baseHandle}@donix.app`}`,
+  },
+  {
+    handle: `@${baseHandle}_official`,
+    tag: "บัญชีครีเอเตอร์ / สตรีมเมอร์ทางการ",
+  },
+  {
+    handle: `@${baseHandle}_live`,
+    tag: "บัญชีช่องสตรีมสำรอง",
+  },
+];
+
+const SocialPlatformRow = ({
+  platform,
+  rawValue,
+  onConnectClick,
+  onChangeAccountClick,
+  onDisconnectClick,
+}) => {
+  const { key, label, icon } = platform;
+  const connectedHandle = extractSocialHandle(rawValue);
+  const isConnected = Boolean(connectedHandle);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-bold tracking-wider text-[#9891ab]">
+        {label}
+      </span>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 transition-all hover:border-[#3e3460]">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#1b1532]">
+            {icon}
+          </div>
+          {isConnected ? (
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <span
+                data-testid={`social-handle-${key}`}
+                className="truncate text-xs font-semibold text-white"
+              >
+                {connectedHandle}
+              </span>
+              <span
+                data-testid={`social-status-${key}`}
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
+              >
+                <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
+                <span>เชื่อมต่อแล้ว</span>
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-[#5c556f]">ยังไม่ได้เชื่อมต่อ</span>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isConnected ? (
+            <>
+              <button
+                type="button"
+                aria-label={`เปลี่ยนบัญชี ${label}`}
+                onClick={() => onChangeAccountClick(platform, connectedHandle)}
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
+              >
+                <RefreshCw size={11} />
+                <span>เปลี่ยนบัญชี</span>
+              </button>
+              <button
+                type="button"
+                aria-label={`ยกเลิกการเชื่อมต่อ ${label}`}
+                onClick={() => onDisconnectClick(key)}
+                className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all"
+              >
+                <Unlink size={11} />
+                <span>ยกเลิกการเชื่อมต่อ</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              aria-label={`เชื่อมต่อ ${label}`}
+              onClick={() => onConnectClick(platform)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.3)] hover:bg-[#7c3aed] transition-all active:scale-95"
+            >
+              <Link2 size={12} />
+              <span>เชื่อมต่อ</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SocialOAuthModal = ({
+  modalState,
+  accounts,
+  selectedHandle,
+  onSelectHandle,
+  onConfirmConnect,
+  onOpenPopupWindow,
+  onClose,
+}) => {
+  if (!modalState) return null;
+
+  const { platform, mode } = modalState;
+  const meta = OAUTH_PROVIDER_META[platform.key] || {
+    providerName: platform.label,
+    authDomain: "oauth.provider.com",
+    oauthUrl: "https://donix.app",
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="oauth-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md rounded-2xl border border-[#2e2648] bg-[#16122a] p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-[#2b2542] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#2e2648] bg-[#110d22]">
+              {platform.icon}
+            </div>
+            <div>
+              <h3 id="oauth-modal-title" className="text-sm font-bold text-white">
+                {mode === "change"
+                  ? `เปลี่ยนบัญชี ${meta.providerName}`
+                  : `เชื่อมต่อบัญชี ${meta.providerName}`}
+              </h3>
+              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-[#9891ab]">
+                <ShieldCheck size={12} className="text-emerald-400" />
+                <span>OAuth 2.0 • {meta.authDomain}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            aria-label="ปิดหน้าต่างเชื่อมต่อ"
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2.5">
+          <p className="text-xs font-medium text-[#d4cfdf]">
+            เลือกบัญชี {meta.providerName} ที่ต้องการเชื่อมต่อกับ DONIX:
+          </p>
+          <div className="space-y-2">
+            {accounts.map((acc) => {
+              const isSelected = selectedHandle === acc.handle;
+              return (
+                <button
+                  key={acc.handle}
+                  type="button"
+                  onClick={() => onSelectHandle(acc.handle)}
+                  className={`w-full flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-left transition-all ${
+                    isSelected
+                      ? "border-purple-500 bg-purple-500/15 text-white"
+                      : "border-[#2e2648] bg-[#110d22] text-gray-300 hover:border-[#3e3460]"
+                  }`}
+                >
+                  <div>
+                    <p className="text-xs font-bold text-white">{acc.handle}</p>
+                    <p className="text-[10px] text-[#9891ab]">{acc.tag}</p>
+                  </div>
+                  {isSelected && (
+                    <CheckCircle2 size={16} className="text-purple-400 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onOpenPopupWindow(meta.oauthUrl)}
+            className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-purple-300 hover:text-purple-200 transition-colors"
+          >
+            <ExternalLink size={12} />
+            <span>เปิดหน้าต่างยืนยันตัวตนของ {meta.providerName}</span>
+          </button>
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-[#2e2648] bg-[#110d22] px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 transition-colors"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmConnect}
+            className="rounded-xl bg-[#8b5cf6] px-5 py-2 text-xs font-semibold text-white shadow-[0_0_16px_rgba(139,92,246,0.35)] hover:bg-[#7c3aed] transition-all"
+          >
+            อนุญาตและเชื่อมต่อ
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SocialMediaTab = ({ user, onSave }) => {
   const [socialLinks, setSocialLinks] = useState({
@@ -11,6 +294,8 @@ const SocialMediaTab = ({ user, onSave }) => {
     twitch: user?.social?.twitch || "",
     x: user?.social?.x || "",
   });
+  const [oauthModal, setOauthModal] = useState(null);
+  const [selectedHandle, setSelectedHandle] = useState("");
 
   useEffect(() => {
     if (user?.social) {
@@ -25,12 +310,53 @@ const SocialMediaTab = ({ user, onSave }) => {
     }
   }, [user]);
 
-  const handleChange = (key, value) => {
-    setSocialLinks((prev) => ({ ...prev, [key]: value }));
+  const baseHandle = getBaseHandle(user);
+  const accounts = buildOAuthAccounts(baseHandle, user?.email);
+
+  const handleOpenConnect = (platform) => {
+    setSelectedHandle(accounts[0].handle);
+    setOauthModal({ platform, mode: "connect" });
+  };
+
+  const handleOpenChangeAccount = (platform, currentHandle) => {
+    const nextAccount =
+      accounts.find((a) => a.handle !== currentHandle) || accounts[0];
+    setSelectedHandle(nextAccount.handle);
+    setOauthModal({ platform, mode: "change" });
+  };
+
+  const handleConfirmOAuthConnect = () => {
+    if (!oauthModal) return;
+    const { key } = oauthModal.platform;
+    const meta = OAUTH_PROVIDER_META[key];
+    const cleanName = selectedHandle.replace(/^@+/, "");
+    const connectedValue = meta?.baseUrl
+      ? `${meta.baseUrl}${cleanName}`
+      : selectedHandle;
+
+    const updated = { ...socialLinks, [key]: connectedValue };
+    setSocialLinks(updated);
+    setOauthModal(null);
+    if (onSave) {
+      onSave({ social: updated });
+    }
+  };
+
+  const handleDisconnect = (key) => {
+    const updated = { ...socialLinks, [key]: "" };
+    setSocialLinks(updated);
+    if (onSave) {
+      onSave({ social: updated });
+    }
+  };
+
+  const handleOpenExternalPopup = (url) => {
+    if (typeof window !== "undefined" && typeof window.open === "function") {
+      window.open(url, "donix_oauth_popup", "width=520,height=640,noopener,noreferrer");
+    }
   };
 
   const handleSave = () => {
-    console.log("Saving account social links:", socialLinks);
     if (onSave) {
       onSave({ social: socialLinks });
     }
@@ -39,27 +365,27 @@ const SocialMediaTab = ({ user, onSave }) => {
   return (
     <SettingsCard title="โซเชียลมีเดีย" subtitle="SOCIAL MEDIA" onSave={handleSave}>
       <div className="grid gap-4 sm:grid-cols-2">
-        {socialPlatforms.map(({ key, label, icon }) => (
-          <div key={key} className="flex flex-col gap-1.5">
-            <label htmlFor={`account-social-${key}`} className="text-[11px] font-bold tracking-wider text-[#9891ab]">
-              {label}
-            </label>
-            <div className="relative flex items-center rounded-xl border border-[#2e2648] bg-[#110d22] px-3 py-2 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center mr-2.5">
-                {icon}
-              </div>
-              <input
-                id={`account-social-${key}`}
-                type="text"
-                value={socialLinks[key]}
-                onChange={(e) => handleChange(key, e.target.value)}
-                placeholder="ยังไม่ได้เชื่อมต่อ"
-                className="w-full bg-transparent text-xs text-white placeholder-[#5c556f] focus:outline-none"
-              />
-            </div>
-          </div>
+        {socialPlatforms.map((platform) => (
+          <SocialPlatformRow
+            key={platform.key}
+            platform={platform}
+            rawValue={socialLinks[platform.key]}
+            onConnectClick={handleOpenConnect}
+            onChangeAccountClick={handleOpenChangeAccount}
+            onDisconnectClick={handleDisconnect}
+          />
         ))}
       </div>
+
+      <SocialOAuthModal
+        modalState={oauthModal}
+        accounts={accounts}
+        selectedHandle={selectedHandle}
+        onSelectHandle={setSelectedHandle}
+        onConfirmConnect={handleConfirmOAuthConnect}
+        onOpenPopupWindow={handleOpenExternalPopup}
+        onClose={() => setOauthModal(null)}
+      />
     </SettingsCard>
   );
 };

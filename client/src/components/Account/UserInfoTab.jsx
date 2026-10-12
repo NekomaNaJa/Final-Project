@@ -72,12 +72,13 @@ const UserInfoTab = ({ user, onSave }) => {
           <label htmlFor="user-birthdate" className="text-xs font-semibold text-[#d4cfdf]">วันเกิด</label>
           <input
             id="user-birthdate"
-            type="text"
+            type="date"
             name="birthDate"
             value={form.birthDate}
             onChange={handleChange}
-            placeholder="DD / MM / YYYY"
-            className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 text-xs font-medium text-white placeholder-[#5c556f] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all"
+            max={new Date().toISOString().split("T")[0]}
+            style={{ colorScheme: "dark" }}
+            className="w-full rounded-xl border border-[#2e2648] bg-[#110d22] px-3.5 py-2.5 text-xs font-medium text-white placeholder-[#5c556f] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all cursor-pointer"
           />
         </div>
 

@@ -6,7 +6,12 @@ import Topbar from "../components/Topbar";
 import AccountProfileCard from "../components/Account/AccountProfileCard";
 import ManageAccountCard from "../components/Account/ManageAccountCard";
 import AccountTabs from "../components/Account/AccountTabs";
-import { fetchCurrentUser, updateCurrentUser, changePassword } from "../utils/api";
+import {
+  fetchCurrentUser,
+  updateCurrentUser,
+  changePassword,
+  fetchDonationStats,
+} from "../utils/api";
 
 let inMemoryUserProfile = null;
 let inMemoryUserUsername = null;
@@ -67,10 +72,19 @@ const Account = () => {
     }
 
     try {
-      const data = await fetchCurrentUser();
+      const [data, stats] = await Promise.all([
+        fetchCurrentUser(),
+        Promise.resolve(fetchDonationStats?.()).catch(() => null),
+      ]);
       if (data) {
         setUser((prev) => {
-          const merged = { ...prev, ...data };
+          const merged = {
+            ...prev,
+            ...data,
+            ...(stats?.totalAmount !== undefined
+              ? { totalAmount: stats.totalAmount }
+              : {}),
+          };
           inMemoryUserProfile = merged;
           inMemoryUserUsername = merged.username;
           return merged;

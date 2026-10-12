@@ -122,6 +122,17 @@ const AccountProfileCard = ({ user, onSave }) => {
         })
       : "—");
 
+  const rawTotalDonations =
+    user?.totalAmount ?? user?.totalDonations ?? user?.totalDonationAmount ?? 0;
+  const numericTotalDonations = Number(rawTotalDonations);
+  const formattedTotalDonations =
+    Number.isFinite(numericTotalDonations) && numericTotalDonations > 0
+      ? `฿${numericTotalDonations.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : "—";
+
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex flex-col items-center text-center">
       {/* Hidden File Input */}
@@ -272,10 +283,10 @@ const AccountProfileCard = ({ user, onSave }) => {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-[0.12em] text-[#7e778d]">
-            อายุ
+            ยอดโดเนทรวม
           </p>
           <p className="mt-1 text-xs font-semibold text-white">
-            {user?.age || "—"}
+            {formattedTotalDonations}
           </p>
         </div>
         <div>
