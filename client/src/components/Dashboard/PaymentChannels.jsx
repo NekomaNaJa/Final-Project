@@ -10,15 +10,9 @@ const PaymentChannels = ({ payment }) => {
       : safeGetItem("donix_payment_config", {});
 
   const promptpayEnabled = Boolean(config?.promptpay?.enabled);
-  const truemoneyEnabled = Boolean(config?.truemoney?.enabled);
   const bankEnabled = Boolean(config?.bank?.enabled);
 
   const channels = [
-    {
-      name: "TrueMoney Wallet",
-      status: truemoneyEnabled ? "เปิดใช้งานแล้ว" : "ยังไม่เชื่อมต่อ",
-      ok: truemoneyEnabled,
-    },
     {
       name: "PromptPay",
       status: promptpayEnabled ? "เปิดใช้งานแล้ว" : "ยังไม่เชื่อมต่อ",

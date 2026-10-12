@@ -13,7 +13,6 @@ const columns = [
 const channelMap = {
   promptpay: "PromptPay",
   bank: "Bank",
-  truemoney: "TrueMoney",
 };
 
 const formatRow = (row) => {

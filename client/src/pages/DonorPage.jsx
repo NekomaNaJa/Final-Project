@@ -7,7 +7,6 @@ import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
 import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
 import DonorPromptPayForm from "../components/Donor/DonorPromptPayForm";
 import DonorBankForm from "../components/Donor/DonorBankForm";
-import DonorTrueMoneyForm from "../components/Donor/DonorTrueMoneyForm";
 import { fetchPublicStreamer, createDonation } from "../utils/api";
 
 const fileToBase64 = (file) => {
@@ -50,10 +49,6 @@ const getInitialStreamerConfig = (username) => {
         accountNumber: "",
         accountName: "",
       },
-      truemoney: {
-        enabled: false,
-        phone: "",
-      },
     },
   };
 
@@ -88,7 +83,6 @@ const getInitialStreamerConfig = (username) => {
       config.payment = {
         promptpay: { ...config.payment.promptpay, ...parsed.promptpay },
         bank: { ...config.payment.bank, ...parsed.bank },
-        truemoney: { ...config.payment.truemoney, ...parsed.truemoney },
       };
     }
 
@@ -189,10 +183,6 @@ const DonorPage = () => {
                 ...prev.payment.bank,
                 ...publicData.payment?.bank,
               },
-              truemoney: {
-                ...prev.payment.truemoney,
-                ...publicData.payment?.truemoney,
-              },
             },
           }));
 
@@ -201,8 +191,6 @@ const DonorPage = () => {
             setActiveTab("promptpay");
           } else if (publicData.payment?.bank?.enabled) {
             setActiveTab("bank");
-          } else if (publicData.payment?.truemoney?.enabled) {
-            setActiveTab("truemoney");
           }
         }
       } catch (err) {
@@ -490,7 +478,7 @@ const DonorPage = () => {
 
             {/* Dynamic Payment Method Section vs Disabled State */}
             {!isChannelEnabled ? (
-              /* State 5: Disabled Channel Card */
+              /* State 4: Disabled Channel Card */
               <DonorDisabledCard />
             ) : activeTab === "promptpay" ? (
               /* State 2: PromptPay Form with dynamic QR */
@@ -503,7 +491,7 @@ const DonorPage = () => {
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}
               />
-            ) : activeTab === "bank" ? (
+            ) : (
               /* State 3: Bank Form */
               <DonorBankForm
                 key={`bank-${resetKey}`}
@@ -511,14 +499,6 @@ const DonorPage = () => {
                 accountNumber={streamerConfig.payment.bank.accountNumber}
                 accountName={streamerConfig.payment.bank.accountName}
                 minAmount={streamerConfig.minAmount}
-                selectedMission={selectedMission}
-                onSubmit={handleDonationSubmit}
-                isSubmitting={isSubmitting}
-              />
-            ) : (
-              /* State 4: TrueMoney Form */
-              <DonorTrueMoneyForm
-                key={`truemoney-${resetKey}`}
                 selectedMission={selectedMission}
                 onSubmit={handleDonationSubmit}
                 isSubmitting={isSubmitting}

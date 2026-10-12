@@ -7,7 +7,6 @@ import DonorDisabledCard from "./DonorDisabledCard";
 import DonorStatusCard from "./DonorStatusCard";
 import DonorPromptPayForm from "./DonorPromptPayForm";
 import DonorBankForm from "./DonorBankForm";
-import DonorTrueMoneyForm from "./DonorTrueMoneyForm";
 import DonorSlipUpload from "./DonorSlipUpload";
 import DonorMissionList from "./DonorMissionList";
 
@@ -63,7 +62,6 @@ describe("Donor Components", () => {
 
       expect(screen.getByText("พร้อมเพย์")).toBeInTheDocument();
       expect(screen.getByText("ธนาคาร")).toBeInTheDocument();
-      expect(screen.getByText("ทรูมันนี่")).toBeInTheDocument();
 
       fireEvent.click(screen.getByText("ธนาคาร"));
       expect(handleTabChange).toHaveBeenCalledWith("bank");
@@ -291,72 +289,6 @@ describe("Donor Components", () => {
       fireEvent.submit(form);
       fireEvent.submit(form);
       expect(handleSubmit).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("DonorTrueMoneyForm", () => {
-    test("validates gift link on submit", () => {
-      const handleSubmit = jest.fn();
-      window.alert = jest.fn();
-
-      render(<DonorTrueMoneyForm onSubmit={handleSubmit} />);
-
-      const input = screen.getByPlaceholderText("https://gift.truemoney.com/campaign/?v=xxxx");
-      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
-
-      // Empty submission
-      fireEvent.click(submitBtn);
-      expect(window.alert).toHaveBeenCalledWith("กรุณากรอกลิงก์ซองของขวัญทรูมันนี่ อั่งเปา");
-
-      // Invalid submission
-      fireEvent.change(input, { target: { value: "https://invalid-link.com" } });
-      fireEvent.click(submitBtn);
-      expect(window.alert).toHaveBeenCalledWith("กรุณากรอกลิงก์ซองของขวัญทรูมันนี่ที่ถูกต้อง");
-
-      // Valid submission
-      fireEvent.change(input, { target: { value: "https://gift.truemoney.com/campaign/?v=1234" } });
-      fireEvent.click(submitBtn);
-      expect(handleSubmit).toHaveBeenCalledWith({
-        giftLink: "https://gift.truemoney.com/campaign/?v=1234",
-        method: "truemoney",
-      });
-    });
-
-    test("prevents submit when isSubmitting is true or submitted repeatedly in TrueMoney form", () => {
-      const handleSubmit = jest.fn();
-      const { rerender } = render(
-        <DonorTrueMoneyForm onSubmit={handleSubmit} isSubmitting={true} />
-      );
-
-      const submitBtn = screen.getByRole("button", { name: "กำลังดำเนินการ..." });
-      expect(submitBtn).toBeDisabled();
-      const form = submitBtn.closest("form");
-      fireEvent.submit(form);
-      expect(handleSubmit).not.toHaveBeenCalled();
-
-      rerender(
-        <DonorTrueMoneyForm onSubmit={handleSubmit} isSubmitting={false} />
-      );
-      const input = screen.getByPlaceholderText("https://gift.truemoney.com/campaign/?v=xxxx");
-      fireEvent.change(input, { target: { value: "https://gift.truemoney.com/campaign/?v=1234" } });
-
-      fireEvent.submit(form);
-      fireEvent.submit(form);
-      expect(handleSubmit).toHaveBeenCalledTimes(1);
-    });
-
-    test("displays selectedMission badge when mission is passed", () => {
-      const mockMission = { id: "m-1", name: "ห้ามพูดคำหยาบ", price: 40 };
-      render(
-        <DonorTrueMoneyForm
-          onSubmit={jest.fn()}
-          selectedMission={mockMission}
-        />
-      );
-
-      expect(screen.getByTestId("truemoney-mission-badge")).toBeInTheDocument();
-      expect(screen.getByText("ห้ามพูดคำหยาบ")).toBeInTheDocument();
-      expect(screen.getByText("40 บาท")).toBeInTheDocument();
     });
   });
 

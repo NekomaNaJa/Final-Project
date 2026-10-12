@@ -23,7 +23,6 @@ const validStreamer = {
   payment: {
     promptpay: { enabled: true, number: "0812345678" },
     bank: { enabled: true, accountNumber: "123456" },
-    truemoney: { enabled: false },
   },
 };
 
@@ -119,14 +118,20 @@ describe("Donation Route (POST /api/donations)", () => {
   });
 
   it("should return 400 if payment method is disabled by streamer", async () => {
-    jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+    jest.spyOn(User, "findOne").mockResolvedValueOnce({
+      ...validStreamer,
+      payment: {
+        ...validStreamer.payment,
+        bank: { enabled: false, accountNumber: "123456" },
+      },
+    });
 
     const res = await request(app)
       .post("/api/donations")
       .send({
         username: "pro_gamer",
         amount: 50,
-        paymentMethod: "truemoney", // disabled in validStreamer
+        paymentMethod: "bank",
       });
 
     expect(res.status).toBe(400);
