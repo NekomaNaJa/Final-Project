@@ -686,4 +686,185 @@ describe("Auth Controller & Routes", () => {
       });
     });
   });
+
+  describe("Email OTP Verification Flow (/request-otp & /verify-otp)", () => {
+    describe("POST /api/auth/request-otp", () => {
+      it("should return 400 when email is not a string", async () => {
+        const res = await request(app)
+          .post("/api/auth/request-otp")
+          .send({ email: { $ne: null } });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("ข้อมูลไม่ถูกต้อง");
+        expect(res.body.data).toBeNull();
+      });
+
+      it("should return 400 when email format is invalid", async () => {
+        const res = await request(app)
+          .post("/api/auth/request-otp")
+          .send({ email: "invalid-email-format" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("รูปแบบอีเมลไม่ถูกต้อง");
+        expect(res.body.data).toBeNull();
+      });
+
+      it("should return 404 when user is not found", async () => {
+        jest.spyOn(User, "findOne").mockResolvedValueOnce(null);
+
+        const res = await request(app)
+          .post("/api/auth/request-otp")
+          .send({ email: "missing@example.com" });
+
+        expect(res.status).toBe(404);
+        expect(res.body.message).toBe("ไม่พบบัญชีผู้ใช้ในระบบ");
+        expect(res.body.data).toBeNull();
+      });
+
+      it("should return 503 and delete orphaned OTP when SMTP is not configured (Fail-closed)", async () => {
+        jest.spyOn(User, "findOne").mockResolvedValueOnce({
+          _id: "u123",
+          email: "user@example.com",
+        });
+        const deleteSpy = jest.spyOn(Otp, "deleteMany").mockResolvedValue({});
+        const createSpy = jest.spyOn(Otp, "create").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/auth/request-otp")
+          .send({ email: "user@example.com" });
+
+        expect(res.status).toBe(503);
+        expect(res.body.message).toContain("ระบบส่งอีเมลยังไม่ได้ตั้งค่า");
+        expect(res.body.data).toBeNull();
+        expect(createSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            email: "user@example.com",
+            otpCode: expect.stringMatching(/^\$2[ab]\$/),
+          })
+        );
+        expect(deleteSpy).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe("POST /api/auth/verify-otp", () => {
+      it("should return 400 when email or otpCode is not a string", async () => {
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: 123, otpCode: "123456" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("ข้อมูลไม่ถูกต้อง");
+      });
+
+      it("should return 400 when email or otpCode format is invalid", async () => {
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: "user@example.com", otpCode: "12ab" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("ข้อมูลอีเมลหรือรหัส OTP ไม่ถูกต้อง");
+      });
+
+      it("should return 400 when OTP record does not exist", async () => {
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce(null);
+
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: "user@example.com", otpCode: "123456" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ");
+      });
+
+      it("should return 400 when OTP record is expired", async () => {
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+          _id: "otp1",
+          email: "user@example.com",
+          otpCode: "$2b$10$hash",
+          expiresAt: new Date(Date.now() - 60000),
+          attempts: 0,
+        });
+        jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: "user@example.com", otpCode: "123456" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("รหัส OTP หมดอายุแล้ว");
+      });
+
+      it("should return 400 when attempts exceed limit", async () => {
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+          _id: "otp1",
+          email: "user@example.com",
+          otpCode: "$2b$10$hash",
+          expiresAt: new Date(Date.now() + 60000),
+          attempts: 5,
+        });
+        jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({});
+
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: "user@example.com", otpCode: "123456" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain("คุณกรอกรหัสผิดเกินจำนวนครั้ง");
+      });
+
+      it("should return 400 and increment attempts when OTP does not match", async () => {
+        const hashed = await bcrypt.hash("123456", 10);
+        const mockOtp = {
+          _id: "otp1",
+          email: "user@example.com",
+          otpCode: hashed,
+          expiresAt: new Date(Date.now() + 60000),
+          attempts: 0,
+          save: jest.fn().mockResolvedValue(true),
+        };
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce(mockOtp);
+
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: "user@example.com", otpCode: "999999" });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("รหัส OTP ไม่ถูกต้อง");
+        expect(mockOtp.attempts).toBe(1);
+        expect(mockOtp.save).toHaveBeenCalled();
+      });
+
+      it("should verify hashed OTP, update User.isEmailVerified, and delete OTP records", async () => {
+        const hashed = await bcrypt.hash("654321", 10);
+        jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+          _id: "otp1",
+          email: "user@example.com",
+          otpCode: hashed,
+          expiresAt: new Date(Date.now() + 60000),
+          attempts: 0,
+        });
+        const updateOneSpy = jest.spyOn(User, "updateOne").mockResolvedValueOnce({ modifiedCount: 1 });
+        const deleteManySpy = jest.spyOn(Otp, "deleteMany").mockResolvedValueOnce({ deletedCount: 1 });
+
+        const res = await request(app)
+          .post("/api/auth/verify-otp")
+          .send({ email: "user@example.com", otpCode: "654321" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.message).toBe("ยืนยันอีเมลสำเร็จ");
+        expect(res.body.data).toEqual({
+          email: "user@example.com",
+          isEmailVerified: true,
+        });
+        expect(updateOneSpy).toHaveBeenCalledWith(
+          { email: { $eq: "user@example.com" } },
+          { isEmailVerified: true }
+        );
+        expect(deleteManySpy).toHaveBeenCalledWith({
+          email: { $eq: "user@example.com" },
+        });
+      });
+    });
+  });
 });
+

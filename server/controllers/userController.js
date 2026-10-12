@@ -505,6 +505,14 @@ export const updateDonationPage = async (req, res, next) => {
   }
 };
 
+const verifyOtpMatch = async (plainOtp, otpRecord) => {
+  const stored = otpRecord?.otpCode || otpRecord?.otp || "";
+  if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
+    return bcrypt.compare(plainOtp, stored);
+  }
+  return stored === plainOtp;
+};
+
 export const changePassword = async (req, res, next) => {
   try {
     const safeUserId = String(req.user?.userId || "");
@@ -517,28 +525,67 @@ export const changePassword = async (req, res, next) => {
       });
     }
 
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, otp, otpCode } = req.body;
+    const rawOtp = otpCode !== undefined ? otpCode : otp;
 
-    if (
-      typeof currentPassword !== "string" ||
-      typeof newPassword !== "string"
-    ) {
+    if (typeof newPassword !== "string") {
       return res.status(400).json({
         message: "ข้อมูลรหัสผ่านไม่ถูกต้อง",
         data: null,
       });
     }
 
-    if (user.password) {
-      const isMatch = await bcrypt.compare(
-        String(currentPassword),
-        user.password
-      );
-      if (!isMatch) {
+    if (rawOtp !== undefined) {
+      if (typeof rawOtp !== "string" || !/^\d{6}$/.test(rawOtp.trim())) {
         return res.status(400).json({
-          message: "รหัสผ่านปัจจุบันไม่ถูกต้อง",
+          message: "รหัส OTP ไม่ถูกต้อง",
           data: null,
         });
+      }
+      const safeOtp = String(rawOtp).trim();
+      const safeEmail = String(user.email || "").trim().toLowerCase();
+      const otpRecord = await Otp.findOne({
+        $or: [
+          { email: { $eq: safeEmail } },
+          { target: { $eq: safeEmail } },
+        ],
+      });
+
+      if (!otpRecord || (otpRecord.expiresAt && otpRecord.expiresAt < new Date())) {
+        return res.status(400).json({
+          message: "รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ กรุณาขอรหัสใหม่",
+          data: null,
+        });
+      }
+
+      const isOtpValid = await verifyOtpMatch(safeOtp, otpRecord);
+      if (!isOtpValid) {
+        return res.status(400).json({
+          message: "รหัส OTP ไม่ถูกต้อง",
+          data: null,
+        });
+      }
+
+      await Otp.deleteOne({ _id: otpRecord._id });
+    } else {
+      if (typeof currentPassword !== "string") {
+        return res.status(400).json({
+          message: "ข้อมูลรหัสผ่านไม่ถูกต้อง",
+          data: null,
+        });
+      }
+
+      if (user.password) {
+        const isMatch = await bcrypt.compare(
+          String(currentPassword),
+          user.password
+        );
+        if (!isMatch) {
+          return res.status(400).json({
+            message: "รหัสผ่านปัจจุบันไม่ถูกต้อง",
+            data: null,
+          });
+        }
       }
     }
 
@@ -633,6 +680,7 @@ export const sendLinkOtp = async (req, res, next) => {
 
     const purpose = safeType === "email" ? "verify_email" : "verify_phone";
     const otpCode = String(crypto.randomInt(100000, 1000000));
+    const hashedOtp = await bcrypt.hash(otpCode, 10);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.deleteMany({
@@ -641,10 +689,12 @@ export const sendLinkOtp = async (req, res, next) => {
     });
 
     await Otp.create({
+      email: safeType === "email" ? safeTarget.toLowerCase() : "",
+      otpCode: hashedOtp,
       target: safeTarget,
       type: safeType,
       purpose,
-      otp: otpCode,
+      otp: hashedOtp,
       expiresAt,
     });
 
@@ -731,7 +781,8 @@ export const verifyLinkOtp = async (req, res, next) => {
       });
     }
 
-    if (otpRecord.otp !== safeOtp) {
+    const isMatched = await verifyOtpMatch(safeOtp, otpRecord);
+    if (!isMatched) {
       otpRecord.attempts += 1;
       await otpRecord.save();
       return res.status(400).json({

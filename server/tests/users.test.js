@@ -891,6 +891,57 @@ describe("Users Route", () => {
       expect(res.status).toBe(404);
       expect(res.body.message).toBe("ไม่พบผู้ใช้");
     });
+
+    it("should change password when valid OTP is provided instead of currentPassword", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      const mockDoc = {
+        _id: "mockId123",
+        email: "user@example.com",
+        password: "oldHashedPassword",
+        save: jest.fn().mockResolvedValue(true),
+      };
+      jest.spyOn(User, "findById").mockResolvedValueOnce(mockDoc);
+      jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+        _id: "otp99",
+        email: "user@example.com",
+        otpCode: "123456",
+        expiresAt: new Date(Date.now() + 60000),
+      });
+      jest.spyOn(Otp, "deleteOne").mockResolvedValueOnce({});
+      jest.spyOn(bcrypt, "hash").mockResolvedValueOnce("newOtpHashedPassword");
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ otp: "123456", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("เปลี่ยนรหัสผ่านสำเร็จ");
+      expect(mockDoc.password).toBe("newOtpHashedPassword");
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("should return 400 when OTP provided to change-password is invalid", async () => {
+      const token = jwt.sign({ userId: "mockId123" }, secret);
+      jest.spyOn(User, "findById").mockResolvedValueOnce({
+        _id: "mockId123",
+        email: "user@example.com",
+      });
+      jest.spyOn(Otp, "findOne").mockResolvedValueOnce({
+        _id: "otp99",
+        email: "user@example.com",
+        otpCode: "123456",
+        expiresAt: new Date(Date.now() + 60000),
+      });
+
+      const res = await request(app)
+        .put("/api/users/change-password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ otp: "999999", newPassword: "NewPassword1!" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("รหัส OTP ไม่ถูกต้อง");
+    });
   });
 
   describe("Link OTP Flow (Email & Phone Linking)", () => {

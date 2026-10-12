@@ -327,6 +327,164 @@ export const googleAuth = async (req, res, next) => {
   }
 };
 
+const verifyOtpMatch = async (plainOtp, otpRecord) => {
+  const stored = otpRecord?.otpCode || otpRecord?.otp || "";
+  if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
+    return bcrypt.compare(plainOtp, stored);
+  }
+  return stored === plainOtp;
+};
+
+export const requestOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (typeof email !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeEmail = String(email).trim().toLowerCase();
+
+    if (!EMAIL_REGEX.test(safeEmail)) {
+      return res.status(400).json({
+        message: "รูปแบบอีเมลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const user = await User.findOne({ email: { $eq: safeEmail } });
+    if (!user) {
+      return res.status(404).json({
+        message: "ไม่พบบัญชีผู้ใช้ในระบบ",
+        data: null,
+      });
+    }
+
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    const hashedOtp = await bcrypt.hash(otpCode, 10);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await Otp.deleteMany({ email: { $eq: safeEmail } });
+
+    await Otp.create({
+      email: safeEmail,
+      otpCode: hashedOtp,
+      target: safeEmail,
+      type: "email",
+      purpose: "verify_email",
+      otp: hashedOtp,
+      expiresAt,
+    });
+
+    try {
+      await sendEmailOtp(safeEmail, otpCode, "verify_email");
+    } catch (deliveryError) {
+      await Otp.deleteMany({ email: { $eq: safeEmail } });
+      return res.status(503).json({
+        message:
+          deliveryError.message === "EMAIL_NOT_CONFIGURED"
+            ? "ระบบส่งอีเมลยังไม่ได้ตั้งค่า กรุณาติดต่อผู้ดูแลระบบ"
+            : "ไม่สามารถส่งอีเมล OTP ได้ กรุณาลองใหม่อีกครั้ง",
+        data: null,
+      });
+    }
+
+    const masked = maskTarget(safeEmail, "email");
+
+    return res.status(200).json({
+      message: `ส่งรหัส OTP ไปยัง ${masked} เรียบร้อยแล้ว`,
+      data: {
+        email: safeEmail,
+        maskedEmail: masked,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const verifyOtp = async (req, res, next) => {
+  try {
+    const { email, otpCode, otp } = req.body;
+    const rawOtp = otpCode !== undefined ? otpCode : otp;
+
+    if (typeof email !== "string" || typeof rawOtp !== "string") {
+      return res.status(400).json({
+        message: "ข้อมูลไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const safeEmail = String(email).trim().toLowerCase();
+    const safeOtpCode = String(rawOtp).trim();
+
+    if (!EMAIL_REGEX.test(safeEmail) || !/^\d{6}$/.test(safeOtpCode)) {
+      return res.status(400).json({
+        message: "ข้อมูลอีเมลหรือรหัส OTP ไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    const otpRecord = await Otp.findOne({
+      email: { $eq: safeEmail },
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        message: "รหัส OTP หมดอายุหรือไม่มีอยู่ในระบบ กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.expiresAt && otpRecord.expiresAt < new Date()) {
+      await Otp.deleteMany({ email: { $eq: safeEmail } });
+      return res.status(400).json({
+        message: "รหัส OTP หมดอายุแล้ว กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    if (otpRecord.attempts >= 5) {
+      await Otp.deleteMany({ email: { $eq: safeEmail } });
+      return res.status(400).json({
+        message: "คุณกรอกรหัสผิดเกินจำนวนครั้งที่กำหนด กรุณาขอรหัสใหม่",
+        data: null,
+      });
+    }
+
+    const isMatched = await verifyOtpMatch(safeOtpCode, otpRecord);
+    if (!isMatched) {
+      otpRecord.attempts = (otpRecord.attempts || 0) + 1;
+      if (typeof otpRecord.save === "function") {
+        await otpRecord.save();
+      }
+      return res.status(400).json({
+        message: "รหัส OTP ไม่ถูกต้อง",
+        data: null,
+      });
+    }
+
+    await User.updateOne(
+      { email: { $eq: safeEmail } },
+      { isEmailVerified: true }
+    );
+    await Otp.deleteMany({ email: { $eq: safeEmail } });
+
+    return res.status(200).json({
+      message: "ยืนยันอีเมลสำเร็จ",
+      data: {
+        email: safeEmail,
+        isEmailVerified: true,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const forgotPasswordSendOtp = async (req, res, next) => {
   try {
     const { identifier, channel } = req.body;
@@ -385,6 +543,7 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
     }
 
     const otpCode = String(crypto.randomInt(100000, 1000000));
+    const hashedOtp = await bcrypt.hash(otpCode, 10);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await Otp.deleteMany({
@@ -393,10 +552,12 @@ export const forgotPasswordSendOtp = async (req, res, next) => {
     });
 
     await Otp.create({
+      email: safeChannel === "email" ? target.toLowerCase() : "",
+      otpCode: hashedOtp,
       target,
       type: safeChannel === "email" ? "email" : "phone",
       purpose: "forgot_password",
-      otp: otpCode,
+      otp: hashedOtp,
       expiresAt,
     });
 
@@ -473,7 +634,8 @@ export const forgotPasswordVerifyOtp = async (req, res, next) => {
       });
     }
 
-    if (otpRecord.otp !== safeOtp) {
+    const isMatched = await verifyOtpMatch(safeOtp, otpRecord);
+    if (!isMatched) {
       otpRecord.attempts += 1;
       await otpRecord.save();
       return res.status(400).json({
@@ -574,4 +736,5 @@ export const forgotPasswordReset = async (req, res, next) => {
     next(err);
   }
 };
+
 

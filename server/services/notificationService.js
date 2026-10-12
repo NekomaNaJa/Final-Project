@@ -4,14 +4,20 @@ import nodemailer from "nodemailer";
  * บริการส่งอีเมลและ SMS สำหรับรหัส OTP (Email via Nodemailer / SMS via Twilio)
  */
 
-const maskAddress = (value) => {
+export const maskAddress = (value) => {
   const text = String(value || "").trim();
   if (!text) return "";
+  if (text.includes("@")) {
+    const [local, domain] = text.split("@");
+    if (!domain) return "****";
+    if (local.length <= 2) return `${local[0] || "*"}***@${domain}`;
+    return `${local.slice(0, 2)}***${local.slice(-2)}@${domain}`;
+  }
   if (text.length <= 4) return "****";
   return `${text.slice(0, 2)}***${text.slice(-2)}`;
 };
 
-const stripNewlines = (value) => String(value || "").replace(/[\r\n]+/g, " ");
+export const stripNewlines = (value) => String(value || "").replace(/[\r\n]+/g, " ");
 
 const getEmailTransporter = () => {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -20,7 +26,7 @@ const getEmailTransporter = () => {
       host: process.env.SMTP_HOST,
       port: smtpPort,
       secure: smtpPort === 465,
-      requireTLS: smtpPort !== 465,
+      requireTLS: true,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -49,6 +55,7 @@ export const sendEmailOtp = async (email, otp, purpose) => {
   const purposeLabels = {
     verify_email: "ยืนยันการเชื่อมต่ออีเมลสำหรับบัญชี DONIX",
     forgot_password: "รีเซ็ตรหัสผ่านบัญชี DONIX",
+    change_password: "ยืนยันการเปลี่ยนรหัสผ่านบัญชี DONIX",
   };
 
   const subject = `[DONIX] รหัส OTP ของคุณ: ${safeOtp} (${purposeLabels[purpose] || "ยืนยันตัวตน"})`;
@@ -85,13 +92,13 @@ export const sendEmailOtp = async (email, otp, purpose) => {
       }
       return { success: true, simulated: false };
     } catch (err) {
-      console.error("[Email Service Error]:", stripNewlines(err?.message));
+      console.error(`[Email Service Error] (${maskAddress(safeEmail)}):`, stripNewlines(err?.message));
       throw new Error("EMAIL_DELIVERY_FAILED");
     }
   }
 
   // Never report success when no email provider is configured.
-  console.error("[Email Service]: SMTP/Gmail credentials are not configured");
+  console.error(`[Email Service]: SMTP/Gmail credentials are not configured (${maskAddress(safeEmail)})`);
   throw new Error("EMAIL_NOT_CONFIGURED");
 };
 
