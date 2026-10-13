@@ -24,6 +24,12 @@ export const API = {
   forgotPasswordReset: `${API_URL}/auth/forgot-password/reset`,
   linkOtpSend: `${API_URL}/users/link-otp/send`,
   linkOtpVerify: `${API_URL}/users/link-otp/verify`,
+  socialAuthUrl: (platform) =>
+    `${API_URL}/users/social/auth-url/${encodeURIComponent(platform)}`,
+  socialConnect: (platform) =>
+    `${API_URL}/users/social/connect/${encodeURIComponent(platform)}`,
+  socialDisconnect: (platform) =>
+    `${API_URL}/users/social/disconnect/${encodeURIComponent(platform)}`,
   health: `${API_URL}/health`,
 };
 
@@ -423,6 +429,53 @@ export const verifyEmailOtp = async (payload) => {
   const json = await res.json();
   if (!res.ok) {
     throw new Error(json.message || "ยืนยันรหัส OTP ไม่สำเร็จ");
+  }
+  return json.data;
+};
+
+/**
+ * ดึง OAuth Authorization URL ของแพลตฟอร์ม (GET /api/users/social/auth-url/:platform)
+ */
+export const getSocialAuthUrl = async (platform, redirectUri) => {
+  const query = redirectUri ? `?redirectUri=${encodeURIComponent(redirectUri)}` : "";
+  const res = await fetch(`${API.socialAuthUrl(platform)}${query}`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถสร้างลิงก์ยืนยันตัวตนได้");
+  }
+  return json.data;
+};
+
+/**
+ * ยืนยันและเชื่อมต่อบัญชีโซเชียลมีเดียผ่าน OAuth (POST /api/users/social/connect/:platform)
+ */
+export const connectSocialAccount = async (platform, payload) => {
+  const res = await fetch(API.socialConnect(platform), {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload || {}),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถเชื่อมต่อบัญชีโซเชียลได้");
+  }
+  return json.data;
+};
+
+/**
+ * ยกเลิกการเชื่อมต่อบัญชีโซเชียลมีเดีย (DELETE /api/users/social/disconnect/:platform)
+ */
+export const disconnectSocialAccount = async (platform) => {
+  const res = await fetch(API.socialDisconnect(platform), {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถยกเลิกการเชื่อมต่อได้");
   }
   return json.data;
 };

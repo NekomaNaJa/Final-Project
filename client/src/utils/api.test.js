@@ -25,6 +25,9 @@ import {
   verifyLinkOtp,
   requestEmailOtp,
   verifyEmailOtp,
+  getSocialAuthUrl,
+  connectSocialAccount,
+  disconnectSocialAccount,
 } from "./api";
 
 describe("API utility functions", () => {
@@ -45,6 +48,9 @@ describe("API utility functions", () => {
     expect(API.donations).toBe(`${API_URL}/donations`);
     expect(API.donationsStats).toBe(`${API_URL}/donations/stats`);
     expect(API.donationDetail("don123")).toBe(`${API_URL}/donations/don123`);
+    expect(API.socialAuthUrl("youtube")).toBe(`${API_URL}/users/social/auth-url/youtube`);
+    expect(API.socialConnect("twitch")).toBe(`${API_URL}/users/social/connect/twitch`);
+    expect(API.socialDisconnect("facebook")).toBe(`${API_URL}/users/social/disconnect/facebook`);
   });
 
   test("loginWithGoogle calls API.googleAuth and returns json", async () => {
@@ -917,5 +923,130 @@ describe("API utility functions", () => {
     await expect(verifyEmailOtp({ email: "test@example.com", otpCode: "000000" })).rejects.toThrow(
       "ยืนยันรหัส OTP ไม่สำเร็จ"
     );
+  });
+
+  describe("Social OAuth API methods", () => {
+    test("getSocialAuthUrl sends GET with redirectUri and returns data", async () => {
+      const mockData = { authUrl: "https://auth.example.com", state: "state123" };
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "สำเร็จ", data: mockData }),
+      });
+
+      const result = await getSocialAuthUrl("twitch", "http://localhost:3000/oauth-callback");
+      expect(result).toEqual(mockData);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API.socialAuthUrl("twitch")}?redirectUri=${encodeURIComponent("http://localhost:3000/oauth-callback")}`,
+        expect.objectContaining({ method: "GET" })
+      );
+    });
+
+    test("getSocialAuthUrl works without redirectUri", async () => {
+      const mockData = { authUrl: "https://auth.example.com" };
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: mockData }),
+      });
+
+      const result = await getSocialAuthUrl("youtube");
+      expect(result).toEqual(mockData);
+      expect(global.fetch).toHaveBeenCalledWith(
+        API.socialAuthUrl("youtube"),
+        expect.objectContaining({ method: "GET" })
+      );
+    });
+
+    test("getSocialAuthUrl throws error on failure and handles fallback message", async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ message: "ไม่สามารถสร้าง URL ได้" }),
+      });
+      await expect(getSocialAuthUrl("twitch")).rejects.toThrow("ไม่สามารถสร้าง URL ได้");
+
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({}),
+      });
+      await expect(getSocialAuthUrl("twitch")).rejects.toThrow("ไม่สามารถสร้างลิงก์ยืนยันตัวตนได้");
+    });
+
+    test("connectSocialAccount sends POST with payload and returns data", async () => {
+      const mockData = { url: "https://twitch.tv/my_stream" };
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: mockData }),
+      });
+
+      const result = await connectSocialAccount("twitch", { code: "123", handle: "@my_stream" });
+      expect(result).toEqual(mockData);
+      expect(global.fetch).toHaveBeenCalledWith(
+        API.socialConnect("twitch"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ code: "123", handle: "@my_stream" }),
+        })
+      );
+    });
+
+    test("connectSocialAccount works without payload", async () => {
+      const mockData = { url: "https://twitch.tv/my_stream" };
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: mockData }),
+      });
+
+      const result = await connectSocialAccount("twitch");
+      expect(result).toEqual(mockData);
+      expect(global.fetch).toHaveBeenCalledWith(
+        API.socialConnect("twitch"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({}),
+        })
+      );
+    });
+
+    test("connectSocialAccount throws error on failure and handles fallback message", async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ message: "เชื่อมต่อไม่สำเร็จ" }),
+      });
+      await expect(connectSocialAccount("twitch", { code: "bad" })).rejects.toThrow("เชื่อมต่อไม่สำเร็จ");
+
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({}),
+      });
+      await expect(connectSocialAccount("twitch", { code: "bad" })).rejects.toThrow("ไม่สามารถเชื่อมต่อบัญชีโซเชียลได้");
+    });
+
+    test("disconnectSocialAccount sends DELETE and returns data", async () => {
+      const mockData = { platform: "twitch", social: {} };
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: mockData }),
+      });
+
+      const result = await disconnectSocialAccount("twitch");
+      expect(result).toEqual(mockData);
+      expect(global.fetch).toHaveBeenCalledWith(
+        API.socialDisconnect("twitch"),
+        expect.objectContaining({ method: "DELETE" })
+      );
+    });
+
+    test("disconnectSocialAccount throws error on failure and handles fallback message", async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ message: "ยกเลิกไม่สำเร็จ" }),
+      });
+      await expect(disconnectSocialAccount("facebook")).rejects.toThrow("ยกเลิกไม่สำเร็จ");
+
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({}),
+      });
+      await expect(disconnectSocialAccount("facebook")).rejects.toThrow("ไม่สามารถยกเลิกการเชื่อมต่อได้");
+    });
   });
 });
