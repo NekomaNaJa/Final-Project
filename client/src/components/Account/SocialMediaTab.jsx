@@ -114,6 +114,7 @@ const SocialRowActions = ({
   rawValue,
   connectedHandle,
   isConnected,
+  isLoading = false,
   readOnly,
   onConnectClick,
   onChangeAccountClick,
@@ -143,20 +144,30 @@ const SocialRowActions = ({
       <>
         <button
           type="button"
+          disabled={isLoading}
           aria-label={`เปลี่ยนบัญชี ${label}`}
           onClick={() => onChangeAccountClick(platform, connectedHandle)}
-          className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
+          className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all disabled:opacity-50"
         >
-          <RefreshCw size={11} />
+          {isLoading ? (
+            <Loader2 size={11} className="animate-spin" />
+          ) : (
+            <RefreshCw size={11} />
+          )}
           <span>เปลี่ยนบัญชี</span>
         </button>
         <button
           type="button"
+          disabled={isLoading}
           aria-label={`ยกเลิกการเชื่อมต่อ ${label}`}
           onClick={() => onDisconnectClick(key)}
-          className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all"
+          className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all disabled:opacity-50"
         >
-          <Unlink size={11} />
+          {isLoading ? (
+            <Loader2 size={11} className="animate-spin" />
+          ) : (
+            <Unlink size={11} />
+          )}
           <span>ยกเลิกการเชื่อมต่อ</span>
         </button>
       </>
@@ -166,11 +177,16 @@ const SocialRowActions = ({
   return (
     <button
       type="button"
+      disabled={isLoading}
       aria-label={`เชื่อมต่อ ${label}`}
       onClick={() => onConnectClick(platform)}
-      className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.3)] hover:bg-[#7c3aed] transition-all active:scale-95"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.3)] hover:bg-[#7c3aed] transition-all active:scale-95 disabled:opacity-50"
     >
-      <Link2 size={12} />
+      {isLoading ? (
+        <Loader2 size={12} className="animate-spin" />
+      ) : (
+        <Link2 size={12} />
+      )}
       <span>เชื่อมต่อ</span>
     </button>
   );
@@ -179,6 +195,7 @@ const SocialRowActions = ({
 const SocialPlatformRow = ({
   platform,
   rawValue,
+  isLoading = false,
   readOnly = false,
   onConnectClick,
   onChangeAccountClick,
@@ -238,6 +255,7 @@ const SocialPlatformRow = ({
             rawValue={rawValue}
             connectedHandle={connectedHandle}
             isConnected={isConnected}
+            isLoading={isLoading}
             readOnly={readOnly}
             onConnectClick={onConnectClick}
             onChangeAccountClick={onChangeAccountClick}
@@ -574,6 +592,26 @@ const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
       onSave={handleSave}
       hideSave={readOnly}
     >
+      {statusMessage && (
+        <div
+          role="status"
+          className={`mb-4 rounded-xl border p-3 text-xs flex items-center justify-between ${
+            statusMessage.type === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-red-500/30 bg-red-500/10 text-red-300"
+          }`}
+        >
+          <span>{statusMessage.text}</span>
+          <button
+            type="button"
+            onClick={() => setStatusMessage(null)}
+            className="text-gray-400 hover:text-white"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div
         className={
           readOnly
@@ -586,6 +624,7 @@ const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
             key={platform.key}
             platform={platform}
             rawValue={socialLinks[platform.key]}
+            isLoading={loadingPlatform === platform.key}
             readOnly={readOnly}
             onConnectClick={handleOpenConnect}
             onChangeAccountClick={handleOpenChangeAccount}
@@ -599,6 +638,7 @@ const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
           modalState={oauthModal}
           accounts={accounts}
           selectedHandle={selectedHandle}
+          isLoading={loadingPlatform !== null}
           onSelectHandle={setSelectedHandle}
           onConfirmConnect={handleConfirmOAuthConnect}
           onOpenPopupWindow={handleOpenExternalPopup}
