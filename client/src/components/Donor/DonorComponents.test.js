@@ -33,7 +33,7 @@ describe("Donor Components", () => {
           welcomeMessage="ยินดีต้อนรับครับ"
         />
       );
-      expect(screen.getByText("ออฟไลน์")).toBeInTheDocument();
+      expect(screen.getByText("OFFLINE")).toBeInTheDocument();
     });
   });
 
@@ -46,7 +46,7 @@ describe("Donor Components", () => {
 
     test("renders DonorOfflineCard and DonorDisabledCard", () => {
       const { rerender } = render(<DonorOfflineCard />);
-      expect(screen.getByText("ขณะนี้ปิดรับโดเนทชั่วคราว")).toBeInTheDocument();
+      expect(screen.getByText("สตรีมเมอร์ปิดรับโดเนทในขณะนี้")).toBeInTheDocument();
 
       rerender(<DonorDisabledCard />);
       expect(screen.getByText("ไม่พร้อมให้บริการ")).toBeInTheDocument();
