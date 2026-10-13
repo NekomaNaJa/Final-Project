@@ -440,7 +440,13 @@ const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
       onSave={handleSave}
       hideSave={readOnly}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div
+        className={
+          readOnly
+            ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            : "grid gap-4 sm:grid-cols-2"
+        }
+      >
         {socialPlatforms.map((platform) => (
           <SocialPlatformRow
             key={platform.key}

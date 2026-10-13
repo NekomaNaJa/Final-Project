@@ -78,39 +78,41 @@ const PublicProfilePage = () => {
     }
 
     return (
-      <>
-        {/* Header */}
-        <div>
-          <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#8066d6]">
+      <div className="space-y-8">
+        {/* Centered Header */}
+        <div className="text-center space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8066d6]">
             Streamer Profile
           </p>
-          <h1 className="text-2xl font-bold text-[#e8e4ee]">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#e8e4ee]">
             โปรไฟล์ของ{" "}
             <span className="font-serif tracking-wide text-[#aa8df1]">
               {displayName}
             </span>
           </h1>
-          <p className="mt-1 text-xs text-[#716b7a]">
+          <p className="mx-auto max-w-xl text-xs sm:text-sm text-[#9891ab]">
             {streamer?.bio || "ข้อมูลโปรไฟล์และช่องทางโซเชียลมีเดียของสตรีมเมอร์"}
           </p>
         </div>
 
-        {/* Read-Only Profile Overview (Only Profile Card, No ManageAccountCard) */}
-        <div className="max-w-sm">
+        {/* Centered Read-Only Profile Card (No ManageAccountCard) */}
+        <div className="mx-auto w-full max-w-md">
           <AccountProfileCard user={streamer} readOnly />
         </div>
 
-        {/* Read-Only Social Media Section (User Info & Security tabs removed) */}
-        <div className="space-y-4">
-          <div className="inline-flex rounded-full border border-[#2b2542] bg-[#130f24] p-1">
-            <span className="rounded-full bg-[#8b5cf6] px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(139,92,246,0.4)]">
-              โซเชียลมีเดีย
-            </span>
+        {/* Centered Read-Only Social Media Section (User Info & Security tabs removed) */}
+        <div className="w-full space-y-4">
+          <div className="flex justify-center">
+            <div className="inline-flex rounded-full border border-[#2b2542] bg-[#130f24] p-1">
+              <span className="rounded-full bg-[#8b5cf6] px-5 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(139,92,246,0.4)]">
+                โซเชียลมีเดีย
+              </span>
+            </div>
           </div>
 
           <SocialMediaTab user={streamer} readOnly />
         </div>
-      </>
+      </div>
     );
   };
 
@@ -130,12 +132,12 @@ const PublicProfilePage = () => {
       <div className="relative z-10">
         <Navbar />
 
-        <main className="mx-auto w-full max-w-[1120px] px-5 py-8 lg:px-8 space-y-6">
+        <main className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8 space-y-6">
           {/* Top Navigation Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#9891ab] hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#2b2542] bg-[#16122a]/70 px-3.5 py-2 text-xs font-medium text-[#d4cfdf] hover:border-purple-500/40 hover:text-white transition-all"
             >
               <ArrowLeft size={14} />
               <span>กลับหน้าหลัก</span>
@@ -157,7 +159,7 @@ const PublicProfilePage = () => {
       </div>
 
       <div className="relative z-10">
-        <Footer />
+        <Footer username={streamer?.username || username} />
       </div>
     </div>
   );
