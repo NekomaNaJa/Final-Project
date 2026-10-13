@@ -18,6 +18,7 @@ import Widget from "./pages/WidgetPage";
 import OverlayAlertPage from "./pages/OverlayAlertPage";
 import OverlayGoalPage from "./pages/OverlayGoalPage";
 import OverlayLeaderboardPage from "./pages/OverlayLeaderboardPage";
+import OAuthCallback from "./pages/OAuthCallback";
 import { pingServerWarmup } from "./utils/api";
 
 const App = () => {
@@ -32,6 +33,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/oauth-callback" element={<OAuthCallback />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/how-it-works" element={<HowToUse />} />
         <Route

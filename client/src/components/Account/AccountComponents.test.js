@@ -17,7 +17,15 @@ import ManageAccountCard from "./ManageAccountCard";
 import SecurityTab from "./SecurityTab";
 import SocialMediaTab from "./SocialMediaTab";
 import UserInfoTab from "./UserInfoTab";
-import { sendLinkOtp, verifyLinkOtp, sendForgotPasswordOtp, verifyForgotPasswordOtp } from "../../utils/api";
+import {
+  sendLinkOtp,
+  verifyLinkOtp,
+  sendForgotPasswordOtp,
+  verifyForgotPasswordOtp,
+  getSocialAuthUrl,
+  connectSocialAccount,
+  disconnectSocialAccount,
+} from "../../utils/api";
 
 jest.mock("../../utils/api", () => ({
   ...jest.requireActual("../../utils/api"),
@@ -25,6 +33,18 @@ jest.mock("../../utils/api", () => ({
   verifyLinkOtp: jest.fn().mockResolvedValue({ email: "user@test.com", isEmailVerified: true }),
   sendForgotPasswordOtp: jest.fn().mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" }),
   verifyForgotPasswordOtp: jest.fn().mockResolvedValue({ resetToken: "mock-reset-token-123" }),
+  getSocialAuthUrl: jest.fn().mockResolvedValue({ platform: "facebook", authUrl: "https://facebook.com/dialog/oauth" }),
+  connectSocialAccount: jest.fn().mockImplementation((platform, payload) =>
+    Promise.resolve({
+      platform,
+      handle: payload?.handle || "@TestStreamer",
+      url: `https://${platform}.com/${(payload?.handle || "TestStreamer").replace(/^@+/, "")}`,
+      social: {},
+    })
+  ),
+  disconnectSocialAccount: jest.fn().mockImplementation((platform) =>
+    Promise.resolve({ platform, social: {} })
+  ),
 }));
 
 describe("Account Components", () => {
@@ -33,8 +53,21 @@ describe("Account Components", () => {
     verifyLinkOtp.mockResolvedValue({ email: "user@test.com", isEmailVerified: true });
     sendForgotPasswordOtp.mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" });
     verifyForgotPasswordOtp.mockResolvedValue({ resetToken: "mock-reset-token-123" });
+    getSocialAuthUrl.mockResolvedValue({ platform: "facebook", authUrl: "https://facebook.com/dialog/oauth" });
+    connectSocialAccount.mockImplementation((platform, payload) =>
+      Promise.resolve({
+        platform,
+        handle: payload?.handle || "@TestStreamer",
+        url: `https://${platform}.com/${(payload?.handle || "TestStreamer").replace(/^@+/, "")}`,
+        social: {},
+      })
+    );
+    disconnectSocialAccount.mockImplementation((platform) =>
+      Promise.resolve({ platform, social: {} })
+    );
     mockNavigate.mockClear();
   });
+
 
   const mockUser = {
     username: "TestStreamer",
@@ -436,7 +469,7 @@ describe("Account Components", () => {
   });
 
   describe("SocialMediaTab", () => {
-    test("allows connecting, changing account, and disconnecting social platforms via OAuth popup", () => {
+    test("allows connecting, changing account, and disconnecting social platforms via OAuth popup", async () => {
       const mockOnSave = jest.fn();
       const windowOpenSpy = jest.spyOn(window, "open").mockImplementation(() => null);
 
@@ -454,7 +487,9 @@ describe("Account Components", () => {
       expect(windowOpenSpy).toHaveBeenCalled();
 
       // Authorize & Connect
-      fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
       // Verify connected handle & green Connected badge
@@ -472,11 +507,15 @@ describe("Account Components", () => {
 
       // Select alternate account and authorize
       fireEvent.click(screen.getByText("@TestStreamer_live"));
-      fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      });
       expect(screen.getByTestId("social-handle-facebook")).toHaveTextContent("@TestStreamer_live");
 
       // Click Disconnect on FACEBOOK
-      fireEvent.click(screen.getByRole("button", { name: "ยกเลิกการเชื่อมต่อ FACEBOOK" }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "ยกเลิกการเชื่อมต่อ FACEBOOK" }));
+      });
       expect(screen.queryByTestId("social-handle-facebook")).not.toBeInTheDocument();
       expect(mockOnSave).toHaveBeenLastCalledWith({
         social: expect.objectContaining({
@@ -510,6 +549,47 @@ describe("Account Components", () => {
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    test("handles postMessage OAuth callback from popup window", async () => {
+      const mockOnSave = jest.fn();
+      render(<SocialMediaTab user={mockUser} onSave={mockOnSave} />);
+
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: {
+              type: "OAUTH_CALLBACK",
+              code: "twitch_oauth_code_123",
+              state: "twitch_secret_state",
+            },
+            origin: window.location.origin,
+          })
+        );
+      });
+
+      await waitFor(() => {
+        expect(connectSocialAccount).toHaveBeenCalledWith("twitch", {
+          code: "twitch_oauth_code_123",
+          redirectUri: expect.stringContaining("/oauth-callback"),
+        });
+      });
+    });
+
+    test("renders properly in readOnly mode with profile links and no action buttons", () => {
+      const userWithSocial = {
+        ...mockUser,
+        social: {
+          youtube: "https://youtube.com/@ChannelX",
+        },
+      };
+      render(<SocialMediaTab user={userWithSocial} readOnly={true} />);
+      expect(screen.getByTestId("social-handle-youtube")).toHaveAttribute(
+        "href",
+        "https://youtube.com/@ChannelX"
+      );
+      expect(screen.queryByRole("button", { name: /เชื่อมต่อ/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /เปลี่ยนบัญชี/i })).not.toBeInTheDocument();
     });
   });
 
