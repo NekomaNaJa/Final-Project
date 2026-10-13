@@ -3,7 +3,43 @@ import Widget from "../Models/Widget.js";
 import Donation from "../Models/Donation.js";
 
 /**
- * ดึงข้อมูลสาธารณะของสตรีมเมอร์สำหรับหน้า Donor Page (GET /api/public/:username)
+ * ดึงรายชื่อสตรีมเมอร์ทั้งหมดสำหรับหน้าแรกและหน้าค้นพบ (GET /api/public/streamers)
+ */
+export const getPublicStreamers = async (req, res, next) => {
+  try {
+    const users = await User.find({})
+      .select("username nickname avatar bio isLive social createdAt")
+      .sort({ isLive: -1, createdAt: -1 })
+      .limit(24);
+
+    const streamers = (Array.isArray(users) ? users : []).map((u) => ({
+      username: u.username,
+      nickname: u.nickname || "",
+      avatar: u.avatar || "",
+      bio: u.bio || "",
+      isLive: Boolean(u.isLive),
+      createdAt: u.createdAt || null,
+      social: {
+        facebook: u.social?.facebook || "",
+        instagram: u.social?.instagram || "",
+        youtube: u.social?.youtube || "",
+        tiktok: u.social?.tiktok || "",
+        twitch: u.social?.twitch || "",
+        x: u.social?.x || "",
+      },
+    }));
+
+    return res.status(200).json({
+      message: "ดึงรายชื่อสตรีมเมอร์สำเร็จ",
+      data: streamers,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * ดึงข้อมูลสาธารณะของสตรีมเมอร์สำหรับหน้า Donor Page และ Public Profile (GET /api/public/:username)
  * ปิดบังข้อมูลส่วนตัว (email, password, phone ฯลฯ) คืนเฉพาะข้อมูลที่จำเป็นต่อการแสดงผล
  */
 export const getPublicStreamer = async (req, res, next) => {
@@ -37,12 +73,23 @@ export const getPublicStreamer = async (req, res, next) => {
       { mission: 1 }
     );
 
+    let totalAmount = 0;
+    if (user._id && User.db?.readyState === 1) {
+      const agg = await Donation.aggregate([
+        { $match: { streamerId: user._id, status: "approved" } },
+        { $group: { _id: null, totalAmount: { $sum: "$amount" } } },
+      ]);
+      totalAmount = agg?.[0]?.totalAmount || 0;
+    }
+
     const publicData = {
       username: user.username,
       nickname: user.nickname || "",
       avatar: user.avatar || "",
       bio: user.bio || "",
       isLive: Boolean(user.isLive),
+      createdAt: user.createdAt || null,
+      totalAmount,
       mission: {
         title: widget?.mission?.title || "ภารกิจสตรีมเมอร์วันนี้",
         missions: Array.isArray(widget?.mission?.missions)
@@ -76,6 +123,7 @@ export const getPublicStreamer = async (req, res, next) => {
           : [],
         coverImage: user.donationPage?.coverImage || null,
         backgroundImage: user.donationPage?.backgroundImage || null,
+        autoApproveSlip: user.donationPage?.autoApproveSlip !== false,
       },
       payment: {
         promptpay: {

@@ -9,6 +9,7 @@ export const API = {
   usersPayment: `${API_URL}/users/payment`,
   usersDonationPage: `${API_URL}/users/donation-page`,
   changePassword: `${API_URL}/users/change-password`,
+  publicStreamers: `${API_URL}/public/streamers`,
   publicStreamer: (username) => `${API_URL}/public/${encodeURIComponent(username)}`,
   publicOverlay: (type, token) => `${API_URL}/public/overlay/${encodeURIComponent(type)}/${encodeURIComponent(token)}`,
   donations: `${API_URL}/donations`,
@@ -220,6 +221,21 @@ export const fetchDonationSlip = async (id) => {
   const json = await res.json();
   if (!res.ok) {
     throw new Error(json.message || "ไม่สามารถดึงรูปสลิปได้");
+  }
+  return json.data;
+};
+
+/**
+ * ดึงรายชื่อสตรีมเมอร์ทั้งหมดสำหรับหน้าแรก (GET /api/public/streamers)
+ */
+export const fetchPublicStreamers = async () => {
+  const res = await fetch(API.publicStreamers, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "ไม่สามารถดึงรายชื่อสตรีมเมอร์ได้");
   }
   return json.data;
 };

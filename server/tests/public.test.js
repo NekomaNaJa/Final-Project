@@ -264,4 +264,57 @@ describe("Public Overlay Route (GET /api/public/overlay/:widgetType/:token)", ()
   });
 });
 
+describe("Public Streamers Route (GET /api/public/streamers)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should return 200 and list of registered streamers without sensitive fields", async () => {
+    const mockUsers = [
+      {
+        username: "streamer_one",
+        nickname: "One",
+        avatar: "https://example.com/one.png",
+        bio: "Gamer",
+        isLive: true,
+        createdAt: new Date("2026-01-01"),
+        social: { youtube: "https://youtube.com/@one" },
+      },
+      {
+        username: "streamer_two",
+        isLive: false,
+      },
+    ];
+
+    const limitMock = jest.fn().mockResolvedValueOnce(mockUsers);
+    const sortMock = jest.fn().mockReturnValue({ limit: limitMock });
+    const selectMock = jest.fn().mockReturnValue({ sort: sortMock });
+    jest.spyOn(User, "find").mockReturnValueOnce({ select: selectMock });
+
+    const res = await request(app).get("/api/public/streamers");
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("ดึงรายชื่อสตรีมเมอร์สำเร็จ");
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].username).toBe("streamer_one");
+    expect(res.body.data[0].nickname).toBe("One");
+    expect(res.body.data[0].isLive).toBe(true);
+    expect(res.body.data[0].social.youtube).toBe("https://youtube.com/@one");
+    expect(res.body.data[1].username).toBe("streamer_two");
+    expect(res.body.data[1].nickname).toBe("");
+  });
+
+  it("should forward database errors to errorHandler on GET /api/public/streamers", async () => {
+    const limitMock = jest.fn().mockRejectedValueOnce(new Error("DB error"));
+    const sortMock = jest.fn().mockReturnValue({ limit: limitMock });
+    const selectMock = jest.fn().mockReturnValue({ sort: sortMock });
+    jest.spyOn(User, "find").mockReturnValueOnce({ select: selectMock });
+
+    const res = await request(app).get("/api/public/streamers");
+
+    expect(res.status).toBe(500);
+    expect(res.body.data).toBeNull();
+  });
+});
+
 

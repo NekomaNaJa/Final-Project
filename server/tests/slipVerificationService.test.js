@@ -147,4 +147,51 @@ describe("Slip Verification Service (Phase 8 OCR)", () => {
     expect(res.success).toBe(true);
     expect(res.recipientMatched).toBe(false);
   });
+
+  it("should use Fast-Path for valid QR code slip and bypass OCR even when expectedAccountName is provided", async () => {
+    const emvPayload = buildMockEmvQrPayload({
+      transRef: "FASTPATHREF1234",
+      amount: 150,
+      bankCode: "004",
+    });
+
+    const qrDataUri = await QRCode.toDataURL(emvPayload, {
+      width: 350,
+      margin: 2,
+    });
+
+    const startTime = Date.now();
+    const res = await verifySlipImage(qrDataUri, 150, {
+      expectedAccountName: "สมชาย ใจดี",
+    });
+    const duration = Date.now() - startTime;
+
+    expect(res.success).toBe(true);
+    expect(res.method).toBe("qr");
+    expect(res.transRef).toBe("FASTPATHREF1234");
+    expect(res.amount).toBe(150);
+    // Fast-path bypasses OCR and executes in sub-second (~0.1-0.3s)
+    expect(duration).toBeLessThan(1000);
+  });
+
+  it("should resize and greyscale large landscape images (> 800px width) during OCR fallback", async () => {
+    const largeLandscapeImg = new Jimp({ width: 850, height: 600, color: 0xffffffff });
+    const buf = await largeLandscapeImg.getBuffer("image/png");
+    const base64 = `data:image/png;base64,${buf.toString("base64")}`;
+
+    const res = await verifySlipImage(base64, null);
+    expect(res.success).toBe(false);
+    expect(res.method).toBe("none");
+  }, 20000);
+
+  it("should resize and greyscale large portrait images (> 800px height) during OCR fallback", async () => {
+    const largePortraitImg = new Jimp({ width: 600, height: 850, color: 0xffffffff });
+    const buf = await largePortraitImg.getBuffer("image/png");
+    const base64 = `data:image/png;base64,${buf.toString("base64")}`;
+
+    const res = await verifySlipImage(base64, null);
+    expect(res.success).toBe(false);
+    expect(res.method).toBe("none");
+  }, 20000);
 });
+

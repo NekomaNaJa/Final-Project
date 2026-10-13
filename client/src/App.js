@@ -10,6 +10,7 @@ import PaymentPage from "./pages/PaymentPage";
 import ProtectedRoute from "./components/Dashboard/ProtectedRoute";
 import Account from "./pages/Account";
 import DonorPage from "./pages/DonorPage";
+import PublicProfilePage from "./pages/PublicProfilePage";
 import Discover from "./pages/Discover";
 import HowToUse from "./pages/HowToUse";
 import HistoryPage from "./pages/HistoryPage";
@@ -84,6 +85,7 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/:username/profile" element={<PublicProfilePage />} />
         <Route path="/donor/:username" element={<DonorPage />} />
         <Route path="/:username" element={<DonorPage />} />
         <Route path="/overlay/alert/:token" element={<OverlayAlertPage />} />
