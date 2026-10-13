@@ -808,6 +808,36 @@ describe("Donations Routes (Analytics & Management)", () => {
       expect(res.body.data.ocrResult.message).toContain("รอการยืนยันจากสตรีมเมอร์");
     });
 
+    it("should accept bank donation without amount when streamer disabled autoApproveSlip and default to minAmount", async () => {
+      const streamerWithoutAutoApprove = {
+        ...validStreamer,
+        donationPage: {
+          ...validStreamer.donationPage,
+          autoApproveSlip: false,
+          minAmount: 15,
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(streamerWithoutAutoApprove);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+
+      const blankImageUri =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          paymentMethod: "bank",
+          slipImage: blankImageUri,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.amount).toBe(15);
+      expect(res.body.data.status).toBe("pending");
+      expect(res.body.data.ocrResult.verified).toBe(false);
+    });
+
     it("should keep status as pending with unverified ocrResult when slip image cannot be decoded as QR", async () => {
       jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
       jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
