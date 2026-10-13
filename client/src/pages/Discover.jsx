@@ -1,7 +1,9 @@
+import React from "react";
 import Navbar from "../components/MainPage/Navbar";
 import Footer from "../components/MainPage/Footer";
+import FeaturedStreamers from "../components/Discover/FeaturedStreamers";
 import CategorySection from "../components/Discover/CategorySection";
-import { Radio, Gamepad2, Heart, Star } from "lucide-react";
+import { Radio, Gamepad2, Heart } from "lucide-react";
 
 const mockStreamers = (count, followers) =>
   Array.from({ length: count }, () => ({
@@ -33,13 +35,6 @@ const categories = [
     subtitle: "Streamer ที่เราคิดว่าคุณน่าจะชอบ",
     streamers: mockStreamers(3, "2.1k"),
   },
-  {
-    icon: Star,
-    iconColor: "bg-purple-500",
-    title: "สตรีมเมอร์แนะนำ",
-    subtitle: "Streamer แนะนำประจำสัปดาห์",
-    streamers: mockStreamers(3, "5.6k"),
-  },
 ];
 
 const Discover = () => {
@@ -53,13 +48,17 @@ const Discover = () => {
         </span>
         <h1 className="text-white text-3xl md:text-4xl font-bold mb-12">
           ค้นพบ{" "}
-          <span className="font-serif [font-variant:small-caps]">
+          <span className="font-serif [font-variant:small-caps] donix-gradient-text">
             STREAMER
           </span>
         </h1>
       </section>
 
       <section className="max-w-6xl mx-auto px-6 md:px-10 pb-16">
+        {/* สตรีมเมอร์แนะนำ (Featured Streamer) Carousel at TOP */}
+        <FeaturedStreamers />
+
+        {/* Other Categories */}
         {categories.map((cat) => (
           <CategorySection key={cat.title} {...cat} />
         ))}
