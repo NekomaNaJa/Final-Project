@@ -41,13 +41,78 @@ const PublicProfilePage = () => {
       }
     };
 
-    loadProfile();
+    void loadProfile();
     return () => {
       isMounted = false;
     };
   }, [username]);
 
   const displayName = streamer?.nickname || streamer?.username || username;
+
+  const renderProfileContent = () => {
+    if (loading) {
+      return (
+        <div
+          data-testid="public-profile-loading"
+          className="flex flex-col items-center justify-center rounded-2xl border border-[#2b2542] bg-[#16122a]/80 p-16 text-center"
+        >
+          <Loader2 size={32} className="text-purple-400 animate-spin mb-3" />
+          <p className="text-xs text-[#9891ab]">กำลังโหลดข้อมูลโปรไฟล์...</p>
+        </div>
+      );
+    }
+
+    if (notFound) {
+      return (
+        <div
+          data-testid="public-profile-not-found"
+          className="flex flex-col items-center justify-center rounded-2xl border border-[#2b2542] bg-[#16122a]/80 p-16 text-center"
+        >
+          <UserX size={40} className="text-red-400 mb-3" />
+          <h1 className="text-lg font-bold text-white">ไม่พบสตรีมเมอร์นี้</h1>
+          <p className="mt-1 text-xs text-[#9891ab]">
+            ไม่พบข้อมูลโปรไฟล์ของ @{username} ในระบบ
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {/* Header */}
+        <div>
+          <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#8066d6]">
+            Streamer Profile
+          </p>
+          <h1 className="text-2xl font-bold text-[#e8e4ee]">
+            โปรไฟล์ของ{" "}
+            <span className="font-serif tracking-wide text-[#aa8df1]">
+              {displayName}
+            </span>
+          </h1>
+          <p className="mt-1 text-xs text-[#716b7a]">
+            {streamer?.bio || "ข้อมูลโปรไฟล์และช่องทางโซเชียลมีเดียของสตรีมเมอร์"}
+          </p>
+        </div>
+
+        {/* Read-Only Profile Overview (Only Profile Card, No ManageAccountCard) */}
+        <div className="max-w-sm">
+          <AccountProfileCard user={streamer} readOnly />
+        </div>
+
+        {/* Read-Only Social Media Section (User Info & Security tabs removed) */}
+        <div className="space-y-4">
+          <div className="inline-flex rounded-full border border-[#2b2542] bg-[#130f24] p-1">
+            <span className="rounded-full bg-[#8b5cf6] px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(139,92,246,0.4)]">
+              โซเชียลมีเดีย
+            </span>
+          </div>
+
+          <SocialMediaTab user={streamer} readOnly />
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="relative min-h-screen bg-[#090812] font-sans text-white flex flex-col justify-between">
@@ -87,60 +152,7 @@ const PublicProfilePage = () => {
             )}
           </div>
 
-          {loading ? (
-            <div
-              data-testid="public-profile-loading"
-              className="flex flex-col items-center justify-center rounded-2xl border border-[#2b2542] bg-[#16122a]/80 p-16 text-center"
-            >
-              <Loader2 size={32} className="text-purple-400 animate-spin mb-3" />
-              <p className="text-xs text-[#9891ab]">กำลังโหลดข้อมูลโปรไฟล์...</p>
-            </div>
-          ) : notFound ? (
-            <div
-              data-testid="public-profile-not-found"
-              className="flex flex-col items-center justify-center rounded-2xl border border-[#2b2542] bg-[#16122a]/80 p-16 text-center"
-            >
-              <UserX size={40} className="text-red-400 mb-3" />
-              <h1 className="text-lg font-bold text-white">ไม่พบสตรีมเมอร์นี้</h1>
-              <p className="mt-1 text-xs text-[#9891ab]">
-                ไม่พบข้อมูลโปรไฟล์ของ @{username} ในระบบ
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Header */}
-              <div>
-                <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#8066d6]">
-                  Streamer Profile
-                </p>
-                <h1 className="text-2xl font-bold text-[#e8e4ee]">
-                  โปรไฟล์ของ{" "}
-                  <span className="font-serif tracking-wide text-[#aa8df1]">
-                    {displayName}
-                  </span>
-                </h1>
-                <p className="mt-1 text-xs text-[#716b7a]">
-                  {streamer?.bio || "ข้อมูลโปรไฟล์และช่องทางโซเชียลมีเดียของสตรีมเมอร์"}
-                </p>
-              </div>
-
-              {/* Read-Only Profile Overview (Only Profile Card, No ManageAccountCard) */}
-              <div className="max-w-sm">
-                <AccountProfileCard user={streamer} readOnly />
-              </div>
-
-              {/* Read-Only Social Media Section (User Info & Security tabs removed) */}
-              <div className="space-y-4">
-                <div className="inline-flex rounded-full border border-[#2b2542] bg-[#130f24] p-1">
-                  <span className="rounded-full bg-[#8b5cf6] px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(139,92,246,0.4)]">
-                    โซเชียลมีเดีย
-                  </span>
-                </div>
-
-                <SocialMediaTab user={streamer} readOnly />
-              </div>
-            </>
-          )}
+          {renderProfileContent()}
         </main>
       </div>
 
