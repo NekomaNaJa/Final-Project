@@ -295,6 +295,46 @@ describe("Donor, Account, Payment, and NotFound Pages", () => {
       expect(screen.queryByTestId("locked-mission-badge")).not.toBeInTheDocument();
     });
 
+    test("handles offline streamer correctly by showing OFFLINE badge, offline card, and disabling donations", async () => {
+      fetchPublicStreamer.mockResolvedValueOnce({
+        username: "OfflineStreamer",
+        isLive: false,
+        donationPage: {
+          welcomeMessage: "ตอนนี้ออฟไลน์อยู่ครับ",
+          minAmount: 10,
+        },
+        payment: {
+          promptpay: { enabled: true, number: "0899999999" },
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/donor/OfflineStreamer"]}>
+          <Routes>
+            <Route path="/donor/:username" element={<DonorPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      // Verify page is accessible
+      expect(screen.getByText("OfflineStreamer")).toBeInTheDocument();
+      expect(screen.getByText("donix.app/OfflineStreamer")).toBeInTheDocument();
+
+      // Verify OFFLINE badge and offline status cards
+      await waitFor(() => {
+        expect(screen.getByText("OFFLINE")).toBeInTheDocument();
+        expect(screen.getAllByText("สตรีมเมอร์ปิดรับโดเนทในขณะนี้").length).toBeGreaterThan(0);
+        expect(screen.getByText("สตรีมเมอร์ปิดรับการสนับสนุนชั่วคราว กรุณาลองใหม่อีกครั้งภายหลัง")).toBeInTheDocument();
+      });
+
+      // Verify inputs are disabled
+      expect(screen.getByPlaceholderText("Anonymous")).toBeDisabled();
+      expect(screen.getByPlaceholderText(/พิมพ์ข้อความ/)).toBeDisabled();
+
+      // Verify payment submit button is NOT present
+      expect(screen.queryByRole("button", { name: "ยืนยันการชำระเงิน" })).not.toBeInTheDocument();
+    });
+
     test("displays filtered donorName from api response in submitted card", async () => {
       localStorage.setItem(
         "donix_payment_config",

@@ -5,6 +5,7 @@ import DonorHeader from "../components/Donor/DonorHeader";
 import DonorMissionList from "../components/Donor/DonorMissionList";
 import DonorPaymentTabs from "../components/Donor/DonorPaymentTabs";
 import DonorDisabledCard from "../components/Donor/DonorDisabledCard";
+import DonorOfflineCard from "../components/Donor/DonorOfflineCard";
 import DonorPromptPayForm from "../components/Donor/DonorPromptPayForm";
 import DonorBankForm from "../components/Donor/DonorBankForm";
 import { fetchPublicStreamer, createDonation } from "../utils/api";
@@ -24,6 +25,7 @@ const fileToBase64 = (file) => {
 
 const getInitialStreamerConfig = (username) => {
   const defaultConfig = {
+    isLive: true,
     welcomeMessage:
       "ยินดีต้อนรับสู่หน้ารับเงินของข้าพเจ้า ขอขอบคุณทุกการสนับสนุนครับ!",
     thankYouMessage: "ขอบคุณสำหรับการสนับสนุนมากๆ ครับ!",
@@ -155,6 +157,10 @@ const DonorPage = () => {
         if (publicData && isMounted) {
           setStreamerConfig((prev) => ({
             ...prev,
+            isLive:
+              publicData.isLive !== undefined
+                ? Boolean(publicData.isLive)
+                : prev.isLive,
             welcomeMessage:
               publicData.donationPage?.welcomeMessage || prev.welcomeMessage,
             thankYouMessage:
@@ -220,6 +226,13 @@ const DonorPage = () => {
     isSubmittingRef.current = true;
     setIsSubmitting(true);
     setErrorFeedback(null);
+
+    if (streamerConfig.isLive === false) {
+      setErrorFeedback("สตรีมเมอร์ปิดรับโดเนทในขณะนี้");
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+      return;
+    }
 
     const min = Number(streamerConfig.minAmount) || 1;
     const isBank = (donationData?.method || activeTab) === "bank";
@@ -368,7 +381,7 @@ const DonorPage = () => {
         {/* Streamer Header */}
         <DonorHeader
           username={username}
-          isOnline={true}
+          isOnline={streamerConfig.isLive !== false}
           welcomeMessage={streamerConfig.welcomeMessage}
           coverImage={streamerConfig.coverImage}
           avatar={streamerConfig.avatar}
@@ -379,6 +392,25 @@ const DonorPage = () => {
           key={`donor-card-${resetKey}`}
           className="w-full rounded-2xl border border-[#2b2542] bg-[#16122a]/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6"
         >
+            {/* Offline Notification Banner */}
+            {streamerConfig.isLive === false && (
+              <div
+                role="status"
+                aria-label="สตรีมเมอร์ปิดรับโดเนทในขณะนี้"
+                className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-950/40 p-4 text-xs sm:text-sm font-semibold text-red-200 shadow-lg animate-in fade-in"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-400">
+                  <AlertCircle size={18} />
+                </div>
+                <div>
+                  <p className="font-bold text-white">สตรีมเมอร์ปิดรับโดเนทในขณะนี้</p>
+                  <p className="text-xs text-red-300/80 font-normal mt-0.5">
+                    สตรีมเมอร์ปิดรับการสนับสนุนชั่วคราว ไม่สามารถส่งเงินหรือทำรายการได้ในขณะนี้
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Error Feedback Banner */}
             {errorFeedback && (
               <div
@@ -397,15 +429,19 @@ const DonorPage = () => {
                   missionConfig={streamerConfig.mission}
                   selectedMission={selectedMission}
                   onSelectMission={handleSelectMission}
-                  disabled={isSubmitting}
+                  disabled={streamerConfig.isLive === false || isSubmitting}
                 />
               )}
 
             {/* Payment Channel Selector Tabs */}
             <DonorPaymentTabs
               activeTab={activeTab}
-              onTabChange={isSubmitting ? () => {} : setActiveTab}
-              disabled={isSubmitting}
+              onTabChange={
+                streamerConfig.isLive === false || isSubmitting
+                  ? () => {}
+                  : setActiveTab
+              }
+              disabled={streamerConfig.isLive === false || isSubmitting}
             />
 
             {/* Donor Name & Message Form Inputs */}
@@ -425,9 +461,10 @@ const DonorPage = () => {
                   type="text"
                   maxLength={24}
                   value={donorName}
+                  disabled={streamerConfig.isLive === false || isSubmitting}
                   onChange={(e) => setDonorName(e.target.value)}
                   placeholder="Anonymous"
-                  className="w-full rounded-2xl border border-[#2e2648] bg-[#110d22] px-6 py-4 text-sm sm:text-base font-semibold text-white placeholder-[#6e6682] focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all shadow-inner"
+                  className="w-full rounded-2xl border border-[#2e2648] bg-[#110d22] px-6 py-4 text-sm sm:text-base font-semibold text-white placeholder-[#6e6682] focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all shadow-inner disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -466,20 +503,24 @@ const DonorPage = () => {
                     rows={selectedMission ? 2 : 3}
                     maxLength={maxCustomLength}
                     value={message}
+                    disabled={streamerConfig.isLive === false || isSubmitting}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder={
                       selectedMission
                         ? "พิมพ์ข้อความเพิ่มเติมถึงสตรีมเมอร์ (ไม่บังคับ)..."
                         : "พิมพ์ข้อความที่ต้องการส่งถึงสตรีมเมอร์..."
                     }
-                    className="w-full border-none bg-transparent p-0 text-sm sm:text-base font-medium text-white placeholder-[#6e6682] focus:outline-none resize-none leading-relaxed"
+                    className="w-full border-none bg-transparent p-0 text-sm sm:text-base font-medium text-white placeholder-[#6e6682] focus:outline-none resize-none leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Dynamic Payment Method Section vs Disabled State */}
-            {!isChannelEnabled ? (
+            {/* Dynamic Payment Method Section vs Disabled vs Offline State */}
+            {streamerConfig.isLive === false ? (
+              /* State 5: Streamer Offline Card */
+              <DonorOfflineCard />
+            ) : !isChannelEnabled ? (
               /* State 4: Disabled Channel Card */
               <DonorDisabledCard />
             ) : activeTab === "promptpay" ? (

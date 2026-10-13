@@ -23,8 +23,16 @@ const AccountProfileCard = ({ user, onSave, readOnly = false }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleToggleLive = () => {
-    onSave?.({ isLive: !isLive });
+  const [isTogglingLive, setIsTogglingLive] = useState(false);
+
+  const handleToggleLive = async () => {
+    if (isTogglingLive) return;
+    setIsTogglingLive(true);
+    try {
+      await onSave?.({ isLive: !isLive });
+    } finally {
+      setIsTogglingLive(false);
+    }
   };
 
   const handleAvatarFile = (file) => {
@@ -150,7 +158,13 @@ const AccountProfileCard = ({ user, onSave, readOnly = false }) => {
       {/* Avatar Container */}
       <div className="relative group">
         {readOnly ? (
-          <div className="relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white">
+          <div
+            className={`relative grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-[#1b1630] text-3xl font-bold text-white transition-all ${
+              isLive
+                ? "border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.45)] ring-2 ring-purple-500/50"
+                : "border-2 border-gray-700/80 shadow-none ring-0"
+            }`}
+          >
             {user?.avatar ? (
               <img
                 src={user.avatar}
@@ -175,7 +189,11 @@ const AccountProfileCard = ({ user, onSave, readOnly = false }) => {
               }}
               title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
               aria-label="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
-              className="relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-[#16122a] transition-all"
+              className={`relative grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-[#1b1630] text-3xl font-bold text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-[#16122a] transition-all ${
+                isLive
+                  ? "border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.45)] ring-2 ring-purple-500/50"
+                  : "border-2 border-gray-700/80 shadow-none ring-0"
+              }`}
             >
               {user?.avatar ? (
                 <img
@@ -279,10 +297,11 @@ const AccountProfileCard = ({ user, onSave, readOnly = false }) => {
             type="button"
             role="switch"
             aria-checked={isLive}
+            disabled={isTogglingLive}
             onClick={handleToggleLive}
-            className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-all ${
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 cursor-pointer ${
               isLive
-                ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
+                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-[0_0_14px_rgba(147,51,234,0.4)]"
                 : "bg-purple-600 text-white hover:bg-purple-500 shadow-[0_0_12px_rgba(147,51,234,0.3)]"
             }`}
           >

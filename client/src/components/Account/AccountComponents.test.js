@@ -180,6 +180,36 @@ describe("Account Components", () => {
         expect(mockOnSave).toHaveBeenCalledWith({ avatar: "" });
       });
     });
+
+    test("toggles donation status between LIVE and OFFLINE via button", async () => {
+      const mockOnSave = jest.fn().mockResolvedValue({ success: true });
+      const { rerender } = render(
+        <AccountProfileCard user={{ ...mockUser, isLive: true }} onSave={mockOnSave} />
+      );
+
+      expect(screen.getByText("เปิดรับโดเนท (LIVE)")).toBeInTheDocument();
+      expect(screen.getByText("ผู้สนับสนุนสามารถโอนเงินได้")).toBeInTheDocument();
+      const closeBtn = screen.getByRole("switch", { name: "ปิดรับเงิน" });
+      expect(closeBtn).toBeInTheDocument();
+
+      fireEvent.click(closeBtn);
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith({ isLive: false });
+      });
+
+      rerender(
+        <AccountProfileCard user={{ ...mockUser, isLive: false }} onSave={mockOnSave} />
+      );
+      expect(screen.getByText("ปิดรับโดเนท (OFFLINE)")).toBeInTheDocument();
+      expect(screen.getByText("หน้ารับเงินจะแสดงสถานะออฟไลน์")).toBeInTheDocument();
+      const openBtn = screen.getByRole("switch", { name: "เปิดรับเงิน" });
+      expect(openBtn).toBeInTheDocument();
+
+      fireEvent.click(openBtn);
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith({ isLive: true });
+      });
+    });
   });
 
   describe("AccountTabs", () => {
