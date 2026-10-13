@@ -15,7 +15,7 @@ import AccountProfileCard from "./AccountProfileCard";
 import AccountTabs from "./AccountTabs";
 import ManageAccountCard from "./ManageAccountCard";
 import SecurityTab from "./SecurityTab";
-import SocialMediaTab from "./SocialMediaTab";
+import SocialMediaTab, { extractSocialHandle, buildSocialUrl } from "./SocialMediaTab";
 import UserInfoTab from "./UserInfoTab";
 import {
   sendLinkOtp,
@@ -590,6 +590,128 @@ describe("Account Components", () => {
       );
       expect(screen.queryByRole("button", { name: /เชื่อมต่อ/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /เปลี่ยนบัญชี/i })).not.toBeInTheDocument();
+    });
+
+    test("handles connectSocialAccount failure and allows dismissing the status message banner", async () => {
+      connectSocialAccount.mockRejectedValueOnce(new Error("API failure"));
+      const user = { ...mockUser, social: {} };
+      render(<SocialMediaTab user={user} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ TWITCH" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /อนุญาตและเชื่อมต่อ/i }));
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+
+      // Now dispatch an OAuth postMessage with rejection
+      connectSocialAccount.mockRejectedValueOnce(new Error("OAuth network error"));
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: {
+              type: "OAUTH_CALLBACK",
+              code: "err_code",
+              state: "twitch_state",
+            },
+            origin: window.location.origin,
+          })
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("เกิดข้อผิดพลาดในการเชื่อมต่อ OAuth")).toBeInTheDocument();
+      });
+
+      // Dismiss banner
+      const dismissBtn = screen.getByRole("status").querySelector("button");
+      fireEvent.click(dismissBtn);
+      expect(screen.queryByText("เกิดข้อผิดพลาดในการเชื่อมต่อ OAuth")).not.toBeInTheDocument();
+    });
+
+    test("ignores postMessage events with mismatched origin or invalid type", async () => {
+      render(<SocialMediaTab user={mockUser} />);
+      connectSocialAccount.mockClear();
+
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "OAUTH_CALLBACK", code: "code123" },
+            origin: "https://malicious-origin.com",
+          })
+        );
+      });
+      expect(connectSocialAccount).not.toHaveBeenCalled();
+
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: { type: "OTHER_EVENT" },
+            origin: window.location.origin,
+          })
+        );
+      });
+      expect(connectSocialAccount).not.toHaveBeenCalled();
+    });
+
+    test("opens external popup with string url and handles getSocialAuthUrl failure", async () => {
+      const windowOpenSpy = jest.spyOn(window, "open").mockImplementation(() => null);
+      getSocialAuthUrl.mockRejectedValueOnce(new Error("Network fail"));
+
+      render(<SocialMediaTab user={mockUser} />);
+      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ TWITCH" }));
+
+      const openPopupBtn = screen.getByText(/เปิดหน้าต่างยืนยันตัวตน/i);
+      fireEvent.click(openPopupBtn);
+
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        expect.stringContaining("twitch.tv"),
+        expect.stringContaining("donix_oauth_twitch"),
+        expect.any(String)
+      );
+
+      windowOpenSpy.mockRestore();
+    });
+
+    test("handles disconnect rejection gracefully", async () => {
+      disconnectSocialAccount.mockRejectedValueOnce(new Error("Disconnect fail"));
+      const user = {
+        ...mockUser,
+        social: { facebook: "https://facebook.com/john" },
+      };
+      render(<SocialMediaTab user={user} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "ยกเลิกการเชื่อมต่อ FACEBOOK" }));
+      await waitFor(() => {
+        expect(disconnectSocialAccount).toHaveBeenCalledWith("facebook");
+      });
+    });
+
+    test("extractSocialHandle and buildSocialUrl helper functions", () => {
+      // extractSocialHandle
+      expect(extractSocialHandle(null)).toBe("");
+      expect(extractSocialHandle("   ")).toBe("");
+      expect(extractSocialHandle(12345)).toBe("");
+      expect(extractSocialHandle("https://facebook.com/alice")).toBe("@alice");
+      expect(extractSocialHandle("https://facebook.com/@alice")).toBe("@alice");
+      expect(extractSocialHandle("https://invalid-url-path:bad")).toBe("@https://invalid-url-path:bad");
+      expect(extractSocialHandle("@bob")).toBe("@bob");
+      expect(extractSocialHandle("bob")).toBe("@bob");
+
+      // buildSocialUrl
+      expect(buildSocialUrl("twitch", null)).toBe("");
+      expect(buildSocialUrl("twitch", "   ")).toBe("");
+      expect(buildSocialUrl("twitch", 999)).toBe("");
+      expect(buildSocialUrl("twitch", "https://twitch.tv/custom")).toBe("https://twitch.tv/custom");
+      expect(buildSocialUrl("twitch", "@gamer")).toBe("https://twitch.tv/gamer");
+      expect(buildSocialUrl("youtube", "channel_id")).toBe("https://youtube.com/@channel_id");
+      expect(buildSocialUrl("nonexistent_meta", "@unknown")).toBe("https://unknown");
+    });
+
+    test("renders fallback streamer handle when user has no nickname or username", () => {
+      render(<SocialMediaTab user={{}} />);
+      expect(screen.getByText("โซเชียลมีเดีย")).toBeInTheDocument();
     });
   });
 

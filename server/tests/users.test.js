@@ -6,6 +6,11 @@ import app from "../app.js";
 import User from "../Models/User.js";
 import Otp from "../Models/Otp.js";
 import { getJwtSecret } from "../utils/jwtSecret.js";
+import {
+  getSocialAuthUrl,
+  connectSocialAccount,
+  disconnectSocialAccount,
+} from "../controllers/userController.js";
 
 describe("Users Route", () => {
   const secret = getJwtSecret();
@@ -1411,6 +1416,318 @@ describe("Users Route", () => {
 
         expect(res.status).toBe(200);
         expect(res.body.data.handle).toBe("@fallback_fb_user");
+      });
+
+      it("should exchange code for access_token and fetch profile from TikTok API with client_key", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = { _id: "mockId123", social: null, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ access_token: "tiktok_token_123" }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              data: { user: { username: "tiktok_star" } },
+            }),
+          });
+
+        const res = await request(app)
+          .post("/api/users/social/connect/tiktok")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "tiktok_code_123" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.handle).toBe("@tiktok_star");
+        expect(res.body.data.url).toBe("https://tiktok.com/@tiktok_star");
+        expect(mockUser.social.tiktok).toBe("https://tiktok.com/@tiktok_star");
+      });
+
+      it("should exchange code for access_token and fetch profile from X API with code_verifier", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ access_token: "x_token_123" }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              data: { username: "x_streamer" },
+            }),
+          });
+
+        const res = await request(app)
+          .post("/api/users/social/connect/x")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "x_code_123" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.handle).toBe("@x_streamer");
+        expect(res.body.data.url).toBe("https://x.com/x_streamer");
+      });
+
+      it("should exchange code for access_token and fetch profile from Instagram API", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ access_token: "ig_token_123" }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              username: "ig_creator",
+            }),
+          });
+
+        const res = await request(app)
+          .post("/api/users/social/connect/instagram")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "ig_code_123" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.handle).toBe("@ig_creator");
+        expect(res.body.data.url).toBe("https://instagram.com/ig_creator");
+      });
+
+      it("should exchange code and fetch profile from YouTube API fallbackUserUrl when items is empty", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ access_token: "yt_token_fallback" }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              items: [],
+            }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({
+              name: "YouTube Creator Name",
+            }),
+          });
+
+        const res = await request(app)
+          .post("/api/users/social/connect/youtube")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "yt_code_fallback" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.handle).toBe("@YouTube_Creator_Name");
+      });
+
+      it("should handle profile fetch error and fallback to handle", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ access_token: "mock_token" }),
+          })
+          .mockRejectedValueOnce(new Error("Profile fetch network error"));
+
+        const res = await request(app)
+          .post("/api/users/social/connect/facebook")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "fb_code", handle: "fb_saved_handle" });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.handle).toBe("@fb_saved_handle");
+      });
+
+      it("should handle direct accessToken fetch rejection gracefully", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = { _id: "mockId123", social: {}, save: jest.fn() };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        global.fetch = jest.fn().mockRejectedValueOnce(new Error("Access token fetch error"));
+
+        const res = await request(app)
+          .post("/api/users/social/connect/facebook")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ accessToken: "bad_token" });
+
+        expect(res.status).toBe(400);
+      });
+
+      it("should forward server errors in connectSocialAccount to errorHandler", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        jest.spyOn(User, "findById").mockRejectedValueOnce(new Error("DB failure"));
+
+        const res = await request(app)
+          .post("/api/users/social/connect/facebook")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ handle: "my_handle" });
+
+        expect(res.status).toBe(500);
+      });
+
+      it("should handle custom state parameter and default redirectUri in getSocialAuthUrl", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const res = await request(app)
+          .get("/api/users/social/auth-url/youtube?state=my_custom_state_123")
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.state).toBe("my_custom_state_123");
+        expect(res.body.data.authUrl).toContain("accounts.google.com");
+      });
+
+      it("should initialize social object if user.social is null in disconnectSocialAccount", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const mockUser = {
+          _id: "mockId123",
+          social: null,
+          save: jest.fn().mockResolvedValueOnce(true),
+        };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(mockUser);
+
+        const res = await request(app)
+          .delete("/api/users/social/disconnect/twitch")
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(mockUser.social.twitch).toBe("");
+      });
+
+      it("should cover all extractHandle provider branches", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+
+        // YouTube snippet.title
+        const userYt = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(userYt);
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok" }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [{ snippet: { title: "My Channel Title" } }] }) });
+        const resYt = await request(app)
+          .post("/api/users/social/connect/youtube")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "code_yt" });
+        expect(resYt.status).toBe(200);
+        expect(resYt.body.data.handle).toBe("@My_Channel_Title");
+
+        // YouTube fallback altData.email
+        const userYtEmail = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(userYtEmail);
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok" }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [] }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ email: "creator@youtube.com" }) });
+        const resYtEmail = await request(app)
+          .post("/api/users/social/connect/youtube")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "code_yt_email" });
+        expect(resYtEmail.status).toBe(200);
+        expect(resYtEmail.body.data.handle).toBe("@creator");
+
+        // Facebook name and id fallbacks
+        const userFb = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(userFb);
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok" }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ name: "Facebook John Doe" }) });
+        const resFb = await request(app)
+          .post("/api/users/social/connect/facebook")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "code_fb" });
+        expect(resFb.status).toBe(200);
+        expect(resFb.body.data.handle).toBe("@Facebook_John_Doe");
+
+        // TikTok display_name fallback
+        const userTt = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(userTt);
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok" }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { user: { display_name: "TikTok Star Name" } } }) });
+        const resTt = await request(app)
+          .post("/api/users/social/connect/tiktok")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "code_tt" });
+        expect(resTt.status).toBe(200);
+        expect(resTt.body.data.handle).toBe("@TikTok_Star_Name");
+
+        // Twitch display_name fallback
+        const userTw = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(userTw);
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok" }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ display_name: "Twitch_Display" }] }) });
+        const resTw = await request(app)
+          .post("/api/users/social/connect/twitch")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "code_tw" });
+        expect(resTw.status).toBe(200);
+        expect(resTw.body.data.handle).toBe("@Twitch_Display");
+      });
+
+      it("should fallback to youtube_channel when altData has no name or email", async () => {
+        const token = jwt.sign({ userId: "mockId123", username: "validuser" }, secret);
+        const userYt = { _id: "mockId123", social: {}, save: jest.fn().mockResolvedValueOnce(true) };
+        jest.spyOn(User, "findById").mockResolvedValueOnce(userYt);
+        global.fetch = jest
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok" }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({ items: [] }) })
+          .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+        const resYt = await request(app)
+          .post("/api/users/social/connect/youtube")
+          .set("Authorization", `Bearer ${token}`)
+          .send({ code: "code_empty_alt" });
+        expect(resYt.status).toBe(200);
+        expect(resYt.body.data.handle).toBe("@youtube_channel");
+      });
+
+      it("should handle non-string platform type and exceptions directly in controller", async () => {
+        const mockRes = () => {
+          const res = {};
+          res.status = jest.fn().mockReturnValue(res);
+          res.json = jest.fn().mockReturnValue(res);
+          return res;
+        };
+
+        const res1 = mockRes();
+        await getSocialAuthUrl({ params: { platform: 123 } }, res1, jest.fn());
+        expect(res1.status).toHaveBeenCalledWith(400);
+
+        const next1 = jest.fn();
+        await getSocialAuthUrl({ params: null }, mockRes(), next1);
+        expect(next1).toHaveBeenCalled();
+
+        const res2 = mockRes();
+        await connectSocialAccount({ params: { platform: 123 } }, res2, jest.fn());
+        expect(res2.status).toHaveBeenCalledWith(400);
+
+        const res3 = mockRes();
+        await disconnectSocialAccount({ params: { platform: 123 } }, res3, jest.fn());
+        expect(res3.status).toHaveBeenCalledWith(400);
       });
     });
   });
