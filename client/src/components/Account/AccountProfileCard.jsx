@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Pencil, Copy, Check, Camera, Trash2, Loader2 } from "lucide-react";
 
-const AccountProfileCard = ({ user, onSave }) => {
+const AccountProfileCard = ({ user, onSave, readOnly = false }) => {
   const [copied, setCopied] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [avatarError, setAvatarError] = useState(null);
@@ -136,79 +136,97 @@ const AccountProfileCard = ({ user, onSave }) => {
   return (
     <section className="rounded-2xl border border-[#2b2542] bg-[#16122a]/80 backdrop-blur-md p-6 shadow-[0_10px_30px_rgba(0,0,0,0.25)] flex flex-col items-center text-center">
       {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp"
-        onChange={handleFileInputChange}
-        className="hidden"
-        aria-label="อัปโหลดรูปโปรไฟล์"
-      />
+      {!readOnly && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          onChange={handleFileInputChange}
+          className="hidden"
+          aria-label="อัปโหลดรูปโปรไฟล์"
+        />
+      )}
 
       {/* Avatar Container */}
       <div className="relative group">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => !isUploading && fileInputRef.current?.click()}
-          onKeyDown={(e) => {
-            if ((e.key === "Enter" || e.key === " ") && !isUploading) {
-              e.preventDefault();
-              fileInputRef.current?.click();
-            }
-          }}
-          title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
-          aria-label="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
-          className="relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-[#16122a] transition-all"
-        >
-          {user?.avatar ? (
-            <img
-              src={user.avatar}
-              alt={username}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            username?.[0]?.toUpperCase() || "T"
-          )}
-
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[10px] text-white font-medium">
-            <Camera size={18} />
-            <span>เปลี่ยนรูป</span>
+        {readOnly ? (
+          <div className="relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white">
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={username}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              username?.[0]?.toUpperCase() || "T"
+            )}
           </div>
+        ) : (
+          <>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !isUploading) {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+              aria-label="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+              className="relative grid h-24 w-24 place-items-center overflow-hidden rounded-full border-2 border-purple-500 shadow-[0_0_24px_rgba(168,85,247,0.35)] bg-[#1b1630] text-3xl font-bold text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-[#16122a] transition-all"
+            >
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={username}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                username?.[0]?.toUpperCase() || "T"
+              )}
 
-          {/* Loading Spinner */}
-          {isUploading && (
-            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
-              <Loader2 size={24} className="text-purple-400 animate-spin" />
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-[10px] text-white font-medium">
+                <Camera size={18} />
+                <span>เปลี่ยนรูป</span>
+              </div>
+
+              {/* Loading Spinner */}
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
+                  <Loader2 size={24} className="text-purple-400 animate-spin" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Change Avatar Button */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          title="เปลี่ยนรูปโปรไฟล์"
-          aria-label="เปลี่ยนรูปโปรไฟล์"
-          className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-[#2e2648] bg-[#221a3e] text-gray-300 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
-        >
-          <Pencil size={13} />
-        </button>
+            {/* Change Avatar Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              title="เปลี่ยนรูปโปรไฟล์"
+              aria-label="เปลี่ยนรูปโปรไฟล์"
+              className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-[#2e2648] bg-[#221a3e] text-gray-300 hover:bg-purple-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Pencil size={13} />
+            </button>
 
-        {/* Delete Avatar Button (Only when avatar exists) */}
-        {user?.avatar && (
-          <button
-            type="button"
-            onClick={handleRemoveAvatar}
-            disabled={isUploading}
-            title="ลบรูปโปรไฟล์"
-            aria-label="ลบรูปโปรไฟล์"
-            className="absolute -top-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-red-500/40 bg-[#22142a] text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <Trash2 size={12} />
-          </button>
+            {/* Delete Avatar Button (Only when avatar exists) */}
+            {user?.avatar && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={isUploading}
+                title="ลบรูปโปรไฟล์"
+                aria-label="ลบรูปโปรไฟล์"
+                className="absolute -top-1 -right-1 grid h-7 w-7 place-items-center rounded-full border border-red-500/40 bg-[#22142a] text-red-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -256,19 +274,21 @@ const AccountProfileCard = ({ user, onSave }) => {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={isLive}
-          onClick={handleToggleLive}
-          className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-all ${
-            isLive
-              ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
-              : "bg-purple-600 text-white hover:bg-purple-500 shadow-[0_0_12px_rgba(147,51,234,0.3)]"
-          }`}
-        >
-          {isLive ? "ปิดรับเงิน" : "เปิดรับเงิน"}
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isLive}
+            onClick={handleToggleLive}
+            className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-medium transition-all ${
+              isLive
+                ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
+                : "bg-purple-600 text-white hover:bg-purple-500 shadow-[0_0_12px_rgba(147,51,234,0.3)]"
+            }`}
+          >
+            {isLive ? "ปิดรับเงิน" : "เปิดรับเงิน"}
+          </button>
+        )}
       </div>
 
       {/* Stats */}

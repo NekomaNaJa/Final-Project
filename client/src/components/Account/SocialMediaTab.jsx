@@ -69,6 +69,18 @@ export const extractSocialHandle = (rawValue) => {
   return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
 };
 
+export const buildSocialUrl = (platformKey, rawValue) => {
+  if (typeof rawValue !== "string") return "";
+  const trimmed = rawValue.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  const cleanHandle = trimmed.replace(/^@+/, "");
+  const meta = OAUTH_PROVIDER_META[platformKey];
+  return meta?.baseUrl ? `${meta.baseUrl}${cleanHandle}` : `https://${cleanHandle}`;
+};
+
 const getBaseHandle = (user) => {
   const raw = user?.username || user?.nickname || "streamer";
   const cleaned = String(raw).trim().replace(/\s+/g, "_").replace(/^@+/, "");
@@ -90,9 +102,77 @@ const buildOAuthAccounts = (baseHandle, email) => [
   },
 ];
 
+const SocialRowActions = ({
+  platform,
+  rawValue,
+  connectedHandle,
+  isConnected,
+  readOnly,
+  onConnectClick,
+  onChangeAccountClick,
+  onDisconnectClick,
+}) => {
+  const { key, label } = platform;
+
+  if (readOnly) {
+    if (!isConnected) return null;
+    const socialUrl = buildSocialUrl(key, rawValue);
+    return (
+      <a
+        href={socialUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`เปิดลิงก์ ${label}`}
+        className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
+      >
+        <ExternalLink size={11} />
+        <span>เยี่ยมชม</span>
+      </a>
+    );
+  }
+
+  if (isConnected) {
+    return (
+      <>
+        <button
+          type="button"
+          aria-label={`เปลี่ยนบัญชี ${label}`}
+          onClick={() => onChangeAccountClick(platform, connectedHandle)}
+          className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
+        >
+          <RefreshCw size={11} />
+          <span>เปลี่ยนบัญชี</span>
+        </button>
+        <button
+          type="button"
+          aria-label={`ยกเลิกการเชื่อมต่อ ${label}`}
+          onClick={() => onDisconnectClick(key)}
+          className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all"
+        >
+          <Unlink size={11} />
+          <span>ยกเลิกการเชื่อมต่อ</span>
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`เชื่อมต่อ ${label}`}
+      onClick={() => onConnectClick(platform)}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.3)] hover:bg-[#7c3aed] transition-all active:scale-95"
+    >
+      <Link2 size={12} />
+      <span>เชื่อมต่อ</span>
+    </button>
+  );
+};
+
 const SocialPlatformRow = ({
   platform,
   rawValue,
+  readOnly = false,
   onConnectClick,
   onChangeAccountClick,
   onDisconnectClick,
@@ -100,6 +180,7 @@ const SocialPlatformRow = ({
   const { key, label, icon } = platform;
   const connectedHandle = extractSocialHandle(rawValue);
   const isConnected = Boolean(connectedHandle);
+  const socialUrl = buildSocialUrl(key, rawValue);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -113,12 +194,24 @@ const SocialPlatformRow = ({
           </div>
           {isConnected ? (
             <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <span
-                data-testid={`social-handle-${key}`}
-                className="truncate text-xs font-semibold text-white"
-              >
-                {connectedHandle}
-              </span>
+              {readOnly ? (
+                <a
+                  href={socialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid={`social-handle-${key}`}
+                  className="truncate text-xs font-semibold text-white hover:text-purple-300 underline-offset-2 hover:underline transition-colors"
+                >
+                  {connectedHandle}
+                </a>
+              ) : (
+                <span
+                  data-testid={`social-handle-${key}`}
+                  className="truncate text-xs font-semibold text-white"
+                >
+                  {connectedHandle}
+                </span>
+              )}
               <span
                 data-testid={`social-status-${key}`}
                 className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
@@ -133,38 +226,16 @@ const SocialPlatformRow = ({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          {isConnected ? (
-            <>
-              <button
-                type="button"
-                aria-label={`เปลี่ยนบัญชี ${label}`}
-                onClick={() => onChangeAccountClick(platform, connectedHandle)}
-                className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
-              >
-                <RefreshCw size={11} />
-                <span>เปลี่ยนบัญชี</span>
-              </button>
-              <button
-                type="button"
-                aria-label={`ยกเลิกการเชื่อมต่อ ${label}`}
-                onClick={() => onDisconnectClick(key)}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all"
-              >
-                <Unlink size={11} />
-                <span>ยกเลิกการเชื่อมต่อ</span>
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              aria-label={`เชื่อมต่อ ${label}`}
-              onClick={() => onConnectClick(platform)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.3)] hover:bg-[#7c3aed] transition-all active:scale-95"
-            >
-              <Link2 size={12} />
-              <span>เชื่อมต่อ</span>
-            </button>
-          )}
+          <SocialRowActions
+            platform={platform}
+            rawValue={rawValue}
+            connectedHandle={connectedHandle}
+            isConnected={isConnected}
+            readOnly={readOnly}
+            onConnectClick={onConnectClick}
+            onChangeAccountClick={onChangeAccountClick}
+            onDisconnectClick={onDisconnectClick}
+          />
         </div>
       </div>
     </div>
@@ -285,7 +356,7 @@ const SocialOAuthModal = ({
   );
 };
 
-const SocialMediaTab = ({ user, onSave }) => {
+const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
   const [socialLinks, setSocialLinks] = useState({
     facebook: user?.social?.facebook || "",
     instagram: user?.social?.instagram || "",
@@ -363,13 +434,19 @@ const SocialMediaTab = ({ user, onSave }) => {
   };
 
   return (
-    <SettingsCard title="โซเชียลมีเดีย" subtitle="SOCIAL MEDIA" onSave={handleSave}>
+    <SettingsCard
+      title="โซเชียลมีเดีย"
+      subtitle="SOCIAL MEDIA"
+      onSave={handleSave}
+      hideSave={readOnly}
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         {socialPlatforms.map((platform) => (
           <SocialPlatformRow
             key={platform.key}
             platform={platform}
             rawValue={socialLinks[platform.key]}
+            readOnly={readOnly}
             onConnectClick={handleOpenConnect}
             onChangeAccountClick={handleOpenChangeAccount}
             onDisconnectClick={handleDisconnect}
@@ -377,15 +454,17 @@ const SocialMediaTab = ({ user, onSave }) => {
         ))}
       </div>
 
-      <SocialOAuthModal
-        modalState={oauthModal}
-        accounts={accounts}
-        selectedHandle={selectedHandle}
-        onSelectHandle={setSelectedHandle}
-        onConfirmConnect={handleConfirmOAuthConnect}
-        onOpenPopupWindow={handleOpenExternalPopup}
-        onClose={() => setOauthModal(null)}
-      />
+      {!readOnly && (
+        <SocialOAuthModal
+          modalState={oauthModal}
+          accounts={accounts}
+          selectedHandle={selectedHandle}
+          onSelectHandle={setSelectedHandle}
+          onConfirmConnect={handleConfirmOAuthConnect}
+          onOpenPopupWindow={handleOpenExternalPopup}
+          onClose={() => setOauthModal(null)}
+        />
+      )}
     </SettingsCard>
   );
 };

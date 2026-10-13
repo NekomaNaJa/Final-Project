@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { Check } from "lucide-react";
 
-const SettingsCard = ({ title, subtitle, onSave, saveText = "บันทึก", children, className = "" }) => {
+const SettingsCard = ({
+  title,
+  subtitle,
+  onSave,
+  saveText = "บันทึก",
+  hideSave = false,
+  children,
+  className = "",
+}) => {
   const [isSaved, setIsSaved] = useState(false);
 
   const handleSave = () => {
@@ -32,26 +40,28 @@ const SettingsCard = ({ title, subtitle, onSave, saveText = "บันทึก"
       <div className="space-y-5">{children}</div>
 
       {/* Footer / Save Button */}
-      <div className="mt-6 flex items-center justify-end pt-2">
-        <button
-          type="button"
-          onClick={handleSave}
-          className={`flex items-center gap-2 rounded-xl px-7 py-2 text-sm font-medium transition-all active:scale-95 ${
-            isSaved
-              ? "bg-emerald-600 text-white shadow-[0_0_16px_rgba(16,185,129,0.4)]"
-              : "bg-[#8b5cf6] text-white hover:bg-[#7c3aed] shadow-[0_0_16px_rgba(139,92,246,0.35)]"
-          }`}
-        >
-          {isSaved ? (
-            <>
-              <Check size={16} />
-              <span>บันทึกแล้ว</span>
-            </>
-          ) : (
-            <span>{saveText}</span>
-          )}
-        </button>
-      </div>
+      {!hideSave && (
+        <div className="mt-6 flex items-center justify-end pt-2">
+          <button
+            type="button"
+            onClick={handleSave}
+            className={`flex items-center gap-2 rounded-xl px-7 py-2 text-sm font-medium transition-all active:scale-95 ${
+              isSaved
+                ? "bg-emerald-600 text-white shadow-[0_0_16px_rgba(16,185,129,0.4)]"
+                : "bg-[#8b5cf6] text-white hover:bg-[#7c3aed] shadow-[0_0_16px_rgba(139,92,246,0.35)]"
+            }`}
+          >
+            {isSaved ? (
+              <>
+                <Check size={16} />
+                <span>บันทึกแล้ว</span>
+              </>
+            ) : (
+              <span>{saveText}</span>
+            )}
+          </button>
+        </div>
+      )}
     </section>
   );
 };

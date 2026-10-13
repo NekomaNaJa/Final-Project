@@ -11,6 +11,7 @@ import {
   fetchDonationHistory,
   fetchDonationStats,
   updateDonationStatus,
+  fetchPublicStreamers,
   fetchPublicStreamer,
   createDonation,
   fetchWidgetConfig,
@@ -455,6 +456,33 @@ describe("API utility functions", () => {
 
     await expect(updateDonationStatus("don123", "approved")).rejects.toThrow(
       "ไม่สามารถเปลี่ยนสถานะรายการบริจาคได้"
+    );
+  });
+
+  test("fetchPublicStreamers fetches list of streamers successfully", async () => {
+    const mockList = [{ username: "streamer_one", isLive: true }];
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockList }),
+    });
+
+    const result = await fetchPublicStreamers();
+
+    expect(result).toEqual(mockList);
+    expect(global.fetch).toHaveBeenCalledWith(API.publicStreamers, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  test("fetchPublicStreamers throws error on failure", async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    await expect(fetchPublicStreamers()).rejects.toThrow(
+      "ไม่สามารถดึงรายชื่อสตรีมเมอร์ได้"
     );
   });
 
