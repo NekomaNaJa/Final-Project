@@ -145,4 +145,34 @@ describe("MainPage & PublicProfilePage", () => {
       expect(screen.getByText("ไม่พบสตรีมเมอร์นี้")).toBeInTheDocument();
     });
   });
+
+  test("renders Footer user account links with correct routes", async () => {
+    const payload = btoa(JSON.stringify({ username: "LoggedUser" }));
+    localStorage.setItem("token", `header.${payload}.signature`);
+    api.fetchPublicStreamers.mockResolvedValueOnce([]);
+
+    render(
+      <MemoryRouter>
+        <MainPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("บัญชีผู้ใช้")).toBeInTheDocument();
+    });
+
+    const loginLinks = screen.getAllByRole("link", { name: "เข้าสู่ระบบ" });
+    expect(loginLinks[0]).toHaveAttribute("href", "/login");
+
+    const registerLinks = screen.getAllByRole("link", { name: "สมัครสมาชิก" });
+    expect(registerLinks[0]).toHaveAttribute("href", "/register");
+
+    const accountManageLink = screen.getByRole("link", { name: "การจัดการบัญชี" });
+    expect(accountManageLink).toHaveAttribute("href", "/account");
+
+    const personalDonateLink = screen.getByRole("link", { name: "หน้ารับเงินส่วนตัว" });
+    expect(personalDonateLink).toHaveAttribute("href", "/LoggedUser");
+
+    localStorage.clear();
+  });
 });
