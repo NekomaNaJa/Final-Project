@@ -171,6 +171,8 @@ const DonorPage = () => {
               publicData.donationPage?.coverImage || prev.coverImage,
             backgroundImage:
               publicData.donationPage?.backgroundImage || prev.backgroundImage,
+            autoApproveSlip:
+              publicData.donationPage?.autoApproveSlip !== false,
             avatar:
               publicData.avatar || prev.avatar,
             mission: publicData.mission || prev.mission,
@@ -525,7 +527,9 @@ const DonorPage = () => {
                 กำลังดำเนินการ
               </h3>
               <p className="text-xs text-gray-300 leading-relaxed">
-                ระบบกำลังตรวจสอบข้อมูลและสลิปการโอนเงิน กรุณารอสักครู่...
+                {streamerConfig.autoApproveSlip === false
+                  ? "กำลังบันทึกข้อมูลการโดเนท กรุณารอสักครู่..."
+                  : "ระบบกำลังตรวจสอบข้อมูลและสลิปการโอนเงิน กรุณารอสักครู่..."}
               </p>
             </div>
 
