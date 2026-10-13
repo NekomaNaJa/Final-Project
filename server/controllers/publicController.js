@@ -123,6 +123,7 @@ export const getPublicStreamer = async (req, res, next) => {
           : [],
         coverImage: user.donationPage?.coverImage || null,
         backgroundImage: user.donationPage?.backgroundImage || null,
+        autoApproveSlip: user.donationPage?.autoApproveSlip !== false,
       },
       payment: {
         promptpay: {
