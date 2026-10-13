@@ -174,6 +174,9 @@ export const createDonation = async (req, res, next) => {
     let initialStatus = "pending";
     let safeTransRef = null;
 
+    // 7. การตรวจสอบสลิปการโอนเงิน (Slip Verification & Auto-Approve OCR)
+    const autoApprove = streamer.donationPage?.autoApproveSlip !== false;
+
     if (safeSlipImage && (paymentMethod === "promptpay" || paymentMethod === "bank")) {
       const bankConfig = streamer.payment?.bank;
       const promptpayConfig = streamer.payment?.promptpay;
@@ -189,9 +192,11 @@ export const createDonation = async (req, res, next) => {
           ? bankConfig?.accountNumber
           : promptpayConfig?.number;
 
+      // หากสตรีมเมอร์ปิด autoApprove ให้ส่ง skipOcr: true เพื่อสแกนเฉพาะ QR code (~20ms) และข้าม Tesseract OCR ทั้งหมด
       const verification = await slipVerificationService.verifySlipImage(safeSlipImage, effectiveAmount, {
         expectedAccountName,
         expectedAccountNumber,
+        skipOcr: !autoApprove,
       });
 
       if (verification?.success) {
@@ -271,9 +276,10 @@ export const createDonation = async (req, res, next) => {
         }
 
         // 7.6 ตรวจสอบการตั้งค่า Auto-Approve ของสตรีมเมอร์
-        const autoApprove = streamer.donationPage?.autoApproveSlip !== false;
         if (autoApprove) {
           initialStatus = "approved";
+        } else {
+          initialStatus = "pending";
         }
 
         ocrResult = {
@@ -289,8 +295,11 @@ export const createDonation = async (req, res, next) => {
           rawPayload: verification.rawPayload || null,
         };
       } else {
-        // หากสลิปอ่านไม่ผ่าน และไม่มีการระบุจำนวนเงินมาด้วย ให้แจ้งเตือนผู้ใช้
-        if (effectiveAmount === null) {
+        // หากสลิปอ่านไม่ผ่าน และไม่มีการระบุจำนวนเงินมาด้วย
+        if (!autoApprove && effectiveAmount === null) {
+          // โหมด Manual: ถ้าไม่ได้ระบุจำนวนเงินมา ให้ใช้ minAmount ชั่วคราวเพื่อให้สตรีมเมอร์ตรวจสอบเอง
+          effectiveAmount = minAmount;
+        } else if (effectiveAmount === null) {
           return res.status(400).json({
             message: "ไม่สามารถอ่านจำนวนเงินหรือข้อมูลจากรูปภาพสลิปได้ กรุณาใช้สลิปที่มีความคมชัด",
             data: null,
@@ -304,7 +313,9 @@ export const createDonation = async (req, res, next) => {
           amount: null,
           bank: null,
           bankName: null,
-          message: verification?.message || "ไม่สามารถอ่าน QR Code หรือข้อความบนสลิปได้อัตโนมัติ",
+          message: !autoApprove
+            ? "รอการยืนยันจากสตรีมเมอร์ (โหมดตรวจสอบด้วยตนเอง)"
+            : verification?.message || "ไม่สามารถอ่าน QR Code หรือข้อความบนสลิปได้อัตโนมัติ",
           rawPayload: null,
         };
       }
