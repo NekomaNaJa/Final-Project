@@ -1272,6 +1272,97 @@ describe("Donations Routes (Analytics & Management)", () => {
 
       app.set("io", null);
     });
+
+    it("should strip mission tag from message and alert when promptpay donation amount is less than mission price but >= minAmount", async () => {
+      const promptpayStreamer = {
+        ...validStreamer,
+        donationPage: { ...validStreamer.donationPage, minAmount: 10 },
+        payment: {
+          ...validStreamer.payment,
+          promptpay: {
+            enabled: true,
+            number: "0812345678",
+          },
+        },
+      };
+
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(promptpayStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+      jest.spyOn(Donation.prototype, "save").mockResolvedValueOnce();
+      jest.spyOn(Widget, "findOne").mockResolvedValueOnce({
+        mission: {
+          missions: [{ id: "m-promptpay", name: "เต้นกาโว", price: 50 }],
+        },
+      });
+
+      const mockIoEmit = jest.fn();
+      const mockTo = jest.fn().mockReturnValue({ emit: mockIoEmit });
+      app.set("io", { to: mockTo });
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "qr",
+        transRef: "PROMPTPAY_LESS_THAN_MISSION_01",
+        amount: 10, // 10 < 50, but >= minAmount 10
+        bankCode: "004",
+        recipientMatched: true,
+        accountNumberMatched: true,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          donorName: "ผู้สนับสนุน",
+          amount: 10,
+          message: "[ภารกิจ: เต้นกาโว] เป็นกำลังใจให้ครับ",
+          paymentMethod: "promptpay",
+          slipImage: "data:image/png;base64,mockslip",
+          missionPrice: 50,
+          missionName: "เต้นกาโว",
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.amount).toBe(10);
+      expect(res.body.data.message).toBe("เป็นกำลังใจให้ครับ");
+      expect(mockIoEmit).toHaveBeenCalledWith(
+        "donation-alert",
+        expect.objectContaining({
+          message: "เป็นกำลังใจให้ครับ",
+          amount: 10,
+        })
+      );
+
+      app.set("io", null);
+    });
+
+    it("should reject promptpay donation when slip OCR amount is less than claimed donation amount", async () => {
+      jest.spyOn(User, "findOne").mockResolvedValueOnce(validStreamer);
+      jest.spyOn(Donation, "findOne").mockResolvedValueOnce(null);
+
+      jest.spyOn(slipVerificationService, "verifySlipImage").mockResolvedValueOnce({
+        success: true,
+        method: "qr",
+        transRef: "MISMATCH_PROMPTPAY_HACK",
+        amount: 10, // Actual slip is 10 THB
+        recipientMatched: true,
+        accountNumberMatched: true,
+      });
+
+      const res = await request(app)
+        .post("/api/donations")
+        .send({
+          username: "pro_gamer",
+          amount: 50, // User claims 50 THB
+          message: "[ภารกิจ: เต้นกาโว] โกงยอดเงิน",
+          paymentMethod: "promptpay",
+          slipImage: "data:image/png;base64,mockslip10thb",
+          missionPrice: 50,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("ยอดเงินในสลิป (10 บาท) น้อยกว่ายอดเงินที่แจ้งบริจาค (50 บาท)");
+    });
   });
 
   afterAll(async () => {

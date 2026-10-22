@@ -289,9 +289,12 @@ export const createDonation = async (req, res, next) => {
           amount: verification.amount || effectiveAmount || null,
           bank: verification.bankCode || null,
           bankName: verification.bankName || null,
-          message: autoApprove
-            ? "ตรวจสอบสลิปและอนุมัติอัตโนมัติสำเร็จ"
-            : "สลิปถูกต้องตามเงื่อนไข (รอการยืนยันจากสตรีมเมอร์)",
+          message:
+            initialStatus === "approved"
+              ? "ตรวจสอบสลิปและอนุมัติอัตโนมัติสำเร็จ"
+              : !autoApprove
+              ? "สลิปถูกต้องตามเงื่อนไข (รอการยืนยันจากสตรีมเมอร์)"
+              : "ไม่สามารถยืนยันยอดเงินในสลิปได้อัตโนมัติ (รอสตรีมเมอร์ตรวจสอบ)",
           rawPayload: verification.rawPayload || null,
         };
       } else {
@@ -329,9 +332,9 @@ export const createDonation = async (req, res, next) => {
       });
     }
 
-    // 7.7 ตรวจสอบราคาภารกิจสำหรับช่องทาง Bank (Bank Mission Price Verification)
-    // หากเลือกภารกิจแต่ยอดเงินจากสลิป < ราคาภารกิจ (แต่ >= minAmount) ให้ตัดแท็กภารกิจออกจากข้อความบน Alert และในระบบ
-    if (paymentMethod === "bank" && typeof safeMessage === "string") {
+    // 7.7 ตรวจสอบราคาภารกิจสำหรับทุกช่องทาง (Mission Price Verification & Auto-strip Tag)
+    // หากเลือกภารกิจแต่ยอดเงินจากสลิป/แจ้งบริจาค < ราคาภารกิจ (แต่ >= minAmount) ให้ตัดแท็กภารกิจออกจากข้อความบน Alert และในระบบ
+    if ((paymentMethod === "bank" || paymentMethod === "promptpay") && typeof safeMessage === "string") {
       const missionRegex = /^\[ภารกิจ:\s*(.+?)\s*\]\s*/;
       const missionMatch = safeMessage.match(missionRegex);
       const reqMissionPrice =
