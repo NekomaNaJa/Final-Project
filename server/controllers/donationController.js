@@ -344,8 +344,17 @@ export const createDonation = async (req, res, next) => {
     // 7.7 ตรวจสอบราคาภารกิจสำหรับทุกช่องทาง (Mission Price Verification & Auto-strip Tag)
     // หากเลือกภารกิจแต่ยอดเงินจากสลิป/แจ้งบริจาค < ราคาภารกิจ (แต่ >= minAmount) ให้ตัดแท็กภารกิจออกจากข้อความบน Alert และในระบบ
     if ((paymentMethod === "bank" || paymentMethod === "promptpay") && typeof safeMessage === "string") {
-      const missionRegex = /^\[ภารกิจ:\s*([^\]]+)\]\s*/;
-      const missionMatch = missionRegex.exec(safeMessage);
+      let hasMissionTag = false;
+      let detectedMissionName = typeof req.body?.missionName === "string" ? req.body.missionName.trim() : "";
+
+      if (safeMessage.startsWith("[ภารกิจ:")) {
+        const closeBracketIndex = safeMessage.indexOf("]");
+        if (closeBracketIndex !== -1) {
+          hasMissionTag = true;
+          detectedMissionName = safeMessage.slice(8, closeBracketIndex).trim();
+        }
+      }
+
       const reqMissionPrice =
         req.body?.missionPrice !== undefined &&
         req.body?.missionPrice !== null &&
@@ -354,10 +363,7 @@ export const createDonation = async (req, res, next) => {
           ? Number(req.body.missionPrice)
           : null;
 
-      if (missionMatch || reqMissionPrice !== null) {
-        const detectedMissionName = missionMatch
-          ? missionMatch[1].trim()
-          : (typeof req.body?.missionName === "string" ? req.body.missionName.trim() : "");
+      if (hasMissionTag || reqMissionPrice !== null) {
         let targetMissionPrice = reqMissionPrice;
 
         try {
@@ -389,7 +395,10 @@ export const createDonation = async (req, res, next) => {
         const isAmountUnverifiedWithSlip = Boolean(safeSlipImage && verifiedAmount === null);
 
         if (targetMissionPrice !== null && (isUnderpaid || isAmountUnverifiedWithSlip)) {
-          safeMessage = safeMessage.replace(missionRegex, "").trim();
+          if (hasMissionTag) {
+            const closeBracketIndex = safeMessage.indexOf("]");
+            safeMessage = safeMessage.slice(closeBracketIndex + 1).trim();
+          }
         }
       }
     }
