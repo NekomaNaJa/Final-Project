@@ -138,10 +138,11 @@ export const verifySlipImage = async (slipImage, expectedAmount, options = {}) =
     parsedQr = parseThaiSlipQr(qrCode.data);
   }
 
-  // Fast-Path จาก QR Code: หากในสลิปมี QR Code และอ่านค่าสำเร็จ (มี transRef และมี amount หรือ expectedAmount)
-  // ให้จบกระบวนการตรวจสอบทันทีโดยไม่ต้องรัน OCR ตัวหนังสือซ้ำ (ลดเวลาจาก 15 วินาที เหลือเพียง 0.1–0.3 วินาที)
+  // Fast-Path จาก QR Code: ทำงานได้เฉพาะเมื่อใน QR Code บนสลิปมี Tag ยอดเงินระบุไว้จริงเท่านั้น (Tag 54 หรือ JSON amount)
+  // ห้ามใช้ expectedAmount จาก Client ข้าม OCR เพราะสลิปธนาคารไทยส่วนใหญ่ไม่มีจำนวนเงินใน QR Code
+  // จำเป็นต้องใช้ OCR สกัดยอดเงินจริงจากข้อความบนสลิปเพื่อป้องกันการส่งสลิปยอดเงินไม่ตรง
   const hasValidQr = Boolean(parsedQr?.success && parsedQr?.transRef);
-  const hasAmount = Boolean(parsedQr?.amount || expectedAmount);
+  const hasAmount = typeof parsedQr?.amount === "number" && parsedQr.amount > 0;
   const isFastPath = hasValidQr && hasAmount;
 
   // รัน OCR เพื่ออ่านข้อความในสลิป (เฉพาะเมื่อจำเป็น เช่น ไม่มี QR Code หรือต้องอ่านยอดเงินเพิ่มเติมจากข้อความ)

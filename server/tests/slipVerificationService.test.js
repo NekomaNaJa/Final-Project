@@ -174,6 +174,29 @@ describe("Slip Verification Service (Phase 8 OCR)", () => {
     expect(duration).toBeLessThan(1000);
   });
 
+  it("should NOT use Fast-Path and fallback to OCR when QR code slip does not contain amount", async () => {
+    // Mini QR payload without Tag 54 amount
+    const noAmountQrPayload = "0038000600000101030040220NOAMOUNTREF12345675102TH9104A1B2";
+    const qrDataUri = await QRCode.toDataURL(noAmountQrPayload, {
+      width: 350,
+      margin: 2,
+    });
+
+    const mockText = `
+      โอนเงินสำเร็จ
+      รหัสอ้างอิง: NOAMOUNTREF1234567
+      จำนวนเงิน: 50.00 บาท
+    `;
+
+    const res = await verifySlipImage(qrDataUri, 50, {
+      mockOcrText: mockText,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.transRef).toBe("NOAMOUNTREF1234567");
+    expect(res.amount).toBe(50);
+  });
+
   it("should resize and greyscale large landscape images (> 800px width) during OCR fallback", async () => {
     const largeLandscapeImg = new Jimp({ width: 850, height: 600, color: 0xffffffff });
     const buf = await largeLandscapeImg.getBuffer("image/png");
