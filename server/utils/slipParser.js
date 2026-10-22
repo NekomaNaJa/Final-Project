@@ -274,7 +274,7 @@ export const parseSlipText = (text) => {
     .replace(/[\u200B-\u200D\uFEFF]/g, "");
 
   // ค้นหารหัสอ้างอิงธุรกรรม
-  const refMatch = /(?:รหัสอ้างอิง|เลขที่รายการ|Transaction Ref|Ref\.?|Txn ID)[:\s]*([A-Za-z0-9_-]{8,40})/i.exec(
+  const refMatch = /(?:รหัสอ้างอิง|เลขที่รายการ|Transaction Ref|Ref\.?|Txn ID)[:\s]*([a-z0-9_-]{8,40})/i.exec(
     normalizedText
   );
   if (refMatch && refMatch[1]) {
@@ -282,7 +282,7 @@ export const parseSlipText = (text) => {
   }
 
   // 1. ค้นหายอดเงินรูปแบบมีป้ายกำกับ (รองรับทั้ง "จำนวนเงิน 20.00 บาท", "จำนวนเงิน (บาท)\n20.00", "Amount (THB): 20.00", ฯลฯ)
-  const m1 = /(?:จำนวนเงิน|ยอดเงิน|โอนเงินจำนวน|\bAmount\b)(?:[^\d\n]{0,25})?[:\s=_]*([\d,]+(?:\.\d{1,2})?)/i.exec(
+  const m1 = /(?:จำนวนเงิน|ยอดเงิน|โอนเงินจำนวน|\bAmount\b)[^\d\r\n]{0,25}?([\d,]+(?:\.\d{1,2})?)/i.exec(
     normalizedText
   );
   if (m1 && m1[1]) {
