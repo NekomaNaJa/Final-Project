@@ -60,6 +60,28 @@ const DonorPromptPayForm = ({
   }, [amount, promptpayNumber, minAmount, selectedMission]);
 
   const isSubmittingRef = useRef(false);
+  const qrImgRef = useRef(null);
+
+  // ตรวจจับและกู้คืนค่า src หากผู้ใช้เปิด DevTools เพื่อพยายามแก้ไข QR Code (Anti-tampering)
+  useEffect(() => {
+    const imgEl = qrImgRef.current;
+    if (!imgEl || !qrUrl || typeof MutationObserver === "undefined") return;
+
+    const observer = new MutationObserver(() => {
+      const currentSrc = imgEl.getAttribute("src");
+      if (currentSrc && currentSrc !== qrUrl) {
+        imgEl.setAttribute("src", qrUrl);
+      }
+    });
+
+    try {
+      observer.observe(imgEl, { attributes: true, attributeFilter: ["src"] });
+    } catch {
+      // Ignored for testing environments without full DOM observer support
+    }
+
+    return () => observer.disconnect();
+  }, [qrUrl]);
 
   useEffect(() => {
     if (!isSubmitting) {
@@ -93,6 +115,17 @@ const DonorPromptPayForm = ({
       setAmount(minAmount);
       return;
     }
+
+    // ตรวจสอบความถูกต้องของรูปภาพ QR Code ป้องกันการแอบแก้ไข src ผ่าน DevTools
+    if (qrImgRef.current && qrUrl) {
+      const currentSrc = qrImgRef.current.getAttribute("src") || qrImgRef.current.src || "";
+      if (currentSrc && currentSrc !== qrUrl) {
+        alert("ตรวจพบการดัดแปลงข้อมูล QR Code กรุณารีเฟรชหน้าเว็บและทำรายการใหม่อีกครั้ง");
+        qrImgRef.current.setAttribute("src", qrUrl);
+        return;
+      }
+    }
+
     if (!slipFile) {
       alert("กรุณาแนบรูปภาพสลิปการโอนเงินเพื่อยืนยัน");
       return;
@@ -198,6 +231,7 @@ const DonorPromptPayForm = ({
           <div className="relative w-36 h-36 mt-3 bg-white rounded-2xl p-1.5 flex items-center justify-center overflow-hidden shadow-lg">
             {qrUrl ? (
               <img
+                ref={qrImgRef}
                 src={qrUrl}
                 alt={`PromptPay QR ${amount} THB`}
                 key={qrUrl}

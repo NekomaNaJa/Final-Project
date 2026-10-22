@@ -173,6 +173,7 @@ export const createDonation = async (req, res, next) => {
     };
     let initialStatus = "pending";
     let safeTransRef = null;
+    let verification = null;
 
     // 7. การตรวจสอบสลิปการโอนเงิน (Slip Verification & Auto-Approve OCR)
     const autoApprove = streamer.donationPage?.autoApproveSlip !== false;
@@ -193,7 +194,7 @@ export const createDonation = async (req, res, next) => {
           : promptpayConfig?.number;
 
       // หากสตรีมเมอร์ปิด autoApprove ให้ส่ง skipOcr: true เพื่อสแกนเฉพาะ QR code (~20ms) และข้าม Tesseract OCR ทั้งหมด
-      const verification = await slipVerificationService.verifySlipImage(safeSlipImage, effectiveAmount, {
+      verification = await slipVerificationService.verifySlipImage(safeSlipImage, effectiveAmount, {
         expectedAccountName,
         expectedAccountNumber,
         skipOcr: !autoApprove,
@@ -276,7 +277,13 @@ export const createDonation = async (req, res, next) => {
         }
 
         // 7.6 ตรวจสอบการตั้งค่า Auto-Approve ของสตรีมเมอร์
-        if (autoApprove) {
+        // หากผู้ใช้เลือกภารกิจแต่ระบบไม่สามารถยืนยันยอดเงินจากสลิปได้
+        // ให้ปรับสถานะเป็น pending เพื่อรอสตรีมเมอร์ตรวจสอบความถูกต้อง ป้องกันการทุจริตภารกิจ
+        const missionCheckRegex = /^\[ภารกิจ:\s*(.+?)\s*\]\s*/;
+        const hasMissionRequested = Boolean(safeMessage && (safeMessage.match(missionCheckRegex) || req.body?.missionPrice));
+        const hasVerifiedAmount = typeof verification.amount === "number" && verification.amount > 0;
+
+        if (autoApprove && (!hasMissionRequested || hasVerifiedAmount)) {
           initialStatus = "approved";
         } else {
           initialStatus = "pending";
@@ -367,7 +374,19 @@ export const createDonation = async (req, res, next) => {
           // หากค้นหา widget ไม่สำเร็จ ใช้ targetMissionPrice ที่ได้จาก req.body
         }
 
-        if (targetMissionPrice !== null && effectiveAmount < targetMissionPrice) {
+        const verifiedAmount =
+          typeof verification?.amount === "number" && verification.amount > 0
+            ? verification.amount
+            : null;
+
+        const isUnderpaid =
+          verifiedAmount !== null
+            ? verifiedAmount < targetMissionPrice
+            : effectiveAmount < targetMissionPrice;
+
+        const isAmountUnverifiedWithSlip = Boolean(safeSlipImage && verifiedAmount === null);
+
+        if (targetMissionPrice !== null && (isUnderpaid || isAmountUnverifiedWithSlip)) {
           safeMessage = safeMessage.replace(missionRegex, "").trim();
         }
       }
