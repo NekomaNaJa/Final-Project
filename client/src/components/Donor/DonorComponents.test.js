@@ -169,6 +169,35 @@ describe("Donor Components", () => {
       expect(img.src).toContain("api.qrserver.com");
     });
 
+    test("detects QR code tampering via DevTools and prevents submission", () => {
+      const handleSubmit = jest.fn();
+      window.alert = jest.fn();
+
+      render(
+        <DonorPromptPayForm
+          minAmount={10}
+          promptpayNumber="0812345678"
+          onSubmit={handleSubmit}
+        />
+      );
+
+      const img = screen.getByAltText(/PromptPay QR/i);
+      expect(img.getAttribute("src")).toContain("10.png");
+
+      // Simulate malicious user editing src in DevTools
+      img.setAttribute("src", "https://promptpay.io/0812345678/20.png");
+
+      const fileInput = document.querySelector('input[type="file"]');
+      const file = new File(["dummy"], "slip.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      const submitBtn = screen.getByRole("button", { name: "ยืนยันการชำระเงิน" });
+      fireEvent.click(submitBtn);
+
+      expect(window.alert).toHaveBeenCalledWith("ตรวจพบการดัดแปลงข้อมูล QR Code กรุณารีเฟรชหน้าเว็บและทำรายการใหม่อีกครั้ง");
+      expect(handleSubmit).not.toHaveBeenCalled();
+    });
+
     test("prevents submit when isSubmitting is true or submitted repeatedly", () => {
       const handleSubmit = jest.fn();
       const { rerender } = render(
