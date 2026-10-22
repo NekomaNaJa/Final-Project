@@ -274,16 +274,16 @@ export const parseSlipText = (text) => {
     .replace(/[\u200B-\u200D\uFEFF]/g, "");
 
   // ค้นหารหัสอ้างอิงธุรกรรม
-  const refMatch = normalizedText.match(
-    /(?:รหัสอ้างอิง|เลขที่รายการ|Transaction Ref|Ref\.?|Txn ID)[:\s]*([A-Za-z0-9_-]{8,40})/i
+  const refMatch = /(?:รหัสอ้างอิง|เลขที่รายการ|Transaction Ref|Ref\.?|Txn ID)[:\s]*([A-Za-z0-9_-]{8,40})/i.exec(
+    normalizedText
   );
   if (refMatch && refMatch[1]) {
     transRef = refMatch[1].trim();
   }
 
   // 1. ค้นหายอดเงินรูปแบบมีป้ายกำกับ (รองรับทั้ง "จำนวนเงิน 20.00 บาท", "จำนวนเงิน (บาท)\n20.00", "Amount (THB): 20.00", ฯลฯ)
-  const m1 = normalizedText.match(
-    /(?:จ[\u0E4D\s]*\u0E32นวน\s*เงิน|จำนวน\s*เงิน|ยอด\s*เงิน|โอน\s*เงิน\s*จำนวน|Amount)(?:[\s\S]{0,35}?(?:บาท|THB|baht|\([^\)]*\)))?[\s:=_]*([0-9,]+(?:\.[0-9]{1,2})?)/i
+  const m1 = /(?:จำนวนเงิน|ยอดเงิน|โอนเงินจำนวน|Amount)(?:[^\d\n]{0,25})?[:\s=_]*([\d,]+(?:\.\d{1,2})?)/i.exec(
+    normalizedText
   );
   if (m1 && m1[1]) {
     const cleanNum = m1[1].replaceAll(",", "");
@@ -295,9 +295,7 @@ export const parseSlipText = (text) => {
 
   // 2. ค้นหายอดเงินแบบหลายบรรทัด
   if (!amount) {
-    const m2 = normalizedText.match(
-      /(?:จ[\u0E4D\s]*\u0E32นวน\s*เงิน|จำนวน\s*เงิน|ยอด\s*เงิน|Amount)[\s\S]{1,40}?([0-9,]+(?:\.[0-9]{2}))/i
-    );
+    const m2 = /(?:จำนวนเงิน|ยอดเงิน|Amount)[\s\S]{1,30}?([\d,]+\.\d{2})/i.exec(normalizedText);
     if (m2 && m2[1]) {
       const cleanNum = m2[1].replaceAll(",", "");
       const parsed = Number.parseFloat(cleanNum);
@@ -309,7 +307,7 @@ export const parseSlipText = (text) => {
 
   // 3. ค้นหายอดเงินเดี่ยวพร้อมสกุลเงิน (เช่น "50.00 บาท", "20.00 THB")
   if (!amount) {
-    const m3 = normalizedText.match(/(?:^|\s)([0-9,]+(?:\.[0-9]{2}))\s*(?:บาท|THB|baht)/i);
+    const m3 = /(?:^|\s)([\d,]+\.\d{2})\s*(?:บาท|THB|baht)/i.exec(normalizedText);
     if (m3 && m3[1]) {
       const cleanNum = m3[1].replaceAll(",", "");
       const parsed = Number.parseFloat(cleanNum);

@@ -279,9 +279,11 @@ export const createDonation = async (req, res, next) => {
         // 7.6 ตรวจสอบการตั้งค่า Auto-Approve ของสตรีมเมอร์
         // หากผู้ใช้เลือกภารกิจแต่ระบบไม่สามารถยืนยันยอดเงินจากสลิปได้
         // ให้ปรับสถานะเป็น pending เพื่อรอสตรีมเมอร์ตรวจสอบความถูกต้อง ป้องกันการทุจริตภารกิจ
-        const missionCheckRegex = /^\[ภารกิจ:\s*(.+?)\s*\]\s*/;
-        const hasMissionRequested = Boolean(safeMessage && (safeMessage.match(missionCheckRegex) || req.body?.missionPrice));
-        const hasVerifiedAmount = typeof verification.amount === "number" && verification.amount > 0;
+        const hasMissionRequested = Boolean(
+          (typeof safeMessage === "string" && safeMessage.includes("[ภารกิจ:")) ||
+          req.body?.missionPrice
+        );
+        const hasVerifiedAmount = typeof verification?.amount === "number" && verification.amount > 0;
 
         if (autoApprove && (!hasMissionRequested || hasVerifiedAmount)) {
           initialStatus = "approved";
@@ -342,8 +344,8 @@ export const createDonation = async (req, res, next) => {
     // 7.7 ตรวจสอบราคาภารกิจสำหรับทุกช่องทาง (Mission Price Verification & Auto-strip Tag)
     // หากเลือกภารกิจแต่ยอดเงินจากสลิป/แจ้งบริจาค < ราคาภารกิจ (แต่ >= minAmount) ให้ตัดแท็กภารกิจออกจากข้อความบน Alert และในระบบ
     if ((paymentMethod === "bank" || paymentMethod === "promptpay") && typeof safeMessage === "string") {
-      const missionRegex = /^\[ภารกิจ:\s*(.+?)\s*\]\s*/;
-      const missionMatch = safeMessage.match(missionRegex);
+      const missionRegex = /^\[ภารกิจ:\s*([^\]]+)\]\s*/;
+      const missionMatch = missionRegex.exec(safeMessage);
       const reqMissionPrice =
         req.body?.missionPrice !== undefined &&
         req.body?.missionPrice !== null &&
