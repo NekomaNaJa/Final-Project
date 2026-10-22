@@ -31,8 +31,8 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (12 Suites, 255 Tests ผ่าน 100%)
-npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 97%)
+npm test              # รัน Jest + Supertest (12 Suites, 315 Tests ผ่าน 100%)
+npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 96%)
 ```
 
 ### 2.2 ฝั่ง Client (Frontend)
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (30 Suites, 388 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (32 Suites, 429 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -143,10 +143,10 @@ server/
 │   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (10 tests)
 │   ├── slipParser.test.js       → ชุดทดสอบ Thai Slip & QR Parser Utility (42 tests)
 │   ├── slipVerificationService.test.js → ชุดทดสอบ Zero-Cost QR/OCR Engine (8 tests)
-│   ├── users.test.js            → ชุดทดสอบ Users Route & Email/Phone Link OTP (67 tests)
+│   ├── users.test.js            → ชุดทดสอบ Users Route & Email/Phone Link OTP & OAuth 2.0 (99 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (5 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests)
-│   ── รวมฝั่ง Server: 12 Test Suites, 255 Tests ผ่าน 100% (Coverage ~96%)
+│   ── รวมฝั่ง Server: 12 Test Suites, 315 Tests ผ่าน 100% (Coverage ~96%)
 ├── utils/
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
@@ -1107,19 +1107,19 @@ stateDiagram-v2
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **12 Suites** | **255 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **Client (Frontend React SPA)** | **30 Suites** | **388 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **42 Suites** | **643 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **12 Suites** | **315 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Client (Frontend React SPA)** | **32 Suites** | **429 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **44 Suites** | **744 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `controllers/` | 95.10% | 86.61% | 97.22% | 95.39% | ✅ เกินเกณฑ์มาตรฐาน |
+| `controllers/` | 95.28% | 87.46% | 98.41% | 95.58% | ✅ เกินเกณฑ์มาตรฐาน |
 | `middleware/` | 100.00% | 90.90% | 100.00% | 100.00% | ✅ ผ่าน 100% |
 | `routes/` | 100.00% | 100.00% | 100.00% | 100.00% | ✅ ผ่าน 100% |
-| `services/` | 93.23% | 88.23% | 100.00% | 95.34% | ✅ เกินเกณฑ์มาตรฐาน |
-| `utils/` | 97.65% | 83.08% | 100.00% | 97.57% | ✅ เกินเกณฑ์มาตรฐาน |
-| **ภาพรวมไฟล์ทั้งหมด (All Files)** | **95.63%** | **86.11%** | **98.71%** | **96.02%** | **✅ เกินเกณฑ์มาตรฐาน (> 95%)** |
+| `services/` | 97.87% | 94.02% | 100.00% | 98.35% | ✅ เกินเกณฑ์มาตรฐาน |
+| `utils/` | 97.65% | 81.95% | 100.00% | 97.57% | ✅ เกินเกณฑ์มาตรฐาน |
+| **ภาพรวมไฟล์ทั้งหมด (All Files)** | **96.15%** | **87.34%** | **99.06%** | **96.39%** | **✅ เกินเกณฑ์มาตรฐาน (> 96%)** |
 
 ##### ผลการตรวจสอบคุณภาพและความปลอดภัยด้วย SonarCloud
 - **Quality Gate Status**: Failed ในการวิเคราะห์ Pull Request ล่าสุดที่ผู้ใช้แจ้ง (ต้องตรวจสอบใหม่หลัง push การแก้ไข)

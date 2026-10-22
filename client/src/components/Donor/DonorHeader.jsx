@@ -39,7 +39,7 @@ const DonorHeader = ({
                 className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover bg-[#1e1738] shadow-2xl transition-all ${
                   isOnline
                     ? "ring-4 ring-red-500 shadow-[0_0_28px_rgba(239,68,68,0.7)]"
-                    : "ring-2 ring-gray-600"
+                    : "border-2 border-gray-800 ring-4 ring-gray-700/80 shadow-none"
                 }`}
               />
             ) : (
@@ -47,7 +47,7 @@ const DonorHeader = ({
                 className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#1e1738] flex items-center justify-center text-3xl sm:text-4xl font-extrabold text-white shadow-2xl transition-all ${
                   isOnline
                     ? "ring-4 ring-red-500 shadow-[0_0_28px_rgba(239,68,68,0.7)]"
-                    : "ring-2 ring-gray-600"
+                    : "border-2 border-gray-800 ring-4 ring-gray-700/80 shadow-none"
                 }`}
               >
                 {username?.[0]?.toUpperCase() || "T"}
@@ -62,8 +62,9 @@ const DonorHeader = ({
                   <span>LIVE</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-medium bg-[#374151] text-gray-300">
-                  ออฟไลน์
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-[#1f1936] text-gray-400 border border-gray-700/80 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                  <span>OFFLINE</span>
                 </span>
               )}
             </div>
@@ -77,8 +78,8 @@ const DonorHeader = ({
             donix.app/{username}
           </p>
 
-          {/* Welcome Message (shown when online) */}
-          {isOnline && welcomeMessage && (
+          {/* Welcome Message */}
+          {welcomeMessage && (
             <div className="mt-5 w-full pt-4 border-t border-[#2e2648]/60 text-center">
               <p className="text-sm sm:text-base text-gray-200 font-medium leading-relaxed">
                 {welcomeMessage}
