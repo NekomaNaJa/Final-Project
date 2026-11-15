@@ -44,6 +44,8 @@ describe("Public Route (GET /api/public/:username)", () => {
       social: {
         facebook: "streamerpro.fb",
         youtube: "streamerpro.yt",
+        instagram: "javascript:alert(1)",
+        tiktok: "https://evil.com/@hacker",
       },
       donationPage: {
         welcomeMessage: "ยินดีต้อนรับ",
@@ -90,6 +92,14 @@ describe("Public Route (GET /api/public/:username)", () => {
     expect(res.body.data.nickname).toBe("Pro Streamer");
     expect(res.body.data.avatar).toBe("https://example.com/avatar.png");
     expect(res.body.data.isLive).toBe(true);
+    expect(res.body.data.social).toEqual({
+      facebook: "https://facebook.com/streamerpro.fb",
+      instagram: "",
+      youtube: "https://youtube.com/@streamerpro.yt",
+      tiktok: "",
+      twitch: "",
+      x: "",
+    });
 
     // Verify mission config
     expect(res.body.data.mission.title).toBe("ภารกิจสตรีมเมอร์วันนี้");
