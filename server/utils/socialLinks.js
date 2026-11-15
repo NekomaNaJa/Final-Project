@@ -110,7 +110,7 @@ export const isValidSocialHandle = (handle) => {
     return false;
   }
   for (let i = 0; i < len; i += 1) {
-    if (!isAllowedHandleCharCode(handle.charCodeAt(i))) {
+    if (!isAllowedHandleCharCode(handle.codePointAt(i))) {
       return false;
     }
   }
@@ -220,7 +220,7 @@ const parseSocialUrl = (platform, config, urlString) => {
 export const normalizeSocialLink = (platform, rawInput) => {
   if (
     typeof platform !== "string" ||
-    !Object.prototype.hasOwnProperty.call(SOCIAL_PLATFORM_CONFIG, platform)
+    !Object.hasOwn(SOCIAL_PLATFORM_CONFIG, platform)
   ) {
     return {
       valid: false,

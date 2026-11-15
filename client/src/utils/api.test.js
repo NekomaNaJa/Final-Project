@@ -362,6 +362,27 @@ describe("API utility functions", () => {
     );
   });
 
+  test("fetchDonationHistory sanitizes invalid parameters and omits empty query string", async () => {
+    const mockData = { donations: [], pagination: { total: 0 } };
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: "สำเร็จ", data: mockData }),
+    });
+
+    await fetchDonationHistory({
+      page: 0,
+      limit: 0,
+      status: "invalid_status",
+      search: null,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(API.donations, expect.any(Object));
+    expect(API.publicStreamer("สมชาย\u0000123")).toBe(
+      `${API_URL}/public/${encodeURIComponent("สมชาย123")}`
+    );
+    expect(API.publicStreamer(null)).toBe(`${API_URL}/public/`);
+  });
+
   test("fetchDonationHistory throws error when response is not ok", async () => {
     global.fetch = jest.fn().mockResolvedValueOnce({
       ok: false,

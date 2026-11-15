@@ -273,7 +273,7 @@ const SocialPlatformEditRow = ({
   const savedHandle = extractSocialHandle(savedValue, key);
   const previewUrl = buildSocialUrl(key, inputValue);
   const isAdded = Boolean(safeSavedUrl && savedHandle);
-  const hasContent = Boolean((inputValue && inputValue.trim()) || isAdded);
+  const hasContent = Boolean(inputValue?.trim() || isAdded);
 
   return (
     <div className="flex flex-col gap-1.5">
