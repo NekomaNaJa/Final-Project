@@ -1,210 +1,206 @@
 import React, { useState, useEffect } from "react";
 import {
   CheckCircle2,
-  Link2,
-  RefreshCw,
-  Unlink,
   ExternalLink,
-  ShieldCheck,
+  Trash2,
+  AlertCircle,
   X,
-  Loader2,
 } from "lucide-react";
 import SettingsCard from "../DonatePage/SettingsCard";
 import { socialPlatforms } from "../../constants/socialPlatforms";
-import {
-  getSocialAuthUrl,
-  connectSocialAccount,
-  disconnectSocialAccount,
-} from "../../utils/api";
 
-const OAUTH_PROVIDER_META = {
-  facebook: {
-    providerName: "Facebook",
-    authDomain: "facebook.com/dialog/oauth",
-    oauthUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-    baseUrl: "https://facebook.com/",
-  },
-  instagram: {
-    providerName: "Instagram",
-    authDomain: "api.instagram.com/oauth/authorize",
-    oauthUrl: "https://api.instagram.com/oauth/authorize",
-    baseUrl: "https://instagram.com/",
-  },
-  youtube: {
-    providerName: "Google / YouTube",
-    authDomain: "accounts.google.com/o/oauth2/v2/auth",
-    oauthUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-    baseUrl: "https://youtube.com/@",
-  },
-  tiktok: {
-    providerName: "TikTok",
-    authDomain: "open.tiktokapis.com/v2/auth/authorize",
-    oauthUrl: "https://www.tiktok.com/v2/auth/authorize/",
-    baseUrl: "https://tiktok.com/@",
-  },
-  twitch: {
-    providerName: "Twitch",
-    authDomain: "id.twitch.tv/oauth2/authorize",
-    oauthUrl: "https://id.twitch.tv/oauth2/authorize",
-    baseUrl: "https://twitch.tv/",
-  },
-  x: {
-    providerName: "X (Twitter)",
-    authDomain: "twitter.com/i/oauth2/authorize",
-    oauthUrl: "https://twitter.com/i/oauth2/authorize",
-    baseUrl: "https://x.com/",
-  },
+const MAX_INPUT_LEN = 200;
+const HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
+const DISALLOWED_HANDLES = new Set([
+  "watch",
+  "playlist",
+  "shorts",
+  "feed",
+  "results",
+  "channel",
+  "c",
+  "user",
+  "profile.php",
+  "share",
+  "sharer",
+  "sharer.php",
+  "login",
+  "logout",
+  "dialog",
+  "oauth",
+  "intent",
+  "home",
+  "explore",
+  "search",
+  "settings",
+  "foryou",
+  "i",
+]);
+
+const PLATFORM_MAP = Object.fromEntries(
+  socialPlatforms.map((p) => [p.key, p])
+);
+
+const isCleanHandle = (value) => {
+  if (typeof value !== "string" || !HANDLE_PATTERN.test(value)) return false;
+  if (value.endsWith(".") || value.includes("..")) return false;
+  return !DISALLOWED_HANDLES.has(value.toLowerCase());
 };
 
+const removeAtPrefix = (text) =>
+  text.startsWith("@") ? text.slice(1) : text;
 
-export const extractSocialHandle = (rawValue) => {
+const resolveYouTubePath = (segments) => {
+  if (segments.length === 1) {
+    const clean = removeAtPrefix(segments[0]);
+    if (!isCleanHandle(clean)) return null;
+    return { url: `https://youtube.com/@${clean}`, handle: `@${clean}` };
+  }
+  if (segments.length === 2) {
+    const prefix = segments[0].toLowerCase();
+    if (prefix !== "channel" && prefix !== "c" && prefix !== "user") return null;
+    const rawTarget = segments[1];
+    const clean =
+      prefix === "channel" ? rawTarget : removeAtPrefix(rawTarget);
+    if (!isCleanHandle(clean)) return null;
+    const handle = prefix === "channel" ? clean : `@${clean}`;
+    return { url: `https://youtube.com/${prefix}/${clean}`, handle };
+  }
+  return null;
+};
+
+const makeInvalidResult = (error) => ({
+  valid: false,
+  url: "",
+  handle: "",
+  error,
+});
+
+const parsePlatformUrl = (platformKey, meta, urlText) => {
+  let parsed;
+  try {
+    parsed = new URL(urlText);
+  } catch {
+    return makeInvalidResult(`รูปแบบลิงก์ ${meta.name} ไม่ถูกต้อง`);
+  }
+
+  const hasInvalidOriginPart =
+    (parsed.protocol !== "https:" && parsed.protocol !== "http:") ||
+    Boolean(parsed.username || parsed.password || parsed.port);
+
+  if (hasInvalidOriginPart) {
+    return makeInvalidResult(
+      `ไม่อนุญาตให้ใช้ลิงก์ที่มีข้อมูลยืนยันตัวตนหรือพอร์ตใน ${meta.name}`
+    );
+  }
+
+  if (!meta.allowedHosts.includes(parsed.hostname.toLowerCase())) {
+    return makeInvalidResult(`โดเมนของลิงก์ไม่ตรงกับ ${meta.name}`);
+  }
+
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  if (platformKey === "youtube") {
+    const yt = resolveYouTubePath(segments);
+    if (!yt) {
+      return makeInvalidResult(`รูปแบบลิงก์ ${meta.name} ไม่ถูกต้อง`);
+    }
+    return { valid: true, url: yt.url, handle: yt.handle, error: null };
+  }
+
+  if (segments.length !== 1) {
+    return makeInvalidResult(`รูปแบบลิงก์ ${meta.name} ไม่ถูกต้อง`);
+  }
+
+  const clean = removeAtPrefix(segments[0]);
+  if (!isCleanHandle(clean)) {
+    return makeInvalidResult(`ชื่อบัญชีในลิงก์ ${meta.name} ไม่ถูกต้อง`);
+  }
+
+  return {
+    valid: true,
+    url: `${meta.baseUrl}${clean}`,
+    handle: `@${clean}`,
+    error: null,
+  };
+};
+
+const parsePlatformInput = (platformKey, rawValue) => {
+  const meta = PLATFORM_MAP[platformKey];
+  if (!meta || typeof rawValue !== "string") {
+    return makeInvalidResult("ข้อมูลไม่ถูกต้อง");
+  }
+  if (rawValue.length > MAX_INPUT_LEN) {
+    return makeInvalidResult(
+      `ลิงก์หรือชื่อบัญชี ${meta.name} ยาวเกินกำหนด (สูงสุด ${MAX_INPUT_LEN} ตัวอักษร)`
+    );
+  }
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    return { valid: true, url: "", handle: "", error: null };
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("https://") || lower.startsWith("http://")) {
+    return parsePlatformUrl(platformKey, meta, trimmed);
+  }
+
+  if (trimmed.includes(":") || trimmed.includes("/")) {
+    return makeInvalidResult(`รูปแบบลิงก์หรือชื่อบัญชี ${meta.name} ไม่ถูกต้อง`);
+  }
+
+  const clean = removeAtPrefix(trimmed);
+  if (!isCleanHandle(clean)) {
+    return makeInvalidResult(`ชื่อบัญชี ${meta.name} ไม่ถูกต้อง`);
+  }
+
+  return {
+    valid: true,
+    url: `${meta.baseUrl}${clean}`,
+    handle: `@${clean}`,
+    error: null,
+  };
+};
+
+export const extractSocialHandle = (rawValue, platformKey = "facebook") => {
   if (typeof rawValue !== "string") return "";
   const trimmed = rawValue.trim();
   if (!trimmed) return "";
 
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    try {
-      const parsed = new URL(trimmed);
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      const handleSegment = segments[segments.length - 1] || parsed.hostname;
-      return handleSegment.startsWith("@") ? handleSegment : `@${handleSegment}`;
-    } catch {
-      // Fallback below
-    }
+  if (PLATFORM_MAP[platformKey]) {
+    const res = parsePlatformInput(platformKey, trimmed);
+    return res.valid ? res.handle : "";
   }
 
-  return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+  for (const p of socialPlatforms) {
+    const res = parsePlatformInput(p.key, trimmed);
+    if (res.valid && res.handle) return res.handle;
+  }
+  return "";
 };
 
 export const buildSocialUrl = (platformKey, rawValue) => {
-  if (typeof rawValue !== "string") return "";
-  const trimmed = rawValue.trim();
-  if (!trimmed) return "";
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
+  const res = parsePlatformInput(platformKey, rawValue);
+  if (!res.valid || !res.url.startsWith("https://")) {
+    return "";
   }
-  const cleanHandle = trimmed.replace(/^@+/, "");
-  const meta = OAUTH_PROVIDER_META[platformKey];
-  return meta?.baseUrl ? `${meta.baseUrl}${cleanHandle}` : `https://${cleanHandle}`;
+  return res.url;
 };
 
-const getBaseHandle = (user) => {
-  const raw = user?.username || user?.nickname || "streamer";
-  const cleaned = String(raw).trim().replace(/\s+/g, "_").replace(/^@+/, "");
-  return cleaned || "streamer";
-};
+const createInitialLinksState = (social) => ({
+  facebook: buildSocialUrl("facebook", social?.facebook || ""),
+  instagram: buildSocialUrl("instagram", social?.instagram || ""),
+  youtube: buildSocialUrl("youtube", social?.youtube || ""),
+  tiktok: buildSocialUrl("tiktok", social?.tiktok || ""),
+  twitch: buildSocialUrl("twitch", social?.twitch || ""),
+  x: buildSocialUrl("x", social?.x || ""),
+});
 
-const buildOAuthAccounts = (baseHandle, email) => [
-  {
-    handle: `@${baseHandle}`,
-    tag: `บัญชีหลัก • ${email || `${baseHandle}@donix.app`}`,
-  },
-  {
-    handle: `@${baseHandle}_official`,
-    tag: "บัญชีครีเอเตอร์ / สตรีมเมอร์ทางการ",
-  },
-  {
-    handle: `@${baseHandle}_live`,
-    tag: "บัญชีช่องสตรีมสำรอง",
-  },
-];
-
-const SocialRowActions = ({
-  platform,
-  rawValue,
-  connectedHandle,
-  isConnected,
-  isLoading = false,
-  readOnly,
-  onConnectClick,
-  onChangeAccountClick,
-  onDisconnectClick,
-}) => {
-  const { key, label } = platform;
-
-  if (readOnly) {
-    if (!isConnected) return null;
-    const socialUrl = buildSocialUrl(key, rawValue);
-    return (
-      <a
-        href={socialUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={`เปิดลิงก์ ${label}`}
-        className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
-      >
-        <ExternalLink size={11} />
-        <span>เยี่ยมชม</span>
-      </a>
-    );
-  }
-
-  if (isConnected) {
-    return (
-      <>
-        <button
-          type="button"
-          disabled={isLoading}
-          aria-label={`เปลี่ยนบัญชี ${label}`}
-          onClick={() => onChangeAccountClick(platform, connectedHandle)}
-          className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all disabled:opacity-50"
-        >
-          {isLoading ? (
-            <Loader2 size={11} className="animate-spin" />
-          ) : (
-            <RefreshCw size={11} />
-          )}
-          <span>เปลี่ยนบัญชี</span>
-        </button>
-        <button
-          type="button"
-          disabled={isLoading}
-          aria-label={`ยกเลิกการเชื่อมต่อ ${label}`}
-          onClick={() => onDisconnectClick(key)}
-          className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all disabled:opacity-50"
-        >
-          {isLoading ? (
-            <Loader2 size={11} className="animate-spin" />
-          ) : (
-            <Unlink size={11} />
-          )}
-          <span>ยกเลิกการเชื่อมต่อ</span>
-        </button>
-      </>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      disabled={isLoading}
-      aria-label={`เชื่อมต่อ ${label}`}
-      onClick={() => onConnectClick(platform)}
-      className="inline-flex items-center gap-1.5 rounded-lg bg-[#8b5cf6] px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.3)] hover:bg-[#7c3aed] transition-all active:scale-95 disabled:opacity-50"
-    >
-      {isLoading ? (
-        <Loader2 size={12} className="animate-spin" />
-      ) : (
-        <Link2 size={12} />
-      )}
-      <span>เชื่อมต่อ</span>
-    </button>
-  );
-};
-
-const SocialPlatformRow = ({
-  platform,
-  rawValue,
-  isLoading = false,
-  readOnly = false,
-  onConnectClick,
-  onChangeAccountClick,
-  onDisconnectClick,
-}) => {
+const SocialPlatformReadOnlyRow = ({ platform, rawValue }) => {
   const { key, label, icon } = platform;
-  const connectedHandle = extractSocialHandle(rawValue);
-  const isConnected = Boolean(connectedHandle);
-  const socialUrl = buildSocialUrl(key, rawValue);
+  const safeUrl = buildSocialUrl(key, rawValue);
+  const displayHandle = extractSocialHandle(rawValue, key);
+  const isAdded = Boolean(safeUrl && displayHandle);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -216,394 +212,298 @@ const SocialPlatformRow = ({
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#1b1532]">
             {icon}
           </div>
-          {isConnected ? (
+          {isAdded ? (
             <div className="flex flex-wrap items-center gap-2 min-w-0">
-              {readOnly ? (
-                <a
-                  href={socialUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid={`social-handle-${key}`}
-                  className="truncate text-xs font-semibold text-white hover:text-purple-300 underline-offset-2 hover:underline transition-colors"
-                >
-                  {connectedHandle}
-                </a>
-              ) : (
-                <span
-                  data-testid={`social-handle-${key}`}
-                  className="truncate text-xs font-semibold text-white"
-                >
-                  {connectedHandle}
-                </span>
-              )}
+              <a
+                href={safeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`social-handle-${key}`}
+                className="truncate text-xs font-semibold text-white hover:text-purple-300 underline-offset-2 hover:underline transition-colors"
+              >
+                {displayHandle}
+              </a>
               <span
                 data-testid={`social-status-${key}`}
                 className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
               >
                 <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
-                <span>เชื่อมต่อแล้ว</span>
+                <span>เพิ่มลิงก์แล้ว</span>
               </span>
             </div>
           ) : (
-            <span className="text-xs text-[#5c556f]">ยังไม่ได้เชื่อมต่อ</span>
+            <span
+              data-testid={`social-status-${key}`}
+              className="text-xs text-[#5c556f]"
+            >
+              ยังไม่ได้เพิ่ม
+            </span>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <SocialRowActions
-            platform={platform}
-            rawValue={rawValue}
-            connectedHandle={connectedHandle}
-            isConnected={isConnected}
-            isLoading={isLoading}
-            readOnly={readOnly}
-            onConnectClick={onConnectClick}
-            onChangeAccountClick={onChangeAccountClick}
-            onDisconnectClick={onDisconnectClick}
-          />
-        </div>
+        {isAdded && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <a
+              href={safeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`เปิดลิงก์ ${label}`}
+              className="inline-flex items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
+            >
+              <ExternalLink size={11} />
+              <span>เยี่ยมชม</span>
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const SocialOAuthModal = ({
-  modalState,
-  accounts,
-  selectedHandle,
-  isLoading,
-  onSelectHandle,
-  onConfirmConnect,
-  onOpenPopupWindow,
-  onClose,
+const SocialPlatformEditRow = ({
+  platform,
+  inputValue,
+  savedValue,
+  errorText,
+  onChange,
+  onClear,
 }) => {
-  if (!modalState) return null;
-
-  const { platform, mode } = modalState;
-  const meta = OAUTH_PROVIDER_META[platform.key] || {
-    providerName: platform.label,
-    authDomain: "oauth.provider.com",
-    oauthUrl: "https://donix.app",
-  };
-
-  const modalTitle =
-    mode === "change"
-      ? `เปลี่ยนบัญชี ${meta.providerName}`
-      : `เชื่อมต่อบัญชี ${meta.providerName}`;
+  const { key, label, icon, placeholder } = platform;
+  const safeSavedUrl = buildSocialUrl(key, savedValue);
+  const savedHandle = extractSocialHandle(savedValue, key);
+  const previewUrl = buildSocialUrl(key, inputValue);
+  const isAdded = Boolean(safeSavedUrl && savedHandle);
+  const hasContent = Boolean((inputValue && inputValue.trim()) || isAdded);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="oauth-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
-    >
-      <div className="w-full max-w-md rounded-2xl border border-[#2e2648] bg-[#16122a] p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-3 border-b border-[#2b2542] pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#2e2648] bg-[#110d22]">
-              {platform.icon}
-            </div>
-            <div>
-              <h3 id="oauth-modal-title" className="text-sm font-bold text-white">
-                {modalTitle}
-              </h3>
-              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-[#9891ab]">
-                <ShieldCheck size={12} className="text-emerald-400" />
-                <span>OAuth 2.0 • {meta.authDomain}</span>
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            aria-label="ปิดหน้าต่างเชื่อมต่อ"
-            onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-2.5">
-          <p className="text-xs font-medium text-[#d4cfdf]">
-            เลือกบัญชี {meta.providerName} ที่ต้องการเชื่อมต่อกับ DONIX:
-          </p>
-          <div className="space-y-2">
-            {accounts.map((acc) => {
-              const isSelected = selectedHandle === acc.handle;
-              return (
-                <button
-                  key={acc.handle}
-                  type="button"
-                  onClick={() => onSelectHandle(acc.handle)}
-                  className={`w-full flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-left transition-all ${
-                    isSelected
-                      ? "border-purple-500 bg-purple-500/15 text-white"
-                      : "border-[#2e2648] bg-[#110d22] text-gray-300 hover:border-[#3e3460]"
-                  }`}
-                >
-                  <div>
-                    <p className="text-xs font-bold text-white">{acc.handle}</p>
-                    <p className="text-[10px] text-[#9891ab]">{acc.tag}</p>
-                  </div>
-                  {isSelected && (
-                    <CheckCircle2 size={16} className="text-purple-400 shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onOpenPopupWindow(meta.oauthUrl)}
-            className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-purple-300 hover:text-purple-200 transition-colors"
-          >
-            <ExternalLink size={12} />
-            <span>เปิดหน้าต่างยืนยันตัวตนของ {meta.providerName}</span>
-          </button>
-        </div>
-
-        <div className="mt-6 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLoading}
-            className="rounded-xl border border-[#2e2648] bg-[#110d22] px-4 py-2 text-xs font-medium text-gray-300 hover:bg-white/5 transition-colors disabled:opacity-50"
-          >
-            ยกเลิก
-          </button>
-          <button
-            type="button"
-            onClick={onConfirmConnect}
-            className="rounded-xl bg-[#8b5cf6] px-5 py-2 text-xs font-semibold text-white shadow-[0_0_16px_rgba(139,92,246,0.35)] hover:bg-[#7c3aed] transition-all flex items-center gap-1.5"
-          >
-            {isLoading && <Loader2 size={12} className="animate-spin" />}
-            <span>อนุญาตและเชื่อมต่อ</span>
-          </button>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label
+          htmlFor={`social-input-${key}`}
+          className="text-[11px] font-bold tracking-wider text-[#9891ab]"
+        >
+          {label}
+        </label>
+        <div className="flex items-center gap-1.5">
+          {isAdded ? (
+            <>
+              <span
+                data-testid={`social-handle-${key}`}
+                className="truncate text-[11px] font-semibold text-purple-300 max-w-[140px]"
+              >
+                {savedHandle}
+              </span>
+              <span
+                data-testid={`social-status-${key}`}
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400"
+              >
+                <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
+                <span>เพิ่มลิงก์แล้ว</span>
+              </span>
+            </>
+          ) : (
+            <span
+              data-testid={`social-status-${key}`}
+              className="text-[11px] text-[#5c556f]"
+            >
+              ยังไม่ได้เพิ่ม
+            </span>
+          )}
         </div>
       </div>
+
+      <div
+        className={`flex items-center gap-2 rounded-xl border bg-[#110d22] px-3 py-2 transition-all ${
+          errorText
+            ? "border-red-500/60 focus-within:border-red-500"
+            : "border-[#2e2648] hover:border-[#3e3460] focus-within:border-purple-500"
+        }`}
+      >
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#1b1532]">
+          {icon}
+        </div>
+        <input
+          id={`social-input-${key}`}
+          aria-label={`ลิงก์หรือชื่อบัญชี ${label}`}
+          type="text"
+          maxLength={MAX_INPUT_LEN}
+          value={inputValue}
+          onChange={(e) => onChange(key, e.target.value)}
+          placeholder={placeholder}
+          className="min-w-0 flex-1 bg-transparent text-xs text-white placeholder-[#5c556f] focus:outline-none"
+        />
+        {previewUrl && (
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`เปิดลิงก์ ${label}`}
+            title="เปิดลิงก์เพื่อตรวจสอบ"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-2 py-1 text-[11px] font-medium text-purple-300 hover:bg-purple-500/20 hover:text-white transition-all"
+          >
+            <ExternalLink size={11} />
+            <span>เปิดลิงก์</span>
+          </a>
+        )}
+        {hasContent && (
+          <button
+            type="button"
+            aria-label={`ลบลิงก์ ${label}`}
+            title="ลบลิงก์"
+            onClick={() => onClear(key)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all"
+          >
+            <Trash2 size={11} />
+            <span>ลบลิงก์</span>
+          </button>
+        )}
+      </div>
+
+      {errorText && (
+        <p
+          data-testid={`social-error-${key}`}
+          className="text-[11px] font-medium text-red-400"
+        >
+          {errorText}
+        </p>
+      )}
     </div>
   );
 };
 
 const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
-  const [socialLinks, setSocialLinks] = useState({
-    facebook: user?.social?.facebook || "",
-    instagram: user?.social?.instagram || "",
-    youtube: user?.social?.youtube || "",
-    tiktok: user?.social?.tiktok || "",
-    twitch: user?.social?.twitch || "",
-    x: user?.social?.x || "",
-  });
-  const [oauthModal, setOauthModal] = useState(null);
-  const [selectedHandle, setSelectedHandle] = useState("");
-  const [loadingPlatform, setLoadingPlatform] = useState(null);
+  const [savedLinks, setSavedLinks] = useState(() =>
+    createInitialLinksState(user?.social)
+  );
+  const [inputs, setInputs] = useState(() =>
+    createInitialLinksState(user?.social)
+  );
+  const [fieldErrors, setFieldErrors] = useState({});
   const [statusMessage, setStatusMessage] = useState(null);
 
   useEffect(() => {
-    if (user?.social) {
-      setSocialLinks({
-        facebook: user.social.facebook || "",
-        instagram: user.social.instagram || "",
-        youtube: user.social.youtube || "",
-        tiktok: user.social.tiktok || "",
-        twitch: user.social.twitch || "",
-        x: user.social.x || "",
-      });
-    }
+    const normalized = createInitialLinksState(user?.social);
+    setSavedLinks(normalized);
+    setInputs(normalized);
+    setFieldErrors({});
   }, [user]);
-
-  const baseHandle = getBaseHandle(user);
-  const accounts = buildOAuthAccounts(baseHandle, user?.email);
-
-  const handleOpenConnect = (platform) => {
-    setSelectedHandle(accounts[0].handle);
-    setLoadingPlatform(null);
-    setOauthModal({ platform, mode: "connect" });
-    setStatusMessage(null);
-  };
-
-  const handleOpenChangeAccount = (platform, currentHandle) => {
-    const nextAccount =
-      accounts.find((a) => a.handle !== currentHandle) || accounts[0];
-    setSelectedHandle(nextAccount.handle);
-    setLoadingPlatform(null);
-    setOauthModal({ platform, mode: "change" });
-    setStatusMessage(null);
-  };
-
-
-  const handleConfirmOAuthConnect = () => {
-    if (!oauthModal) return;
-    const { key } = oauthModal.platform;
-    const meta = OAUTH_PROVIDER_META[key];
-    const cleanName = selectedHandle.replace(/^@+/, "");
-    const connectedValue = meta?.baseUrl
-      ? `${meta.baseUrl}${cleanName}`
-      : selectedHandle;
-
-    const updated = { ...socialLinks, [key]: connectedValue };
-    setSocialLinks(updated);
-    setOauthModal(null);
-    if (onSave) {
-      onSave({ social: updated });
-    }
-
-    setLoadingPlatform(key);
-    void connectSocialAccount(key, {
-      handle: selectedHandle,
-      code: `code_${key}_auth`,
-    })
-      .then((res) => {
-        if (res?.url && res.url !== connectedValue) {
-          const finalUpdated = { ...updated, [key]: res.url };
-          setSocialLinks(finalUpdated);
-          if (onSave) {
-            onSave({ social: finalUpdated });
-          }
-        }
-        setStatusMessage({
-          type: "success",
-          text: `เชื่อมต่อบัญชี ${meta.providerName} สำเร็จ`,
-        });
-      })
-      .catch(() => {
-        // Retain optimistic value
-      })
-      .finally(() => {
-        setLoadingPlatform(null);
-      });
-  };
-
-  const handleDisconnect = (key) => {
-    const meta = OAUTH_PROVIDER_META[key];
-    const updated = { ...socialLinks, [key]: "" };
-    setSocialLinks(updated);
-    if (onSave) {
-      onSave({ social: updated });
-    }
-
-    setLoadingPlatform(key);
-    void disconnectSocialAccount(key)
-      .then(() => {
-        setStatusMessage({
-          type: "success",
-          text: `ยกเลิกการเชื่อมต่อ ${meta?.providerName || key} สำเร็จ`,
-        });
-      })
-      .catch(() => {})
-      .finally(() => {
-        setLoadingPlatform(null);
-      });
-  };
-
-
-  const handleOpenExternalPopup = (urlOrPlatform) => {
-    const platform = typeof urlOrPlatform === "object" ? urlOrPlatform : oauthModal?.platform;
-    const key = platform?.key || "youtube";
-    const meta = OAUTH_PROVIDER_META[key];
-    const targetUrl = typeof urlOrPlatform === "string" ? urlOrPlatform : meta?.oauthUrl || "https://donix.app";
-
-    if (typeof window !== "undefined" && typeof window.open === "function") {
-      window.open(targetUrl, `donix_oauth_${key}`, "width=520,height=640,noopener,noreferrer");
-    }
-
-    if (typeof window !== "undefined") {
-      const redirectUri = `${window.location.origin}/oauth-callback`;
-      void getSocialAuthUrl(key, redirectUri)
-        .then((res) => {
-          if (res?.authUrl && typeof window.open === "function") {
-            // Pre-fetched URL
-          }
-        })
-        .catch(() => {});
-    }
-  };
-
-  useEffect(() => {
-    const handleOAuthMessage = (event) => {
-      if (typeof window !== "undefined" && event.origin !== window.location.origin) return;
-      if (event.data?.type === "OAUTH_CALLBACK" && event.data?.code) {
-        const { code, state } = event.data;
-        const platformKey = state?.split("_")?.[0] || oauthModal?.platform?.key;
-        if (platformKey && socialLinks[platformKey] !== undefined) {
-          setLoadingPlatform(platformKey);
-          const redirectUri = `${window.location.origin}/oauth-callback`;
-          void connectSocialAccount(platformKey, { code, redirectUri })
-            .then((result) => {
-              if (result?.url) {
-                const updated = { ...socialLinks, [platformKey]: result.url };
-                setSocialLinks(updated);
-                setOauthModal(null);
-                setStatusMessage({
-                  type: "success",
-                  text: `เชื่อมต่อบัญชี ${OAUTH_PROVIDER_META[platformKey]?.providerName || platformKey} สำเร็จ`,
-                });
-                if (onSave) {
-                  onSave({ social: updated });
-                }
-              }
-            })
-            .catch(() => {
-              setStatusMessage({
-                type: "error",
-                text: "เกิดข้อผิดพลาดในการเชื่อมต่อ OAuth",
-              });
-            })
-            .finally(() => {
-              setLoadingPlatform(null);
-            });
-        }
-      }
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("message", handleOAuthMessage);
-      return () => window.removeEventListener("message", handleOAuthMessage);
-    }
-  }, [oauthModal, socialLinks, onSave]);
-
-  const handleSave = () => {
-    if (onSave) {
-      onSave({ social: socialLinks });
-    }
-  };
 
   if (readOnly) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {socialPlatforms.map((platform) => (
-          <SocialPlatformRow
+          <SocialPlatformReadOnlyRow
             key={platform.key}
             platform={platform}
-            rawValue={socialLinks[platform.key]}
-            readOnly={true}
+            rawValue={savedLinks[platform.key]}
           />
         ))}
       </div>
     );
   }
 
+  const handleInputChange = (key, value) => {
+    setInputs((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+    if (statusMessage?.type === "error") {
+      setStatusMessage(null);
+    }
+  };
+
+  const handleClearLink = (key) => {
+    const platformName = PLATFORM_MAP[key]?.name || key;
+    const nextInputs = { ...inputs, [key]: "" };
+    const nextSaved = { ...savedLinks, [key]: "" };
+    setInputs(nextInputs);
+    setSavedLinks(nextSaved);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setStatusMessage({
+      type: "success",
+      text: `ลบลิงก์ ${platformName} เรียบร้อยแล้ว`,
+    });
+    if (onSave) {
+      void Promise.resolve(onSave({ social: nextSaved }));
+    }
+  };
+
+  const handleSave = () => {
+    const nextErrors = {};
+    const normalizedPayload = {};
+
+    for (const platform of socialPlatforms) {
+      const result = parsePlatformInput(platform.key, inputs[platform.key] || "");
+      if (!result.valid) {
+        nextErrors[platform.key] = result.error;
+      } else {
+        normalizedPayload[platform.key] = result.url;
+      }
+    }
+
+    const errorKeys = Object.keys(nextErrors);
+    if (errorKeys.length > 0) {
+      setFieldErrors(nextErrors);
+      setStatusMessage({
+        type: "error",
+        text: nextErrors[errorKeys[0]],
+      });
+      return;
+    }
+
+    setFieldErrors({});
+    setSavedLinks(normalizedPayload);
+    setInputs(normalizedPayload);
+    setStatusMessage({
+      type: "success",
+      text: "บันทึกลิงก์โซเชียลมีเดียเรียบร้อยแล้ว",
+    });
+
+    if (onSave) {
+      void Promise.resolve(onSave({ social: normalizedPayload }));
+    }
+  };
+
   return (
     <SettingsCard
       title="โซเชียลมีเดีย"
       subtitle="SOCIAL MEDIA"
+      saveText="บันทึกลิงก์"
       onSave={handleSave}
       hideSave={readOnly}
     >
+      <p className="text-xs text-[#9891ab]">
+        ระบุชื่อบัญชี (@handle) หรือวางลิงก์หน้าโปรไฟล์ของคุณในแต่ละแพลตฟอร์ม (เว้นว่างหรือกดลบลิงก์เพื่อนำออก)
+      </p>
+
       {statusMessage && (
         <div
           role="status"
-          className={`mb-4 rounded-xl border p-3 text-xs flex items-center justify-between ${
+          className={`rounded-xl border p-3 text-xs flex items-center justify-between ${
             statusMessage.type === "success"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
               : "border-red-500/30 bg-red-500/10 text-red-300"
           }`}
         >
-          <span>{statusMessage.text}</span>
+          <div className="flex items-center gap-2">
+            {statusMessage.type === "success" ? (
+              <CheckCircle2 size={14} className="shrink-0 text-emerald-400" />
+            ) : (
+              <AlertCircle size={14} className="shrink-0 text-red-400" />
+            )}
+            <span>{statusMessage.text}</span>
+          </div>
           <button
             type="button"
+            aria-label="ปิดข้อความแจ้งเตือน"
             onClick={() => setStatusMessage(null)}
             className="text-gray-400 hover:text-white"
           >
@@ -612,39 +512,19 @@ const SocialMediaTab = ({ user, onSave, readOnly = false }) => {
         </div>
       )}
 
-      <div
-        className={
-          readOnly
-            ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-            : "grid gap-4 sm:grid-cols-2"
-        }
-      >
+      <div className="grid gap-4 sm:grid-cols-2">
         {socialPlatforms.map((platform) => (
-          <SocialPlatformRow
+          <SocialPlatformEditRow
             key={platform.key}
             platform={platform}
-            rawValue={socialLinks[platform.key]}
-            isLoading={loadingPlatform === platform.key}
-            readOnly={readOnly}
-            onConnectClick={handleOpenConnect}
-            onChangeAccountClick={handleOpenChangeAccount}
-            onDisconnectClick={handleDisconnect}
+            inputValue={inputs[platform.key]}
+            savedValue={savedLinks[platform.key]}
+            errorText={fieldErrors[platform.key]}
+            onChange={handleInputChange}
+            onClear={handleClearLink}
           />
         ))}
       </div>
-
-      {!readOnly && (
-        <SocialOAuthModal
-          modalState={oauthModal}
-          accounts={accounts}
-          selectedHandle={selectedHandle}
-          isLoading={loadingPlatform !== null}
-          onSelectHandle={setSelectedHandle}
-          onConfirmConnect={handleConfirmOAuthConnect}
-          onOpenPopupWindow={handleOpenExternalPopup}
-          onClose={() => setOauthModal(null)}
-        />
-      )}
     </SettingsCard>
   );
 };
