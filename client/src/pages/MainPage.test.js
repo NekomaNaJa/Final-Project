@@ -108,11 +108,13 @@ describe("MainPage & PublicProfilePage", () => {
     expect(screen.getByText("สตรีมเมอร์สายฮา")).toBeInTheDocument();
     expect(screen.getByText("฿1,500.00")).toBeInTheDocument();
 
-    // Connected social links are clickable and show green badge
+    // Added social links are clickable and show green badge
     const fbLink = screen.getByTestId("social-handle-facebook");
     expect(fbLink).toHaveTextContent("@Test3Channel");
     expect(fbLink).toHaveAttribute("href", "https://facebook.com/Test3Channel");
-    expect(screen.getByTestId("social-status-facebook")).toHaveTextContent("เชื่อมต่อแล้ว");
+    expect(fbLink).toHaveAttribute("target", "_blank");
+    expect(fbLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getByTestId("social-status-facebook")).toHaveTextContent("เพิ่มลิงก์แล้ว");
 
     const ytLink = screen.getByTestId("social-handle-youtube");
     expect(ytLink).toHaveTextContent("@Test3Official");

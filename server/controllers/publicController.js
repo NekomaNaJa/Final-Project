@@ -1,6 +1,7 @@
 import User from "../Models/User.js";
 import Widget from "../Models/Widget.js";
 import Donation from "../Models/Donation.js";
+import { sanitizeStoredSocialLinks } from "../utils/socialLinks.js";
 
 /**
  * ดึงรายชื่อสตรีมเมอร์ทั้งหมดสำหรับหน้าแรกและหน้าค้นพบ (GET /api/public/streamers)
@@ -19,14 +20,7 @@ export const getPublicStreamers = async (req, res, next) => {
       bio: u.bio || "",
       isLive: Boolean(u.isLive),
       createdAt: u.createdAt || null,
-      social: {
-        facebook: u.social?.facebook || "",
-        instagram: u.social?.instagram || "",
-        youtube: u.social?.youtube || "",
-        tiktok: u.social?.tiktok || "",
-        twitch: u.social?.twitch || "",
-        x: u.social?.x || "",
-      },
+      social: sanitizeStoredSocialLinks(u.social),
     }));
 
     return res.status(200).json({
@@ -98,14 +92,7 @@ export const getPublicStreamer = async (req, res, next) => {
             )
           : [],
       },
-      social: {
-        facebook: user.social?.facebook || "",
-        instagram: user.social?.instagram || "",
-        youtube: user.social?.youtube || "",
-        tiktok: user.social?.tiktok || "",
-        twitch: user.social?.twitch || "",
-        x: user.social?.x || "",
-      },
+      social: sanitizeStoredSocialLinks(user.social),
       donationPage: {
         welcomeMessage: user.donationPage?.welcomeMessage || "",
         thankYouMessage: user.donationPage?.thankYouMessage || "",

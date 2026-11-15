@@ -7,6 +7,10 @@ import {
   isPasswordValid,
   getPasswordError,
 } from "../utils/passwordValidation.js";
+import {
+  validateSocialPayload,
+  sanitizeStoredSocialLinks,
+} from "../utils/socialLinks.js";
 
 // Bounded, linear-time email shape validation without regex backtracking.
 const EMAIL_REGEX = { test(value) {
@@ -30,6 +34,10 @@ export const getMe = async (req, res, next) => {
       });
     }
 
+    if (user.social) {
+      user.social = sanitizeStoredSocialLinks(user.social);
+    }
+
     res.json({
       message: "ดึงข้อมูลผู้ใช้สำเร็จ",
       data: user,
@@ -37,6 +45,91 @@ export const getMe = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+const applyStringFieldUpdates = (user, stringFields) => {
+  for (const [key, value] of Object.entries(stringFields)) {
+    if (value !== undefined) {
+      if (typeof value !== "string") {
+        return `ข้อมูล ${key} ไม่ถูกต้อง`;
+      }
+      user[key] = String(value).trim();
+    }
+  }
+  return null;
+};
+
+const applyGenderAndBirthDate = (user, gender, birthDate) => {
+  if (gender !== undefined) {
+    if (typeof gender !== "string") {
+      return "ข้อมูลเพศไม่ถูกต้อง";
+    }
+    const safeGender = String(gender).trim();
+    if (!["", "male", "female", "other"].includes(safeGender)) {
+      return "เพศไม่ถูกต้อง";
+    }
+    user.gender = safeGender;
+  }
+
+  if (birthDate !== undefined) {
+    if (birthDate === null || birthDate === "") {
+      user.birthDate = null;
+    } else {
+      const parsedDate = new Date(birthDate);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return "รูปแบบวันเกิดไม่ถูกต้อง";
+      }
+      user.birthDate = parsedDate;
+    }
+  }
+
+  return null;
+};
+
+const applySocialUpdates = (user, social) => {
+  if (social === undefined) {
+    return null;
+  }
+
+  const validation = validateSocialPayload(social);
+  if (!validation.valid) {
+    return validation.error;
+  }
+
+  if (!user.social) {
+    user.social = {};
+  }
+
+  for (const [platform, normalizedUrl] of Object.entries(validation.data)) {
+    user.social[platform] = normalizedUrl;
+  }
+
+  return null;
+};
+
+const applyPasswordUpdateInMe = async (user, currentPassword, newPassword) => {
+  if (newPassword === undefined && currentPassword === undefined) {
+    return null;
+  }
+
+  if (typeof newPassword !== "string" || typeof currentPassword !== "string") {
+    return "ข้อมูลรหัสผ่านไม่ถูกต้อง";
+  }
+
+  if (user.password) {
+    const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+    if (!isMatch) {
+      return "รหัสผ่านปัจจุบันไม่ถูกต้อง";
+    }
+  }
+
+  const safeNewPassword = String(newPassword);
+  if (!isPasswordValid(safeNewPassword)) {
+    return getPasswordError(safeNewPassword) || "รหัสผ่านใหม่ไม่ปลอดภัย";
+  }
+
+  user.password = await bcrypt.hash(safeNewPassword, 10);
+  return null;
 };
 
 export const updateMe = async (req, res, next) => {
@@ -77,103 +170,36 @@ export const updateMe = async (req, res, next) => {
       user.isLive = Boolean(isLive);
     }
 
-    const stringFields = { nickname, fullName, firstName, lastName, avatar, bio, phone };
-    for (const [key, value] of Object.entries(stringFields)) {
-      if (value !== undefined) {
-        if (typeof value !== "string") {
-          return res.status(400).json({
-            message: `ข้อมูล ${key} ไม่ถูกต้อง`,
-            data: null,
-          });
-        }
-        user[key] = String(value).trim();
-      }
+    const stringError = applyStringFieldUpdates(user, {
+      nickname,
+      fullName,
+      firstName,
+      lastName,
+      avatar,
+      bio,
+      phone,
+    });
+    if (stringError) {
+      return res.status(400).json({ message: stringError, data: null });
     }
 
-    if (gender !== undefined) {
-      if (typeof gender !== "string") {
-        return res.status(400).json({
-          message: "ข้อมูลเพศไม่ถูกต้อง",
-          data: null,
-        });
-      }
-      const safeGender = String(gender).trim();
-      if (!["", "male", "female", "other"].includes(safeGender)) {
-        return res.status(400).json({
-          message: "เพศไม่ถูกต้อง",
-          data: null,
-        });
-      }
-      user.gender = safeGender;
+    const metaError = applyGenderAndBirthDate(user, gender, birthDate);
+    if (metaError) {
+      return res.status(400).json({ message: metaError, data: null });
     }
 
-    if (birthDate !== undefined) {
-      if (birthDate === null || birthDate === "") {
-        user.birthDate = null;
-      } else {
-        const parsedDate = new Date(birthDate);
-        if (isNaN(parsedDate.getTime())) {
-          return res.status(400).json({
-            message: "รูปแบบวันเกิดไม่ถูกต้อง",
-            data: null,
-          });
-        }
-        user.birthDate = parsedDate;
-      }
+    const socialError = applySocialUpdates(user, social);
+    if (socialError) {
+      return res.status(400).json({ message: socialError, data: null });
     }
 
-    if (social !== undefined) {
-      if (typeof social !== "object" || social === null || Array.isArray(social)) {
-        return res.status(400).json({
-          message: "ข้อมูลโซเชียลมีเดียไม่ถูกต้อง",
-          data: null,
-        });
-      }
-
-      const allowedPlatforms = ["facebook", "instagram", "youtube", "tiktok", "twitch", "x"];
-      for (const [platform, url] of Object.entries(social)) {
-        if (allowedPlatforms.includes(platform)) {
-          if (typeof url !== "string") {
-            return res.status(400).json({
-              message: `ข้อมูลโซเชียล ${platform} ไม่ถูกต้อง`,
-              data: null,
-            });
-          }
-          if (!user.social) {
-            user.social = {};
-          }
-          user.social[platform] = String(url).trim();
-        }
-      }
-    }
-
-    if (newPassword !== undefined || currentPassword !== undefined) {
-      if (typeof newPassword !== "string" || typeof currentPassword !== "string") {
-        return res.status(400).json({
-          message: "ข้อมูลรหัสผ่านไม่ถูกต้อง",
-          data: null,
-        });
-      }
-
-      if (user.password) {
-        const isMatch = await bcrypt.compare(String(currentPassword), user.password);
-        if (!isMatch) {
-          return res.status(400).json({
-            message: "รหัสผ่านปัจจุบันไม่ถูกต้อง",
-            data: null,
-          });
-        }
-      }
-
-      const safeNewPassword = String(newPassword);
-      if (!isPasswordValid(safeNewPassword)) {
-        return res.status(400).json({
-          message: getPasswordError(safeNewPassword) || "รหัสผ่านใหม่ไม่ปลอดภัย",
-          data: null,
-        });
-      }
-
-      user.password = await bcrypt.hash(safeNewPassword, 10);
+    const passwordError = await applyPasswordUpdateInMe(
+      user,
+      currentPassword,
+      newPassword
+    );
+    if (passwordError) {
+      return res.status(400).json({ message: passwordError, data: null });
     }
 
     await user.save();
@@ -792,380 +818,6 @@ export const verifyLinkOtp = async (req, res, next) => {
   }
 };
 
-const ALLOWED_SOCIAL_PLATFORMS = [
-  "facebook",
-  "instagram",
-  "youtube",
-  "tiktok",
-  "twitch",
-  "x",
-];
-
-const OAUTH_CONFIGS = {
-  youtube: {
-    providerName: "Google / YouTube",
-    clientIdEnv: "GOOGLE_CLIENT_ID",
-    clientSecretEnv: "GOOGLE_CLIENT_SECRET",
-    defaultClientId: "donix-youtube-oauth.apps.googleusercontent.com",
-    authBaseUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-    scopes: "https://www.googleapis.com/auth/youtube.readonly email profile",
-    extraAuthParams: "&access_type=offline&prompt=consent",
-    tokenUrl: "https://oauth2.googleapis.com/token",
-    userUrl: "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
-    fallbackUserUrl: "https://www.googleapis.com/oauth2/v3/userinfo",
-    formatUrl: (h) => `https://youtube.com/@${h}`,
-    extractHandle: (userData, altData) => {
-      const item = userData?.items?.[0];
-      if (item?.snippet?.customUrl) {
-        return item.snippet.customUrl.replace(/^@+/, "");
-      }
-      if (item?.snippet?.title) {
-        return item.snippet.title.replace(/\s+/g, "_");
-      }
-      if (altData?.name) {
-        return altData.name.replace(/\s+/g, "_");
-      }
-      if (altData?.email) {
-        return altData.email.split("@")[0];
-      }
-      return "youtube_channel";
-    },
-  },
-  twitch: {
-    providerName: "Twitch",
-    clientIdEnv: "TWITCH_CLIENT_ID",
-    clientSecretEnv: "TWITCH_CLIENT_SECRET",
-    defaultClientId: "donix-twitch-client-id",
-    authBaseUrl: "https://id.twitch.tv/oauth2/authorize",
-    scopes: "user:read:email",
-    extraAuthParams: "&force_verify=true",
-    tokenUrl: "https://id.twitch.tv/oauth2/token",
-    userUrl: "https://api.twitch.tv/helix/users",
-    formatUrl: (h) => `https://twitch.tv/${h}`,
-    extractHandle: (userData) => {
-      const u = userData?.data?.[0];
-      return u?.login || u?.display_name || "twitch_streamer";
-    },
-  },
-  facebook: {
-    providerName: "Facebook",
-    clientIdEnv: "FACEBOOK_CLIENT_ID",
-    clientSecretEnv: "FACEBOOK_CLIENT_SECRET",
-    defaultClientId: "donix-facebook-app-id",
-    authBaseUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-    scopes: "public_profile,email",
-    extraAuthParams: "",
-    tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-    userUrl: "https://graph.facebook.com/me?fields=id,name,short_name",
-    formatUrl: (h) => `https://facebook.com/${h}`,
-    extractHandle: (userData) => {
-      return userData?.short_name || userData?.name?.replace(/\s+/g, "_") || userData?.id || "facebook_user";
-    },
-  },
-  instagram: {
-    providerName: "Instagram",
-    clientIdEnv: "INSTAGRAM_CLIENT_ID",
-    clientSecretEnv: "INSTAGRAM_CLIENT_SECRET",
-    defaultClientId: "donix-instagram-app-id",
-    authBaseUrl: "https://api.instagram.com/oauth/authorize",
-    scopes: "user_profile,user_media",
-    extraAuthParams: "",
-    tokenUrl: "https://api.instagram.com/oauth/access_token",
-    userUrl: "https://graph.instagram.com/me?fields=id,username",
-    formatUrl: (h) => `https://instagram.com/${h}`,
-    extractHandle: (userData) => {
-      return userData?.username || "instagram_user";
-    },
-  },
-  tiktok: {
-    providerName: "TikTok",
-    clientIdEnv: "TIKTOK_CLIENT_KEY",
-    clientSecretEnv: "TIKTOK_CLIENT_SECRET",
-    defaultClientId: "donix-tiktok-client-key",
-    authBaseUrl: "https://www.tiktok.com/v2/auth/authorize/",
-    scopes: "user.info.basic",
-    extraAuthParams: "",
-    tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
-    userUrl: "https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username",
-    formatUrl: (h) => `https://tiktok.com/@${h}`,
-    extractHandle: (userData) => {
-      return userData?.data?.user?.username || userData?.data?.user?.display_name?.replace(/\s+/g, "_") || "tiktok_creator";
-    },
-  },
-  x: {
-    providerName: "X (Twitter)",
-    clientIdEnv: "X_CLIENT_ID",
-    clientSecretEnv: "X_CLIENT_SECRET",
-    defaultClientId: "donix-x-client-id",
-    authBaseUrl: "https://twitter.com/i/oauth2/authorize",
-    scopes: "tweet.read users.read",
-    extraAuthParams: "&code_challenge=challenge&code_challenge_method=plain",
-    tokenUrl: "https://api.twitter.com/2/oauth2/token",
-    userUrl: "https://api.twitter.com/2/users/me",
-    formatUrl: (h) => `https://x.com/${h}`,
-    extractHandle: (userData) => {
-      return userData?.data?.username || "x_user";
-    },
-  },
-};
-
-export const getSocialAuthUrl = async (req, res, next) => {
-  try {
-    const { platform } = req.params;
-    if (typeof platform !== "string") {
-      return res.status(400).json({
-        message: "ข้อมูลแพลตฟอร์มไม่ถูกต้อง",
-        data: null,
-      });
-    }
-
-    const safePlatform = String(platform).trim().toLowerCase();
-    if (!ALLOWED_SOCIAL_PLATFORMS.includes(safePlatform)) {
-      return res.status(400).json({
-        message: `ไม่รองรับแพลตฟอร์ม ${safePlatform}`,
-        data: null,
-      });
-    }
-
-    const { redirectUri, state } = req.query;
-    const safeRedirectUri =
-      typeof redirectUri === "string" && redirectUri.trim()
-        ? String(redirectUri).trim()
-        : `${process.env.CLIENT_URL || "http://localhost:3000"}/oauth-callback`;
-
-    const safeState =
-      typeof state === "string" && state.trim()
-        ? String(state).trim()
-        : `${safePlatform}_${crypto.randomBytes(8).toString("hex")}`;
-
-    const config = OAUTH_CONFIGS[safePlatform];
-    const clientId =
-      process.env[config.clientIdEnv] ||
-      (safePlatform === "youtube" ? process.env.REACT_APP_GOOGLE_CLIENT_ID : "") ||
-      config.defaultClientId;
-
-    const authUrl = `${config.authBaseUrl}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(safeRedirectUri)}&response_type=code&scope=${encodeURIComponent(config.scopes)}&state=${encodeURIComponent(safeState)}${config.extraAuthParams || ""}`;
-
-    res.json({
-      message: `สร้างลิงก์ยืนยันตัวตนของ ${config.providerName} สำเร็จ`,
-      data: {
-        platform: safePlatform,
-        authUrl,
-        redirectUri: safeRedirectUri,
-        state: safeState,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const connectSocialAccount = async (req, res, next) => {
-  try {
-    const { platform } = req.params;
-    if (typeof platform !== "string") {
-      return res.status(400).json({
-        message: "ข้อมูลแพลตฟอร์มไม่ถูกต้อง",
-        data: null,
-      });
-    }
-
-    const safePlatform = String(platform).trim().toLowerCase();
-    if (!ALLOWED_SOCIAL_PLATFORMS.includes(safePlatform)) {
-      return res.status(400).json({
-        message: `ไม่รองรับแพลตฟอร์ม ${safePlatform}`,
-        data: null,
-      });
-    }
-
-    const safeUserId = String(req.user?.userId || "");
-    const user = await User.findById(safeUserId);
-    if (!user) {
-      return res.status(404).json({
-        message: "ไม่พบผู้ใช้",
-        data: null,
-      });
-    }
-
-    const { code, redirectUri, handle, accessToken, mockProfile } = req.body;
-    let extractedHandle = "";
-    const config = OAUTH_CONFIGS[safePlatform];
-
-    // Check test environment mock profile
-    if (process.env.NODE_ENV === "test" && mockProfile && typeof mockProfile === "object") {
-      extractedHandle = String(mockProfile.handle || mockProfile.username || "test_user").trim();
-    } else if (typeof code === "string" && code.trim()) {
-      const safeCode = String(code).trim();
-      const safeRedirectUri =
-        typeof redirectUri === "string" && redirectUri.trim()
-          ? String(redirectUri).trim()
-          : `${process.env.CLIENT_URL || "http://localhost:3000"}/oauth-callback`;
-
-      const clientId =
-        process.env[config.clientIdEnv] ||
-        (safePlatform === "youtube" ? process.env.REACT_APP_GOOGLE_CLIENT_ID : "") ||
-        config.defaultClientId;
-      const clientSecret = process.env[config.clientSecretEnv] || "dummy_secret";
-
-      let token = accessToken && typeof accessToken === "string" ? String(accessToken).trim() : null;
-
-      if (!token) {
-        try {
-          const bodyParams = new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            code: safeCode,
-            grant_type: "authorization_code",
-            redirect_uri: safeRedirectUri,
-          });
-
-          if (safePlatform === "tiktok") {
-            bodyParams.set("client_key", clientId);
-          }
-          if (safePlatform === "x") {
-            bodyParams.set("code_verifier", "challenge");
-          }
-
-          const tokenRes = await fetch(config.tokenUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Accept: "application/json",
-            },
-            body: bodyParams.toString(),
-          });
-
-          const tokenData = await tokenRes.json();
-          if (tokenRes.ok && tokenData.access_token) {
-            token = tokenData.access_token;
-          }
-        } catch (fetchErr) {
-          console.error(`[OAuth Token Exchange Error - ${safePlatform}]:`, fetchErr.message);
-        }
-      }
-
-      if (token) {
-        try {
-          const headers = {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          };
-          if (safePlatform === "twitch") {
-            headers["Client-Id"] = clientId;
-          }
-
-          const userRes = await fetch(config.userUrl, { headers });
-          const userData = await userRes.json();
-
-          let altData = null;
-          if (safePlatform === "youtube" && (!userData?.items || userData.items.length === 0)) {
-            const altRes = await fetch(config.fallbackUserUrl, { headers });
-            altData = await altRes.json();
-          }
-
-          extractedHandle = config.extractHandle(userData, altData);
-        } catch (userFetchErr) {
-          console.error(`[OAuth Profile Fetch Error - ${safePlatform}]:`, userFetchErr.message);
-        }
-      }
-
-      if (!extractedHandle && typeof handle === "string" && handle.trim()) {
-        extractedHandle = String(handle).trim();
-      }
-    } else if (typeof handle === "string" && handle.trim()) {
-      extractedHandle = String(handle).trim();
-    } else if (typeof accessToken === "string" && accessToken.trim()) {
-      const clientId = process.env[config.clientIdEnv] || config.defaultClientId;
-      const headers = {
-        Authorization: `Bearer ${String(accessToken).trim()}`,
-        Accept: "application/json",
-      };
-      if (safePlatform === "twitch") {
-        headers["Client-Id"] = clientId;
-      }
-      try {
-        const userRes = await fetch(config.userUrl, { headers });
-        const userData = await userRes.json();
-        extractedHandle = config.extractHandle(userData, null);
-      } catch (err) {
-        console.error(`[OAuth AccessToken Error - ${safePlatform}]:`, err.message);
-      }
-    }
-
-    if (!extractedHandle) {
-      return res.status(400).json({
-        message: `ไม่สามารถดึงข้อมูลบัญชี ${config.providerName} ได้ กรุณาลองใหม่อีกครั้ง`,
-        data: null,
-      });
-    }
-
-    const cleanedHandle = extractedHandle.replace(/^@+/, "").replace(/\s+/g, "_");
-    const profileUrl = config.formatUrl(cleanedHandle);
-
-    if (!user.social) {
-      user.social = {};
-    }
-    user.social[safePlatform] = profileUrl;
-    await user.save();
-
-    res.json({
-      message: `เชื่อมต่อบัญชี ${config.providerName} สำเร็จ`,
-      data: {
-        platform: safePlatform,
-        handle: `@${cleanedHandle}`,
-        url: profileUrl,
-        social: user.social,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const disconnectSocialAccount = async (req, res, next) => {
-  try {
-    const { platform } = req.params;
-    if (typeof platform !== "string") {
-      return res.status(400).json({
-        message: "ข้อมูลแพลตฟอร์มไม่ถูกต้อง",
-        data: null,
-      });
-    }
-
-    const safePlatform = String(platform).trim().toLowerCase();
-    if (!ALLOWED_SOCIAL_PLATFORMS.includes(safePlatform)) {
-      return res.status(400).json({
-        message: `ไม่รองรับแพลตฟอร์ม ${safePlatform}`,
-        data: null,
-      });
-    }
-
-    const safeUserId = String(req.user?.userId || "");
-    const user = await User.findById(safeUserId);
-    if (!user) {
-      return res.status(404).json({
-        message: "ไม่พบผู้ใช้",
-        data: null,
-      });
-    }
-
-    if (!user.social) {
-      user.social = {};
-    }
-    user.social[safePlatform] = "";
-    await user.save();
-
-    res.json({
-      message: `ยกเลิกการเชื่อมต่อ ${safePlatform} สำเร็จ`,
-      data: {
-        platform: safePlatform,
-        social: user.social,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
 
 
 

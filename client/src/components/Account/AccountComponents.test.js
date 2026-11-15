@@ -22,9 +22,6 @@ import {
   verifyLinkOtp,
   sendForgotPasswordOtp,
   verifyForgotPasswordOtp,
-  getSocialAuthUrl,
-  connectSocialAccount,
-  disconnectSocialAccount,
 } from "../../utils/api";
 
 jest.mock("../../utils/api", () => ({
@@ -33,18 +30,6 @@ jest.mock("../../utils/api", () => ({
   verifyLinkOtp: jest.fn().mockResolvedValue({ email: "user@test.com", isEmailVerified: true }),
   sendForgotPasswordOtp: jest.fn().mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" }),
   verifyForgotPasswordOtp: jest.fn().mockResolvedValue({ resetToken: "mock-reset-token-123" }),
-  getSocialAuthUrl: jest.fn().mockResolvedValue({ platform: "facebook", authUrl: "https://facebook.com/dialog/oauth" }),
-  connectSocialAccount: jest.fn().mockImplementation((platform, payload) =>
-    Promise.resolve({
-      platform,
-      handle: payload?.handle || "@TestStreamer",
-      url: `https://${platform}.com/${(payload?.handle || "TestStreamer").replace(/^@+/, "")}`,
-      social: {},
-    })
-  ),
-  disconnectSocialAccount: jest.fn().mockImplementation((platform) =>
-    Promise.resolve({ platform, social: {} })
-  ),
 }));
 
 describe("Account Components", () => {
@@ -53,18 +38,6 @@ describe("Account Components", () => {
     verifyLinkOtp.mockResolvedValue({ email: "user@test.com", isEmailVerified: true });
     sendForgotPasswordOtp.mockResolvedValue({ target: "test@example.com", maskedTarget: "t***@example.com" });
     verifyForgotPasswordOtp.mockResolvedValue({ resetToken: "mock-reset-token-123" });
-    getSocialAuthUrl.mockResolvedValue({ platform: "facebook", authUrl: "https://facebook.com/dialog/oauth" });
-    connectSocialAccount.mockImplementation((platform, payload) =>
-      Promise.resolve({
-        platform,
-        handle: payload?.handle || "@TestStreamer",
-        url: `https://${platform}.com/${(payload?.handle || "TestStreamer").replace(/^@+/, "")}`,
-        social: {},
-      })
-    );
-    disconnectSocialAccount.mockImplementation((platform) =>
-      Promise.resolve({ platform, social: {} })
-    );
     mockNavigate.mockClear();
   });
 
@@ -499,247 +472,175 @@ describe("Account Components", () => {
   });
 
   describe("SocialMediaTab", () => {
-    test("allows connecting, changing account, and disconnecting social platforms via OAuth popup", async () => {
+    test("allows entering handles or profile URLs, saving normalized links, and removing links", () => {
       const mockOnSave = jest.fn();
-      const windowOpenSpy = jest.spyOn(window, "open").mockImplementation(() => null);
 
       render(<SocialMediaTab user={mockUser} onSave={mockOnSave} />);
       expect(screen.getByText("SOCIAL MEDIA")).toBeInTheDocument();
-      expect(screen.getAllByText("ยังไม่ได้เชื่อมต่อ").length).toBe(6);
+      expect(screen.getAllByText("ยังไม่ได้เพิ่ม").length).toBe(6);
 
-      // Click Connect on FACEBOOK
-      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ FACEBOOK" }));
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-      expect(screen.getByText("เชื่อมต่อบัญชี Facebook")).toBeInTheDocument();
+      // Type a handle for FACEBOOK and a full URL for YOUTUBE
+      const fbInput = screen.getByLabelText("ลิงก์หรือชื่อบัญชี FACEBOOK");
+      const ytInput = screen.getByLabelText("ลิงก์หรือชื่อบัญชี YOUTUBE");
 
-      // Open external popup window from modal
-      fireEvent.click(screen.getByText("เปิดหน้าต่างยืนยันตัวตนของ Facebook"));
-      expect(windowOpenSpy).toHaveBeenCalled();
-
-      // Authorize & Connect
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
+      fireEvent.change(fbInput, { target: { value: "@MyRealFB" } });
+      fireEvent.change(ytInput, {
+        target: { value: "https://www.youtube.com/c/MyRealYT/" },
       });
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-      // Verify connected handle & green Connected badge
-      expect(screen.getByTestId("social-handle-facebook")).toHaveTextContent("@TestStreamer");
-      expect(screen.getByTestId("social-status-facebook")).toHaveTextContent("เชื่อมต่อแล้ว");
+      // Click Save Links button
+      const saveBtn = screen.getByRole("button", { name: "บันทึกลิงก์" });
+      fireEvent.click(saveBtn);
+
       expect(mockOnSave).toHaveBeenCalledWith({
-        social: expect.objectContaining({
-          facebook: "https://facebook.com/TestStreamer",
-        }),
+        social: {
+          facebook: "https://facebook.com/MyRealFB",
+          instagram: "",
+          youtube: "https://youtube.com/c/MyRealYT",
+          tiktok: "",
+          twitch: "",
+          x: "",
+        },
       });
 
-      // Click Change Account on FACEBOOK
-      fireEvent.click(screen.getByRole("button", { name: "เปลี่ยนบัญชี FACEBOOK" }));
-      expect(screen.getByText("เปลี่ยนบัญชี Facebook")).toBeInTheDocument();
+      expect(screen.getByTestId("social-handle-facebook")).toHaveTextContent("@MyRealFB");
+      expect(screen.getByTestId("social-status-facebook")).toHaveTextContent("เพิ่มลิงก์แล้ว");
+      expect(screen.getByTestId("social-handle-youtube")).toHaveTextContent("@MyRealYT");
+      expect(screen.getByTestId("social-status-youtube")).toHaveTextContent("เพิ่มลิงก์แล้ว");
+      expect(screen.getByText("บันทึกลิงก์โซเชียลมีเดียเรียบร้อยแล้ว")).toBeInTheDocument();
 
-      // Select alternate account and authorize
-      fireEvent.click(screen.getByText("@TestStreamer_live"));
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "อนุญาตและเชื่อมต่อ" }));
-      });
-      expect(screen.getByTestId("social-handle-facebook")).toHaveTextContent("@TestStreamer_live");
+      // Verify Open Link button has safe href, target="_blank", and rel="noopener noreferrer"
+      const openFbLink = screen.getByLabelText("เปิดลิงก์ FACEBOOK");
+      expect(openFbLink).toHaveAttribute("href", "https://facebook.com/MyRealFB");
+      expect(openFbLink).toHaveAttribute("target", "_blank");
+      expect(openFbLink).toHaveAttribute("rel", "noopener noreferrer");
 
-      // Click Disconnect on FACEBOOK
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "ยกเลิกการเชื่อมต่อ FACEBOOK" }));
-      });
+      // Click Remove button on FACEBOOK
+      fireEvent.click(screen.getByRole("button", { name: "ลบลิงก์ FACEBOOK" }));
       expect(screen.queryByTestId("social-handle-facebook")).not.toBeInTheDocument();
+      expect(screen.getByTestId("social-status-facebook")).toHaveTextContent("ยังไม่ได้เพิ่ม");
       expect(mockOnSave).toHaveBeenLastCalledWith({
         social: expect.objectContaining({
           facebook: "",
+          youtube: "https://youtube.com/c/MyRealYT",
         }),
       });
-
-      // Click Save button on card
-      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
-      fireEvent.click(saveBtn);
-
-      windowOpenSpy.mockRestore();
     });
 
-    test("renders pre-existing connected accounts and allows closing modal", () => {
-      const userWithSocial = {
-        ...mockUser,
-        social: {
-          youtube: "https://youtube.com/@AlphaChannel",
-          twitch: "alpha_twitch",
-        },
-      };
-      render(<SocialMediaTab user={userWithSocial} />);
-
-      expect(screen.getByTestId("social-handle-youtube")).toHaveTextContent("@AlphaChannel");
-      expect(screen.getByTestId("social-status-youtube")).toHaveTextContent("เชื่อมต่อแล้ว");
-      expect(screen.getByTestId("social-handle-twitch")).toHaveTextContent("@alpha_twitch");
-
-      // Open modal and close via cancel button
-      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ INSTAGRAM" }));
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "ยกเลิก" }));
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-
-    test("handles postMessage OAuth callback from popup window", async () => {
+    test("displays error message when saving invalid URL or wrong host and clears error on edit", () => {
       const mockOnSave = jest.fn();
       render(<SocialMediaTab user={mockUser} onSave={mockOnSave} />);
 
-      await act(async () => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            data: {
-              type: "OAUTH_CALLBACK",
-              code: "twitch_oauth_code_123",
-              state: "twitch_secret_state",
-            },
-            origin: window.location.origin,
-          })
-        );
+      const fbInput = screen.getByLabelText("ลิงก์หรือชื่อบัญชี FACEBOOK");
+      fireEvent.change(fbInput, {
+        target: { value: "https://evil-domain.com/phishing" },
       });
 
-      await waitFor(() => {
-        expect(connectSocialAccount).toHaveBeenCalledWith("twitch", {
-          code: "twitch_oauth_code_123",
-          redirectUri: expect.stringContaining("/oauth-callback"),
-        });
-      });
+      fireEvent.click(screen.getByRole("button", { name: "บันทึกลิงก์" }));
+      expect(mockOnSave).not.toHaveBeenCalled();
+      expect(screen.getByTestId("social-error-facebook")).toHaveTextContent(
+        "โดเมนของลิงก์ไม่ตรงกับ Facebook"
+      );
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "โดเมนของลิงก์ไม่ตรงกับ Facebook"
+      );
+
+      // Dismiss status banner
+      fireEvent.click(screen.getByLabelText("ปิดข้อความแจ้งเตือน"));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      // Editing the input clears the field error
+      fireEvent.change(fbInput, { target: { value: "valid_fb_user" } });
+      expect(screen.queryByTestId("social-error-facebook")).not.toBeInTheDocument();
     });
 
-    test("renders properly in readOnly mode with profile links and no action buttons", () => {
+    test("renders pre-existing valid links and filters out unsafe/invalid legacy values in both edit and readOnly modes", () => {
       const userWithSocial = {
         ...mockUser,
         social: {
-          youtube: "https://youtube.com/@ChannelX",
+          youtube: "https://youtube.com/channel/UC1234567890",
+          twitch: "alpha_twitch",
+          facebook: "javascript:alert(1)",
+          instagram: "https://evil.com/fake",
         },
       };
-      render(<SocialMediaTab user={userWithSocial} readOnly={true} />);
-      expect(screen.getByTestId("social-handle-youtube")).toHaveAttribute(
+
+      const { rerender } = render(<SocialMediaTab user={userWithSocial} />);
+      expect(screen.getByTestId("social-handle-youtube")).toHaveTextContent(
+        "UC1234567890"
+      );
+      expect(screen.getByTestId("social-status-youtube")).toHaveTextContent(
+        "เพิ่มลิงก์แล้ว"
+      );
+      expect(screen.getByTestId("social-handle-twitch")).toHaveTextContent(
+        "@alpha_twitch"
+      );
+      expect(screen.queryByTestId("social-handle-facebook")).not.toBeInTheDocument();
+      expect(screen.getByTestId("social-status-facebook")).toHaveTextContent(
+        "ยังไม่ได้เพิ่ม"
+      );
+      expect(screen.queryByTestId("social-handle-instagram")).not.toBeInTheDocument();
+
+      // Re-render in readOnly mode (PublicProfilePage)
+      rerender(<SocialMediaTab user={userWithSocial} readOnly={true} />);
+      const ytLink = screen.getByTestId("social-handle-youtube");
+      expect(ytLink).toHaveAttribute(
         "href",
-        "https://youtube.com/@ChannelX"
+        "https://youtube.com/channel/UC1234567890"
       );
-      expect(screen.queryByRole("button", { name: /เชื่อมต่อ/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /เปลี่ยนบัญชี/i })).not.toBeInTheDocument();
+      expect(ytLink).toHaveAttribute("target", "_blank");
+      expect(ytLink).toHaveAttribute("rel", "noopener noreferrer");
+
+      const visitTwitchLink = screen.getByLabelText("เปิดลิงก์ TWITCH");
+      expect(visitTwitchLink).toHaveAttribute("href", "https://twitch.tv/alpha_twitch");
+      expect(visitTwitchLink).toHaveAttribute("target", "_blank");
+      expect(visitTwitchLink).toHaveAttribute("rel", "noopener noreferrer");
+
+      // Unsafe links must not be rendered
+      expect(screen.queryByTestId("social-handle-facebook")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("เปิดลิงก์ FACEBOOK")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "บันทึกลิงก์" })).not.toBeInTheDocument();
     });
 
-    test("handles connectSocialAccount failure and allows dismissing the status message banner", async () => {
-      connectSocialAccount.mockRejectedValueOnce(new Error("API failure"));
-      const user = { ...mockUser, social: {} };
-      render(<SocialMediaTab user={user} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ TWITCH" }));
-      expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole("button", { name: /อนุญาตและเชื่อมต่อ/i }));
-      await waitFor(() => {
-        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      });
-
-      // Now dispatch an OAuth postMessage with rejection
-      connectSocialAccount.mockRejectedValueOnce(new Error("OAuth network error"));
-      await act(async () => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            data: {
-              type: "OAUTH_CALLBACK",
-              code: "err_code",
-              state: "twitch_state",
-            },
-            origin: window.location.origin,
-          })
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText("เกิดข้อผิดพลาดในการเชื่อมต่อ OAuth")).toBeInTheDocument();
-      });
-
-      // Dismiss banner
-      const dismissBtn = screen.getByRole("status").querySelector("button");
-      fireEvent.click(dismissBtn);
-      expect(screen.queryByText("เกิดข้อผิดพลาดในการเชื่อมต่อ OAuth")).not.toBeInTheDocument();
-    });
-
-    test("ignores postMessage events with mismatched origin or invalid type", async () => {
-      render(<SocialMediaTab user={mockUser} />);
-      connectSocialAccount.mockClear();
-
-      await act(async () => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            data: { type: "OAUTH_CALLBACK", code: "code123" },
-            origin: "https://malicious-origin.com",
-          })
-        );
-      });
-      expect(connectSocialAccount).not.toHaveBeenCalled();
-
-      await act(async () => {
-        window.dispatchEvent(
-          new MessageEvent("message", {
-            data: { type: "OTHER_EVENT" },
-            origin: window.location.origin,
-          })
-        );
-      });
-      expect(connectSocialAccount).not.toHaveBeenCalled();
-    });
-
-    test("opens external popup with string url and handles getSocialAuthUrl failure", async () => {
-      const windowOpenSpy = jest.spyOn(window, "open").mockImplementation(() => null);
-      getSocialAuthUrl.mockRejectedValueOnce(new Error("Network fail"));
-
-      render(<SocialMediaTab user={mockUser} />);
-      fireEvent.click(screen.getByRole("button", { name: "เชื่อมต่อ TWITCH" }));
-
-      const openPopupBtn = screen.getByText(/เปิดหน้าต่างยืนยันตัวตน/i);
-      fireEvent.click(openPopupBtn);
-
-      expect(windowOpenSpy).toHaveBeenCalledWith(
-        expect.stringContaining("twitch.tv"),
-        expect.stringContaining("donix_oauth_twitch"),
-        expect.any(String)
-      );
-
-      windowOpenSpy.mockRestore();
-    });
-
-    test("handles disconnect rejection gracefully", async () => {
-      disconnectSocialAccount.mockRejectedValueOnce(new Error("Disconnect fail"));
-      const user = {
-        ...mockUser,
-        social: { facebook: "https://facebook.com/john" },
-      };
-      render(<SocialMediaTab user={user} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "ยกเลิกการเชื่อมต่อ FACEBOOK" }));
-      await waitFor(() => {
-        expect(disconnectSocialAccount).toHaveBeenCalledWith("facebook");
-      });
-    });
-
-    test("extractSocialHandle and buildSocialUrl helper functions", () => {
-      // extractSocialHandle
+    test("extractSocialHandle and buildSocialUrl helper functions validate and sanitize inputs", () => {
       expect(extractSocialHandle(null)).toBe("");
       expect(extractSocialHandle("   ")).toBe("");
       expect(extractSocialHandle(12345)).toBe("");
-      expect(extractSocialHandle("https://facebook.com/alice")).toBe("@alice");
-      expect(extractSocialHandle("https://facebook.com/@alice")).toBe("@alice");
-      expect(extractSocialHandle("https://invalid-url-path:bad")).toBe("@https://invalid-url-path:bad");
-      expect(extractSocialHandle("@bob")).toBe("@bob");
-      expect(extractSocialHandle("bob")).toBe("@bob");
+      expect(extractSocialHandle("https://facebook.com/alice", "facebook")).toBe("@alice");
+      expect(extractSocialHandle("https://facebook.com/@alice", "facebook")).toBe("@alice");
+      expect(extractSocialHandle("https://evil.com/alice", "facebook")).toBe("");
+      expect(extractSocialHandle("javascript:alert(1)", "facebook")).toBe("");
+      expect(extractSocialHandle("@bob", "twitch")).toBe("@bob");
+      expect(extractSocialHandle("bob", "unknown_platform")).toBe("@bob");
+      expect(extractSocialHandle("bad/slash", "unknown_platform")).toBe("");
 
-      // buildSocialUrl
       expect(buildSocialUrl("twitch", null)).toBe("");
       expect(buildSocialUrl("twitch", "   ")).toBe("");
       expect(buildSocialUrl("twitch", 999)).toBe("");
-      expect(buildSocialUrl("twitch", "https://twitch.tv/custom")).toBe("https://twitch.tv/custom");
+      expect(buildSocialUrl("twitch", "https://twitch.tv/custom")).toBe(
+        "https://twitch.tv/custom"
+      );
+      expect(buildSocialUrl("twitch", "http://www.twitch.tv/custom/?foo=1")).toBe(
+        "https://twitch.tv/custom"
+      );
       expect(buildSocialUrl("twitch", "@gamer")).toBe("https://twitch.tv/gamer");
-      expect(buildSocialUrl("youtube", "channel_id")).toBe("https://youtube.com/@channel_id");
-      expect(buildSocialUrl("nonexistent_meta", "@unknown")).toBe("https://unknown");
+      expect(buildSocialUrl("youtube", "channel_id")).toBe(
+        "https://youtube.com/@channel_id"
+      );
+      expect(buildSocialUrl("youtube", "https://youtube.com/user/legacy")).toBe(
+        "https://youtube.com/user/legacy"
+      );
+      expect(buildSocialUrl("youtube", "https://youtube.com/watch?v=123")).toBe("");
+      expect(buildSocialUrl("facebook", "https://user:pass@facebook.com/test")).toBe("");
+      expect(buildSocialUrl("facebook", "https://facebook.com/a/b")).toBe("");
+      expect(buildSocialUrl("facebook", "https://facebook.com/..")).toBe("");
+      expect(buildSocialUrl("facebook", "https://[bad")).toBe("");
+      expect(buildSocialUrl("facebook", "javascript:alert(1)")).toBe("");
+      expect(buildSocialUrl("facebook", `https://facebook.com/${"a".repeat(205)}`)).toBe("");
+      expect(buildSocialUrl("nonexistent_meta", "@unknown")).toBe("");
     });
 
-    test("renders fallback streamer handle when user has no nickname or username", () => {
+    test("renders cleanly when user prop is empty", () => {
       render(<SocialMediaTab user={{}} />);
       expect(screen.getByText("โซเชียลมีเดีย")).toBeInTheDocument();
     });

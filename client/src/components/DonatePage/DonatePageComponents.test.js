@@ -6,7 +6,6 @@ import RichTextField from "./RichTextField";
 import ImageUploadBox from "./ImageUploadBox";
 import DecorateSection from "./DecorateSection";
 import MessageFilterSection from "./MessageFilterSection";
-import SocialMediaSection from "./SocialMediaSection";
 import DonatePage from "../../pages/DonatePage";
 
 jest.mock("../../utils/api", () => {
@@ -320,20 +319,6 @@ describe("DonatePage Components & Page", () => {
       const addBtn = screen.getByRole("button", { name: /เพิ่ม/i });
       fireEvent.click(addBtn);
       expect(screen.getByText("anotherbad")).toBeInTheDocument();
-
-      const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
-      fireEvent.click(saveBtn);
-    });
-  });
-
-  describe("SocialMediaSection", () => {
-    test("renders social platforms and allows saving links", () => {
-      render(<SocialMediaSection />);
-      expect(screen.getByText("SOCIAL MEDIA")).toBeInTheDocument();
-
-      const inputs = screen.getAllByPlaceholderText("ยังไม่ได้เชื่อมต่อ");
-      fireEvent.change(inputs[0], { target: { value: "https://facebook.com/mychannel" } });
-      expect(inputs[0].value).toBe("https://facebook.com/mychannel");
 
       const saveBtn = screen.getByRole("button", { name: /บันทึก/i });
       fireEvent.click(saveBtn);

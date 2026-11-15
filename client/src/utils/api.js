@@ -1,6 +1,37 @@
 export const API_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
+const SAFE_URL_CHAR_MAP = (() => {
+  const map = {};
+  for (let cp = 0x20; cp <= 0x7e; cp += 1) {
+    map[cp] = String.fromCodePoint(cp);
+  }
+  for (let cp = 0x0e00; cp <= 0x0e7f; cp += 1) {
+    map[cp] = String.fromCodePoint(cp);
+  }
+  return map;
+})();
+
+const sanitizeUrlParamText = (value, maxLength = 100) => {
+  if (typeof value !== "string" && typeof value !== "number") return "";
+  const raw = String(value).trim().slice(0, maxLength);
+  let out = "";
+  for (let i = 0; i < raw.length; i += 1) {
+    const cp = raw.codePointAt(i);
+    if (cp !== undefined && Object.hasOwn(SAFE_URL_CHAR_MAP, cp)) {
+      out += SAFE_URL_CHAR_MAP[cp];
+    }
+  }
+  return out;
+};
+
+const ALLOWED_DONATION_STATUSES = {
+  pending: "pending",
+  approved: "approved",
+  completed: "completed",
+  rejected: "rejected",
+};
+
 export const API = {
   login: `${API_URL}/auth/login`,
   register: `${API_URL}/auth/register`,
@@ -10,12 +41,16 @@ export const API = {
   usersDonationPage: `${API_URL}/users/donation-page`,
   changePassword: `${API_URL}/users/change-password`,
   publicStreamers: `${API_URL}/public/streamers`,
-  publicStreamer: (username) => `${API_URL}/public/${encodeURIComponent(username)}`,
-  publicOverlay: (type, token) => `${API_URL}/public/overlay/${encodeURIComponent(type)}/${encodeURIComponent(token)}`,
+  publicStreamer: (username) =>
+    `${API_URL}/public/${encodeURIComponent(sanitizeUrlParamText(username, 60))}`,
+  publicOverlay: (type, token) =>
+    `${API_URL}/public/overlay/${encodeURIComponent(sanitizeUrlParamText(type, 30))}/${encodeURIComponent(sanitizeUrlParamText(token, 120))}`,
   donations: `${API_URL}/donations`,
   donationsStats: `${API_URL}/donations/stats`,
-  donationDetail: (id) => `${API_URL}/donations/${encodeURIComponent(id)}`,
-  donationSlip: (id) => `${API_URL}/donations/${encodeURIComponent(id)}/slip`,
+  donationDetail: (id) =>
+    `${API_URL}/donations/${encodeURIComponent(sanitizeUrlParamText(id, 64))}`,
+  donationSlip: (id) =>
+    `${API_URL}/donations/${encodeURIComponent(sanitizeUrlParamText(id, 64))}/slip`,
   widgetsMe: `${API_URL}/widgets/me`,
   requestOtp: `${API_URL}/auth/request-otp`,
   verifyOtp: `${API_URL}/auth/verify-otp`,
@@ -24,12 +59,6 @@ export const API = {
   forgotPasswordReset: `${API_URL}/auth/forgot-password/reset`,
   linkOtpSend: `${API_URL}/users/link-otp/send`,
   linkOtpVerify: `${API_URL}/users/link-otp/verify`,
-  socialAuthUrl: (platform) =>
-    `${API_URL}/users/social/auth-url/${encodeURIComponent(platform)}`,
-  socialConnect: (platform) =>
-    `${API_URL}/users/social/connect/${encodeURIComponent(platform)}`,
-  socialDisconnect: (platform) =>
-    `${API_URL}/users/social/disconnect/${encodeURIComponent(platform)}`,
   health: `${API_URL}/health`,
 };
 
@@ -159,10 +188,25 @@ export const fetchDonationHistory = async ({
   search = "",
 } = {}) => {
   const params = new URLSearchParams();
-  if (page) params.append("page", String(page));
-  if (limit) params.append("limit", String(limit));
-  if (status && status !== "all") params.append("status", String(status));
-  if (search && search.trim() !== "") params.append("search", String(search).trim());
+  const safePage = Number.parseInt(String(page || ""), 10);
+  if (Number.isInteger(safePage) && safePage > 0) {
+    params.append("page", `${safePage}`);
+  }
+  const safeLimit = Number.parseInt(String(limit || ""), 10);
+  if (Number.isInteger(safeLimit) && safeLimit > 0) {
+    params.append("limit", `${safeLimit}`);
+  }
+  const safeStatus =
+    typeof status === "string" && Object.hasOwn(ALLOWED_DONATION_STATUSES, status)
+      ? ALLOWED_DONATION_STATUSES[status]
+      : "";
+  if (safeStatus) {
+    params.append("status", safeStatus);
+  }
+  const safeSearch = sanitizeUrlParamText(search, 100);
+  if (safeSearch) {
+    params.append("search", safeSearch);
+  }
 
   const queryString = params.toString();
   const url = queryString ? `${API.donations}?${queryString}` : API.donations;
@@ -433,51 +477,5 @@ export const verifyEmailOtp = async (payload) => {
   return json.data;
 };
 
-/**
- * ดึง OAuth Authorization URL ของแพลตฟอร์ม (GET /api/users/social/auth-url/:platform)
- */
-export const getSocialAuthUrl = async (platform, redirectUri) => {
-  const query = redirectUri ? `?redirectUri=${encodeURIComponent(redirectUri)}` : "";
-  const res = await fetch(`${API.socialAuthUrl(platform)}${query}`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error(json.message || "ไม่สามารถสร้างลิงก์ยืนยันตัวตนได้");
-  }
-  return json.data;
-};
-
-/**
- * ยืนยันและเชื่อมต่อบัญชีโซเชียลมีเดียผ่าน OAuth (POST /api/users/social/connect/:platform)
- */
-export const connectSocialAccount = async (platform, payload) => {
-  const res = await fetch(API.socialConnect(platform), {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(payload || {}),
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error(json.message || "ไม่สามารถเชื่อมต่อบัญชีโซเชียลได้");
-  }
-  return json.data;
-};
-
-/**
- * ยกเลิกการเชื่อมต่อบัญชีโซเชียลมีเดีย (DELETE /api/users/social/disconnect/:platform)
- */
-export const disconnectSocialAccount = async (platform) => {
-  const res = await fetch(API.socialDisconnect(platform), {
-    method: "DELETE",
-    headers: getAuthHeaders(),
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error(json.message || "ไม่สามารถยกเลิกการเชื่อมต่อได้");
-  }
-  return json.data;
-};
 
 

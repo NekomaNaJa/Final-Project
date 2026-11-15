@@ -31,7 +31,7 @@ cd server
 npm install
 npm run dev           # รันในโหมด Development (Nodemon, Hot-reload บนพอร์ต 5000)
 npm start             # รันในโหมด Production
-npm test              # รัน Jest + Supertest (12 Suites, 315 Tests ผ่าน 100%)
+npm test              # รัน Jest + Supertest (13 Suites, 317 Tests ผ่าน 100%)
 npm run test:coverage # รัน Jest พร้อมเก็บรายงาน Code Coverage (> 96%)
 ```
 
@@ -41,7 +41,7 @@ npm run test:coverage # รัน Jest พร้อมเก็บรายง�
 cd client
 npm install
 npm start                        # รัน React Dev Server บนพอร์ต 3000 (http://localhost:3000)
-npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (32 Suites, 429 Tests ผ่าน 100%)
+npm test -- --watchAll=false     # รัน Jest Test Suite ครั้งเดียวแล้วจบ (32 Suites, 421 Tests ผ่าน 100%)
 npm run build                    # Build สำหรับ Production (รองรับ CI=true บน GitHub Actions)
 ```
 
@@ -140,16 +140,19 @@ server/
 │   ├── jwtSecret.test.js        → ชุดทดสอบ JWT Secret Generator (3 tests)
 │   ├── notificationService.test.js → ชุดทดสอบ Email/SMS OTP Service (Fail-closed, TLS, Masked Logs) (10 tests)
 │   ├── protect.test.js          → ชุดทดสอบ JWT Middleware (5 tests)
-│   ├── public.test.js           → ชุดทดสอบ Public Route & Overlay Aggregation (10 tests)
+│   ├── public.test.js           → ชุดทดสอบ Public Route, Social Links Sanitization & Overlay Aggregation (10 tests)
 │   ├── slipParser.test.js       → ชุดทดสอบ Thai Slip & QR Parser Utility (42 tests)
 │   ├── slipVerificationService.test.js → ชุดทดสอบ Zero-Cost QR/OCR Engine (8 tests)
-│   ├── users.test.js            → ชุดทดสอบ Users Route & Email/Phone Link OTP & OAuth 2.0 (99 tests)
+│   ├── socialLinks.test.js      → ชุดทดสอบ Social Links Validation & Normalization Utility (18 tests)
+│   ├── users.test.js            → ชุดทดสอบ Users Route, Social Links Validation & Email/Phone Link OTP (77 tests)
 │   ├── widgetHelpers.test.js    → ชุดทดสอบ Goal Calculation Helpers (5 tests)
 │   └── widgets.test.js          → ชุดทดสอบ Widgets Route (13 tests)
-│   ── รวมฝั่ง Server: 12 Test Suites, 315 Tests ผ่าน 100% (Coverage ~96%)
+│   ── รวมฝั่ง Server: 13 Test Suites, 317 Tests ผ่าน 100% (Coverage ~96.3%)
 ├── utils/
+│   ├── jwtSecret.js             → ฟังก์ชันจัดการและสร้าง JWT Secret อย่างปลอดภัย
 │   ├── passwordValidation.js    → ฟังก์ชันตรวจสอบความปลอดภัยของรหัสผ่าน (ซิงค์กับ client)
 │   ├── slipParser.js            → Helper ถอดรหัส EMVCo TLV, Mini QR ITMX, สกัดจำนวนเงิน, ตรวจชื่อผู้รับเงิน และเลขบัญชี
+│   ├── socialLinks.js           → Helper ตรวจสอบและแปลงรูปแบบลิงก์โซเชียลมีเดียทั้ง 6 แพลตฟอร์ม (Canonical HTTPS URL, Host Allowlist, Linear-time Handle Validation)
 │   └── widgetHelpers.js         → Helper คำนวณยอดเงินสะสมของ Donate Goal อัตโนมัติจากประวัติการโดเนทจริง
 ├── app.js                       → Express Application Config (Middlewares, Routes, Error Handler, 10MB payload limit)
 ├── index.js                     → Entry Point เซิร์ฟเวอร์ Express + Socket.IO (Port 5000, Multi-room Alert Deduplication)
@@ -162,6 +165,9 @@ server/
 - **ข้อมูลการยืนยันตัวตน**: `username`, `email`, `password`, `googleId`
 - **ข้อมูลโปรไฟล์**: `nickname`, `fullName`, `firstName`, `lastName`, `avatar`, `bio`, `gender`, `birthDate`, `phone`, `isPhoneVerified`, `isEmailVerified`, `isLive` (สถานะเปิดรับเงิน)
 - **โซเชียลมีเดีย (`social`)**: `facebook`, `instagram`, `youtube`, `tiktok`, `twitch`, `x`
+  - จัดเก็บในรูปแบบ **Canonical HTTPS URL** ที่ผ่านการตรวจสอบและ Normalize ด้วย `server/utils/socialLinks.js` (เช่น `https://facebook.com/<handle>`, `https://youtube.com/@<handle>` หรือ `/channel|c|user/<id>`, `https://tiktok.com/@<handle>`) หรือค่าว่าง `""` เมื่อไม่ได้ระบุ
+  - ตรวจสอบความถูกต้องฝั่ง Server เสมอ (`PUT /api/users/me`): อนุญาตเฉพาะ `http:`/`https:` (แปลงเป็น `https://` เสมอ), ตรวจสอบ Host Allowlist รายแพลตฟอร์ม, ตัด Query/Fragment, ปฏิเสธ URL ที่มี Credentials/Port/Path เกินกำหนด และตรวจสอบ Handle แบบ Linear-time `O(n)` เพื่อป้องกัน ReDoS และ XSS (`javascript:`/`data:`)รวมถึงทำ Read-time Sanitization (`sanitizeStoredSocialLinks`) ใน `GET /api/users/me`, `GET /api/public`, และ `GET /api/public/:username` สำหรับข้อมูลเก่าในฐานข้อมูล
+  - _เหตุผลที่ไม่ใช้ OAuth สำหรับลิงก์โซเชียล_: การทำ OAuth จริงครบทั้ง 6 แพลตฟอร์มต้องใช้การจดโดเมน Production, Developer App Review และสิทธิ์บัญชีธุรกิจในบางแพลตฟอร์ม ส่วนการให้ Server ดึงหน้าเว็บปลายทางเพื่อเช็กว่ามีบัญชีอยู่จริงมีความเสี่ยงด้าน SSRF และถูกบล็อกจาก Rate-limit/Bot Protection ดังนั้นจึงใช้การรับลิงก์หรือ `@handle` จากผู้ใช้โดยตรงควบคู่กับการตรวจสอบโครงสร้างและโดเมนอย่างเข้มงวดแทน
 - **ช่องทางรับเงิน (`payment`)**:
   - `promptpay`: `enabled`, `type` (7 ประเภท: เบอร์โทรศัพท์, เลขบัตรประจำตัวประชาชน, e-Wallet ID, K-Shop, SCB แม่มณี, BBL Merchant Pro, ร้านค้าถุงเงิน), `number`
   - `bank`: `enabled`, `bankName` (7 ธนาคาร), `accountNumber`, `accountName`
@@ -295,7 +301,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 | `/dashboard`                         | `Dashboard`    | สมาชิก (Protected) | หน้าสรุปภาพรวมบัญชี (สถิติยอดเงิน, จำนวนโดเนท, กราฟสถิติ, กิจกรรมล่าสุด)    |
 | `/payment`                           | `PaymentPage`  | สมาชิก (Protected) | หน้าตั้งค่าช่องทางรับเงิน (PromptPay, Bank, Coming Soon)                    |
 | `/donate-page`                       | `DonatePage`   | สมาชิก (Protected) | หน้าตกแต่งหน้ารับเงิน, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ (ชื่อและข้อความ), รูปภาพหน้าปกและพื้นหลัง |
-| `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และเชื่อมต่อโซเชียล 6 แพลตฟอร์ม |
+| `/account`                           | `Account`      | สมาชิก (Protected) | หน้าจัดการโปรไฟล์ ข้อมูลส่วนตัว ความปลอดภัย และจัดการลิงก์โซเชียล 6 แพลตฟอร์ม |
 | `/history`                           | `HistoryPage`  | สมาชิก (Protected) | หน้าประวัติการรับเงิน ตารางรายการโดเนท พร้อมตัวกรองสถานะ                    |
 | `/widget`                            | `WidgetPage`   | สมาชิก (Protected) | หน้าตั้งค่าวิดเจ็ต OBS (Alert, Goal, Leaderboard, Mission) + Live Preview   |
 | `/overlay/alert/:token`              | `OverlayAlertPage` | สาธารณะ        | หน้า Browser Source สำหรับ OBS Studio (พื้นหลังใส, FIFO Queue, Realtime Alert) |
@@ -340,7 +346,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 - **DonatePageLink**: ลิงก์ส่วนตัวแบบ Dynamic Domain ตาม Origin จริง (`window.location.origin/{username}` เช่น `https://final-project-orpin-five.vercel.app/{username}`), ปุ่มคัดลอกลิงก์, ปุ่มเปิดหน้า Donor Page (ตัดปุ่มไอคอน IG และ Twitch ที่ไม่จำเป็นออก)
 - **DecorateSection**: แก้ไขข้อความต้อนรับ, ข้อความขอบคุณ, กำหนดยอดโดเนทขั้นต่ำ, สวิตช์ตรวจสอบสลิปอัตโนมัติ (Auto-Approve OCR), อัปโหลดรูปภาพหน้าปกและพื้นหลัง (จัดเก็บ Base64 Data URL พร้อมพรีวิวรูปภาพเดิมและรูปภาพใหม่)
 - **MessageFilterSection**: กำหนดความยาวตัวอักษรสูงสุด, สวิตช์เปิด/ปิดตัวกรองคำหยาบ, ระบบแท็กคำที่ต้องการบล็อก (ระบบนำไปกรองทั้งชื่อผู้สนับสนุนและข้อความโดเนทอัตโนมัติ)
-- _หมายเหตุ: นำกล่อง Social Media ออกจากหน้ารับเงินแล้ว เนื่องจากมีระบบเชื่อมต่อและจัดการลิงก์โซเชียลมีเดียในหน้า Account (`/account`) อยู่แล้ว_
+- _หมายเหตุ: นำกล่อง Social Media ออกจากหน้ารับเงินแล้ว เนื่องจากมีระบบจัดการลิงก์โซเชียลมีเดียในหน้า Account (`/account`) อยู่แล้ว_
 
 #### 6) หน้ารับเงินจริงสำหรับผู้สนับสนุน (DonorPage) — `/:username` หรือ `/donor/:username`
 
@@ -392,7 +398,7 @@ _หมายเหตุ: ไม่ส่งข้อความ Error ภา�
 - `AccountTabs`: แท็บสลับ 3 หมวดหมู่:
   - **UserInfoTab**: จัดการข้อมูลส่วนตัว, ชื่อแสดงผล, ข้อมูลติดต่อ
   - **SecurityTab**: จัดการรหัสผ่าน, เปลี่ยนรหัสผ่านใหม่พร้อม Checklist
-  - **SocialMediaTab**: เชื่อมต่อลิงก์โซเชียลมีเดียทั้ง 6 แพลตฟอร์ม
+  - **SocialMediaTab**: เพิ่มและจัดการลิงก์โซเชียลมีเดียทั้ง 6 แพลตฟอร์ม พร้อมตรวจสอบความถูกต้องของโดเมนและชื่อบัญชี
 
 #### 9) หน้าประวัติการรับเงิน (HistoryPage) — `/history`
 
@@ -415,7 +421,7 @@ client/src/
 │   ├── Auth/                  → AuthLayout, InputField, PasswordChecklist, SocialAuthButtons
 │   ├── Dashboard/             → CardWrapper, DonationChart, PaymentChannels, ProtectedRoute, RealtimeFeed, StatsCard, TopDonors
 │   ├── Discover/              → CategorySection, StreamerCard
-│   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, SocialMediaSection, DonatePageComponents.test.js
+│   ├── DonatePage/            → DecorateSection, DonatePageLink, ImageUploadBox, MessageFilterSection, RichTextField, SettingsCard, DonatePageComponents.test.js
 │   ├── Donor/                 → DonorBankForm, DonorDisabledCard, DonorHeader, DonorOfflineCard, DonorPaymentTabs, DonorPromptPayForm, DonorSlipUpload, DonorStatusCard, DonorComponents.test.js
 │   ├── Histor/                → DonationHistoryTable, SlipModal (ชื่อโฟลเดอร์ Histor/ ตามโค้ดดั้งเดิม)
 │   ├── HowToUse/              → BenefitsSection, StepsSection
@@ -882,7 +888,7 @@ client/src/
 
 ##### ความต้องการเชิงหน้าที่ (Functional Requirements: FR)
 - **FR-01 (Authentication)**: ผู้ใช้สามารถลงทะเบียน, เข้าสู่ระบบด้วย Email/Password พร้อมตรวจสอบความปลอดภัยรหัสผ่าน 5 ข้อ หรือเข้าสู่ระบบด้วย Google Account
-- **FR-02 (Profile Management)**: สตรีมเมอร์สามารถจัดการข้อมูลส่วนตัว, รูปภาพโปรไฟล์ (Avatar), ข้อมูลติดต่อ และเชื่อมต่อโซเชียลมีเดีย 6 แพลตฟอร์ม
+- **FR-02 (Profile Management)**: สตรีมเมอร์สามารถจัดการข้อมูลส่วนตัว, รูปภาพโปรไฟล์ (Avatar), ข้อมูลติดต่อ และจัดการลิงก์โซเชียลมีเดีย 6 แพลตฟอร์มพร้อมตรวจสอบความถูกต้องของลิงก์
 - **FR-03 (Payment Setup)**: สตรีมเมอร์สามารถเปิด/ปิด และตั้งค่าช่องทางรับเงิน 2 รูปแบบ (PromptPay 7 ประเภท, บัญชีธนาคาร 7 แห่ง)
 - **FR-04 (Donation Page Decoration)**: สตรีมเมอร์สามารถตกแต่งหน้าโดเนท, กำหนดยอดบริจาคขั้นต่ำ, ข้อความต้อนรับ/ขอบคุณ, ตัวกรองคำหยาบ, รูปภาพหน้าปก และรูปภาพพื้นหลัง
 - **FR-05 (Public Donor Page)**: ผู้สนับสนุนสามารถเข้าหน้ารับเงินของสตรีมเมอร์ (`/:username`) ได้ตลอด 24 ชั่วโมง โดยไม่ต้องรอสตรีมเมอร์เปิดไลฟ์
@@ -1112,19 +1118,19 @@ stateDiagram-v2
 ##### ตารางสรุปชุดทดสอบ (Test Suites Summary)
 | ส่วนงาน (Component) | จำนวน Test Suites | จำนวนการทดสอบ (Tests) | สถานะ | อัตราความสำเร็จ |
 | :--- | :---: | :---: | :---: | :---: |
-| **Server (Backend API & Services)** | **12 Suites** | **315 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **Client (Frontend React SPA)** | **32 Suites** | **429 Tests** | ✅ ผ่านทั้งหมด | **100%** |
-| **รวมทั้งโปรเจกต์ (Monorepo)** | **44 Suites** | **744 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Server (Backend API & Services)** | **13 Suites** | **317 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **Client (Frontend React SPA)** | **32 Suites** | **421 Tests** | ✅ ผ่านทั้งหมด | **100%** |
+| **รวมทั้งโปรเจกต์ (Monorepo)** | **45 Suites** | **738 Tests** | ✅ ผ่านทั้งหมด | **100%** |
 
 ##### ตารางรายงาน Code Coverage ฝั่ง Server (`npm run test:coverage`)
 | หมวดหมู่โค้ด (Directory) | Statements (%) | Branch (%) | Functions (%) | Lines (%) | สถานะ Quality Gate |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `controllers/` | 95.28% | 87.46% | 98.41% | 95.58% | ✅ เกินเกณฑ์มาตรฐาน |
+| `controllers/` | 94.82% | 87.26% | 98.07% | 95.14% | ✅ เกินเกณฑ์มาตรฐาน |
 | `middleware/` | 100.00% | 90.90% | 100.00% | 100.00% | ✅ ผ่าน 100% |
 | `routes/` | 100.00% | 100.00% | 100.00% | 100.00% | ✅ ผ่าน 100% |
 | `services/` | 97.87% | 94.02% | 100.00% | 98.35% | ✅ เกินเกณฑ์มาตรฐาน |
-| `utils/` | 97.65% | 81.95% | 100.00% | 97.57% | ✅ เกินเกณฑ์มาตรฐาน |
-| **ภาพรวมไฟล์ทั้งหมด (All Files)** | **96.15%** | **87.34%** | **99.06%** | **96.39%** | **✅ เกินเกณฑ์มาตรฐาน (> 96%)** |
+| `utils/` | 98.91% | 89.94% | 100.00% | 99.43% | ✅ เกินเกณฑ์มาตรฐาน |
+| **ภาพรวมไฟล์ทั้งหมด (All Files)** | **96.30%** | **88.75%** | **99.09%** | **96.66%** | **✅ เกินเกณฑ์มาตรฐาน (> 96%)** |
 
 ##### ผลการตรวจสอบคุณภาพและความปลอดภัยด้วย SonarCloud
 - **Quality Gate Status**: Failed ในการวิเคราะห์ Pull Request ล่าสุดที่ผู้ใช้แจ้ง (ต้องตรวจสอบใหม่หลัง push การแก้ไข)
